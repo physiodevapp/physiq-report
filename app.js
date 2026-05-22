@@ -311,27 +311,23 @@ function buildPrompt(transcript, info, template) {
   const hasHypotheses = (window._physiqAssessmentContext?.h || []).length > 0;
 
   if (template === 'brief') {
-    return `Eres un fisioterapeuta clínico experto en documentación CIF y formato APTA.
-Analiza la transcripción de sesión y genera un informe clínico CIF-APTA breve en español, tipo ficha de sesión.
+    return `Eres un fisioterapeuta clínico experto en documentación CIF-APTA.
+Genera un informe clínico breve en español a partir de la transcripción de sesión. El informe debe estar escrito en prosa clínica continua, sin listas de ítems, y no superar las 550 palabras en total.
 
 PACIENTE: ${info.name} | Fecha: ${info.date} | Diagnóstico: ${info.diagnosis}
 
 ${clinicalCtx ? clinicalCtx + '\n\n' : ''}TRANSCRIPCIÓN:
 ${transcript}
 
-Genera el informe con EXACTAMENTE estas secciones (usa ## como prefijo):
-## DATOS DE IDENTIFICACIÓN
-## ANAMNESIS / HISTORIA CLÍNICA ACTUAL
-## EXPLORACIÓN FÍSICA Y HALLAZGOS
-## CIF — FUNCIONES Y ESTRUCTURAS CORPORALES
-## CIF — ACTIVIDAD Y PARTICIPACIÓN
-## CIF — FACTORES CONTEXTUALES
-## OBJETIVOS TERAPÉUTICOS
-## PLAN DE INTERVENCIÓN
-## EVOLUCIÓN Y RESPUESTA AL TRATAMIENTO
-## PLAN PARA PRÓXIMA SESIÓN
-
-Sé clínico, preciso y conciso. Si un dato no aparece, indica "No evaluado en esta sesión".${hasHypotheses ? '\nSi el contexto estructurado incluye hipótesis diagnósticas, en la sección ## EVOLUCIÓN Y RESPUESTA AL TRATAMIENTO señala brevemente si los hallazgos de sesión son coherentes con dichas hipótesis. Si la transcripción contiene hallazgos explícitos que sugieran hipótesis no consideradas, menciónalos citando el hallazgo que los sustenta.' : ''}`;
+INSTRUCCIONES:
+1. Usa EXACTAMENTE estas tres secciones con prefijo ##:
+   ## PRESENTACIÓN CLÍNICA
+   ## HALLAZGOS Y CODIFICACIÓN CIF
+   ## OBJETIVOS Y PLAN
+2. Escribe en prosa continua dentro de cada sección, sin viñetas ni listas.
+3. En ## HALLAZGOS Y CODIFICACIÓN CIF incluye los códigos CIF alfanuméricos relevantes entre paréntesis inline, integrados en la prosa. Ejemplo: "Se constata limitación del rango de flexión de hombro (b7101) con dolor asociado al movimiento activo (b28016)."
+4. Omite datos que no aparezcan en la transcripción; no escribas "No evaluado".
+5. Límite estricto: 550 palabras totales entre las tres secciones.${hasHypotheses ? '\n6. En ## HALLAZGOS Y CODIFICACIÓN CIF añade una frase de contraste con las hipótesis de valoración recibidas: indica si los hallazgos las refuerzan, matizan o contradicen, citando el hallazgo que lo justifica.' : ''}`;
   }
 
   // NARRATIVE INSTITUTIONAL TEMPLATE
@@ -453,7 +449,7 @@ async function analyzeWithClaude(transcript, info) {
 
 // ========= TRUNCATION DETECTION =========
 function detectTruncation(reportText) {
-  const lastTokenBrief = 'PLAN PARA PRÓXIMA SESIÓN';
+  const lastTokenBrief = 'OBJETIVOS Y PLAN';
   const lastTokenNarrative = 'SEGUIMIENTO FUNCIONAL';
   const expected = selectedTemplate === 'brief' ? lastTokenBrief : lastTokenNarrative;
   const hasLastSection = reportText.toUpperCase().includes(expected);
