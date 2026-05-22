@@ -84,6 +84,29 @@
   .error-box{background:rgba(255,107,107,0.1);border:1px solid var(--danger);border-radius:8px;padding:12px;font-size:13px;color:var(--danger);display:none;}
   .spinner{width:16px;height:16px;border:2px solid rgba(14,17,23,0.3);border-top-color:#0e1117;border-radius:50%;animation:spin 0.7s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg)}}
+  .region-trigger{display:flex;align-items:center;justify-content:space-between;width:100%;padding:11px 14px;background:var(--bg);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:border-color 0.2s;text-align:left;}
+  .region-trigger:hover{border-color:var(--accent2);}
+  .region-trigger-label{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;}
+  .region-trigger-value{font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);display:flex;align-items:center;gap:5px;}
+  .sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:100;opacity:0;pointer-events:none;transition:opacity 0.25s;}
+  .sheet-overlay.open{opacity:1;pointer-events:all;}
+  .region-sheet{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-radius:16px 16px 0 0;z-index:101;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);max-height:70vh;display:flex;flex-direction:column;border-top:1px solid var(--border);}
+  .region-sheet.open{transform:translateY(0);}
+  .sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0;flex-shrink:0;}
+  .sheet-title{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;padding:12px 16px 10px;flex-shrink:0;}
+  .sheet-divider{border:none;border-top:1px solid var(--border);margin:0;flex-shrink:0;}
+  .sheet-options{overflow-y:auto;padding:4px 0 env(safe-area-inset-bottom,0px);}
+  .sheet-option{display:flex;align-items:center;gap:12px;padding:13px 16px;font-size:13px;color:var(--text);cursor:pointer;transition:background 0.15s;font-family:'DM Sans',sans-serif;}
+  .sheet-option:hover{background:rgba(255,255,255,0.04);}
+  .sheet-option.selected{color:var(--accent);}
+  .sheet-option-check{width:16px;font-size:13px;flex-shrink:0;}
+  @media(min-width:640px){
+    .sheet-options{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:16px;}
+    .sheet-option{border:1px solid var(--border);border-radius:10px;padding:13px 14px;}
+    .sheet-option:first-child{grid-column:span 2;}
+    .sheet-option:hover{background:rgba(255,255,255,0.04);border-color:var(--accent2);}
+    .sheet-option.selected{border-color:var(--accent);background:rgba(79,195,161,0.08);}
+  }
   .toggle-transcript{background:none;border:none;color:var(--text-muted);font-size:11px;cursor:pointer;font-family:'DM Mono',monospace;margin-bottom:5px;text-decoration:underline;}
   .raw-transcript{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);max-height:130px;overflow-y:auto;white-space:pre-wrap;display:none;}
   .saved-ok{font-size:11px;color:var(--accent);font-family:'DM Mono',monospace;margin-top:6px;display:none;}
@@ -269,6 +292,14 @@
     <div class="file-selected" id="file-name"></div>
   </div>
 
+  <!-- Region selector – only shown without PhysiQ-Assessment payload -->
+  <div id="region-selector" style="display:none;">
+    <button class="region-trigger" onclick="openRegionSheet()">
+      <span class="region-trigger-label">Región anatómica</span>
+      <span class="region-trigger-value"><span id="region-trigger-text">Genérica</span> ▾</span>
+    </button>
+  </div>
+
   <div class="error-box" id="error-box"></div>
 
   <button class="btn-primary" id="generate-btn" onclick="generateReport()" disabled>
@@ -297,6 +328,23 @@
   </div>
 
 </main>
+
+<!-- Region bottom sheet -->
+<div class="sheet-overlay" id="sheet-overlay" onclick="closeRegionSheet()"></div>
+<div class="region-sheet" id="region-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Región anatómica <span style="opacity:0.55;font-size:9px;text-transform:none;letter-spacing:0;">(opcional · mejora la transcripción)</span></div>
+  <hr class="sheet-divider">
+  <div class="sheet-options">
+    <div class="sheet-option selected" data-region="" onclick="setManualRegion('','Genérica')"><span class="sheet-option-check">✓</span>🩺 Genérica</div>
+    <div class="sheet-option" data-region="hombro" onclick="setManualRegion('hombro','Hombro')"><span class="sheet-option-check"></span>💪 Hombro</div>
+    <div class="sheet-option" data-region="cadera" onclick="setManualRegion('cadera','Cadera')"><span class="sheet-option-check"></span>🦴 Cadera</div>
+    <div class="sheet-option" data-region="cervical" onclick="setManualRegion('cervical','Cervical')"><span class="sheet-option-check"></span>🦒 Cervical</div>
+    <div class="sheet-option" data-region="lumbar" onclick="setManualRegion('lumbar','Lumbar')"><span class="sheet-option-check"></span>🏋️ Lumbar</div>
+    <div class="sheet-option" data-region="rodilla" onclick="setManualRegion('rodilla','Rodilla')"><span class="sheet-option-check"></span>🦵 Rodilla</div>
+    <div class="sheet-option" data-region="codo" onclick="setManualRegion('codo','Codo')"><span class="sheet-option-check"></span>🎾 Codo</div>
+  </div>
+</div>
 
 <script src="lib/payload.js"></script>
 <script src="app.js"></script>

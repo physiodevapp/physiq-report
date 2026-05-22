@@ -2,6 +2,7 @@
 let selectedFile = null, transcriptText = '', logoBase64 = null, logoMime = 'image/png';
 let selectedTemplate = 'narrative';
 let lastReportText = '';
+let manualRegion = null;
 
 const DEFAULT_INTRO = `El presente informe sintetiza la historia clínica y funcional del paciente {PACIENTE}. Este documento carece de validez pericial o legal, y su objetivo principal es presentar, de manera cronológica y cohesiva, la evolución de su condición de salud, desde la sintomatología inicial hasta su estado actual.
 
@@ -258,6 +259,34 @@ function getWhisperPrompt(region) {
   if (r.includes('rodilla'))  return WHISPER_PROMPTS.rodilla;
   if (r.includes('codo'))     return WHISPER_PROMPTS.codo;
   return WHISPER_PROMPTS.default;
+}
+
+function setManualRegion(key, label) {
+  manualRegion = key || null;
+  const triggerText = document.getElementById('region-trigger-text');
+  if (triggerText) triggerText.textContent = label;
+  document.querySelectorAll('.sheet-option').forEach(opt => {
+    const selected = opt.dataset.region === key;
+    opt.classList.toggle('selected', selected);
+    const check = opt.querySelector('.sheet-option-check');
+    if (check) check.textContent = selected ? '✓' : '';
+  });
+  closeRegionSheet();
+}
+
+function openRegionSheet() {
+  document.getElementById('sheet-overlay').classList.add('open');
+  document.getElementById('region-sheet').classList.add('open');
+}
+
+function closeRegionSheet() {
+  document.getElementById('sheet-overlay').classList.remove('open');
+  document.getElementById('region-sheet').classList.remove('open');
+}
+
+function updateRegionSelector() {
+  const el = document.getElementById('region-selector');
+  if (el) el.style.display = window._physiqAssessmentContext ? 'none' : 'block';
 }
 
 // ========= TRANSCRIBE (via Cloudflare Worker) =========
@@ -541,7 +570,7 @@ async function generateReport() {
   try {
     if (selectedFile) {
       setStep(1,'active');
-      transcriptText = await transcribeAudio(selectedFile, window._physiqAssessmentContext?.r);
+      transcriptText = await transcribeAudio(selectedFile, window._physiqAssessmentContext?.r ?? manualRegion);
       setStep(1,'done');
     } else {
       transcriptText = '(No disponible — informe basado exclusivamente en los datos de la valoración estructurada)';
@@ -902,6 +931,7 @@ function applyPhysiQAssessmentContext(data) {
 
   window._physiqAssessmentContext = data;
   showImportedBadge(data);
+  updateRegionSelector();
   checkReady();
 }
 
@@ -946,4 +976,5 @@ function _applyImportedAudio(entry) {
 
 loadConfig();
 applyPhysiQAssessmentContext(loadFromPhysiQAssessment());
+updateRegionSelector();
 _loadAudioFromIDB().then(_applyImportedAudio);
