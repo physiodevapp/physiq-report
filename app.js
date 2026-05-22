@@ -314,7 +314,7 @@ function buildPrompt(transcript, info, template) {
     return `Eres un fisioterapeuta clínico experto en documentación CIF y formato APTA.
 Analiza la transcripción de sesión y genera un informe clínico CIF-APTA breve en español, tipo ficha de sesión.
 
-PACIENTE: ${info.name} | Fecha: ${info.date} | Diagnóstico: ${info.diagnosis} | Sesión: ${info.sessionNum}
+PACIENTE: ${info.name} | Fecha: ${info.date} | Diagnóstico: ${info.diagnosis}
 
 ${clinicalCtx ? clinicalCtx + '\n\n' : ''}TRANSCRIPCIÓN:
 ${transcript}
@@ -337,7 +337,7 @@ Sé clínico, preciso y conciso. Si un dato no aparece, indica "No evaluado en e
   // NARRATIVE INSTITUTIONAL TEMPLATE
   return `Eres un fisioterapeuta clínico experto en documentación según el modelo CIF de la OMS y el marco APTA. Genera un informe clínico narrativo, formal e institucional en español, siguiendo la estructura exacta indicada.
 
-PACIENTE: ${info.name} | Fecha: ${info.date} | Diagnóstico médico: ${info.diagnosis} | Sesión nº: ${info.sessionNum}
+PACIENTE: ${info.name} | Fecha: ${info.date} | Diagnóstico médico: ${info.diagnosis}
 
 ${clinicalCtx ? clinicalCtx + '\n\n' : ''}TRANSCRIPCIÓN DE LA SESIÓN:
 ${transcript}
@@ -469,8 +469,7 @@ function renderReport(reportText, transcript, info) {
   let html = `<div style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap;">
     <span class="badge">👤 ${info.name}</span>
     ${info.date?`<span class="badge">📅 ${info.date}</span>`:''}
-    ${info.sessionNum?`<span class="badge">Sesión ${info.sessionNum}</span>`:''}
-    ${info.diagnosis?`<span class="badge">🏥 ${info.diagnosis}</span>`:''}
+${info.diagnosis?`<span class="badge">🏥 ${info.diagnosis}</span>`:''}
     <span class="badge">📐 ${selectedTemplate === 'brief' ? 'Breve' : 'Narrativo'}</span>
   </div>`;
 
@@ -556,10 +555,9 @@ function toggleTranscript() {
 // ========= GENERATE =========
 async function generateReport() {
   const info = {
-    name:       document.getElementById('patient-name').value.trim(),
-    date:       document.getElementById('session-date').value.trim() || new Date().toLocaleDateString('es-ES'),
-    diagnosis:  document.getElementById('diagnosis').value.trim(),
-    sessionNum: document.getElementById('session-num').value.trim()
+    name:      document.getElementById('patient-name').value.trim(),
+    date:      document.getElementById('session-date').value.trim() || new Date().toLocaleDateString('es-ES'),
+    diagnosis: document.getElementById('diagnosis').value.trim()
   };
   document.getElementById('error-box').style.display = 'none';
   document.getElementById('result-section').style.display = 'none';
@@ -619,8 +617,7 @@ async function _buildAndDownloadWord() {
 
   const patientName = document.getElementById('patient-name').value.trim();
   const sessionDate = document.getElementById('session-date').value.trim() || new Date().toLocaleDateString('es-ES');
-  const sessionNum  = document.getElementById('session-num').value.trim();
-  const diagnosis   = document.getElementById('diagnosis').value.trim();
+  const diagnosis = document.getElementById('diagnosis').value.trim();
 
   // ── HEADER: 2-col table — logo (left) | unit + patient (right) ──
   const headerLeftCell = new TableCell({
@@ -883,7 +880,7 @@ function resetApp() {
   selectedFile = null; transcriptText = ''; lastReportText = '';
   document.getElementById('file-name').textContent = '';
   document.getElementById('audio-file').value = '';
-  ['patient-name','session-date','diagnosis','session-num'].forEach(id => document.getElementById(id).value = '');
+  ['patient-name','session-date','diagnosis'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('result-section').style.display = 'none';
   document.getElementById('progress-wrap').style.display = 'none';
   document.getElementById('error-box').style.display = 'none';
