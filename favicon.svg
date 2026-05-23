@@ -6,6 +6,8 @@
       <stop offset="100%" stop-color="#38d9a9"/>
     </linearGradient>
   </defs>
-  <circle cx="15" cy="14" r="7" fill="none" stroke="url(#g)" stroke-width="2.5"/>
-  <line x1="18" y1="18" x2="25" y2="25" stroke="#38d9a9" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M8 5 H20 L25 10 V27 a1.5 1.5 0 0 1 -1.5 1.5 H8 a1.5 1.5 0 0 1 -1.5 -1.5 V6.5 a1.5 1.5 0 0 1 1.5 -1.5z"
+        fill="none" stroke="url(#g)" stroke-width="2" stroke-linejoin="round"/>
+  <line x1="10.5" y1="16" x2="22" y2="16" stroke="url(#g)" stroke-width="2" stroke-linecap="round"/>
+  <line x1="10.5" y1="21.5" x2="17" y2="21.5" stroke="#38d9a9" stroke-width="1.5" stroke-linecap="round"/>
 </svg>
