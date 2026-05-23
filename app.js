@@ -4,6 +4,48 @@ let selectedTemplate = 'narrative';
 let lastReportText = '';
 let manualRegion = null;
 
+// ========= TURNSTILE =========
+const TURNSTILE_SITEKEY = '0x4AAAAAADU3dzE5Tw_whVks';
+let _turnstileToken = null, _turnstileResolve = null, _turnstileWidgetId = null;
+
+function initTurnstile() {
+  _turnstileWidgetId = turnstile.render('#cf-turnstile-container', {
+    sitekey: TURNSTILE_SITEKEY,
+    appearance: 'interaction-only',
+    callback: (token) => {
+      _turnstileToken = token;
+      if (_turnstileResolve) { _turnstileResolve(token); _turnstileResolve = null; }
+    },
+  });
+}
+
+function getTurnstileToken() {
+  return new Promise((resolve, reject) => {
+    if (typeof turnstile === 'undefined') {
+      reject(new Error('Verificación de seguridad no disponible. Comprueba tu conexión o desactiva el bloqueador de anuncios para physiq-report.'));
+      return;
+    }
+    if (_turnstileToken) {
+      const t = _turnstileToken;
+      _turnstileToken = null;
+      turnstile.reset(_turnstileWidgetId);
+      resolve(t);
+      return;
+    }
+    _turnstileResolve = (token) => {
+      _turnstileToken = null;
+      turnstile.reset(_turnstileWidgetId);
+      resolve(token);
+    };
+    setTimeout(() => {
+      if (_turnstileResolve) {
+        _turnstileResolve = null;
+        reject(new Error('Tiempo de verificación agotado. Recarga la página e inténtalo de nuevo.'));
+      }
+    }, 30000);
+  });
+}
+
 const DEFAULT_INTRO = `El presente informe sintetiza la historia clínica y funcional del paciente {PACIENTE}. Este documento carece de validez pericial o legal, y su objetivo principal es presentar, de manera cronológica y cohesiva, la evolución de su condición de salud, desde la sintomatología inicial hasta su estado actual.
 
 Para proporcionar una visión integral y holística de su situación, la estructura de este documento se basa explícitamente en el marco conceptual de la Clasificación Internacional del Funcionamiento, de la Discapacidad y de la Salud (CIF) de la Organización Mundial de la Salud (OMS).`;
@@ -291,11 +333,13 @@ function updateRegionSelector() {
 
 // ========= TRANSCRIBE (via Cloudflare Worker) =========
 async function transcribeAudio(file, region) {
+  const token = await getTurnstileToken();
   const fd = new FormData();
   fd.append('file', file);
   fd.append('prompt', getWhisperPrompt(region));
   const res = await fetch('https://physiq-whisper.edu-gamboa-rodriguez.workers.dev', {
     method: 'POST',
+    headers: { 'cf-turnstile-response': token },
     body: fd
   });
   if (!res.ok) { const e = await res.json(); throw new Error('Whisper: '+(e.error?.message||res.status)); }
@@ -433,10 +477,11 @@ RECORDATORIO FINAL: tu respuesta DEBE empezar literalmente con la cadena "## CON
 
 // ========= ANALYZE (via Cloudflare Worker) =========
 async function analyzeWithClaude(transcript, info) {
+  const token = await getTurnstileToken();
   const prompt = buildPrompt(transcript, info, selectedTemplate);
   const res = await fetch('https://physiq-claude.edu-gamboa-rodriguez.workers.dev', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'cf-turnstile-response': token },
     body: JSON.stringify({
       model: 'claude-sonnet-4-5',
       max_tokens: getTokens(),
