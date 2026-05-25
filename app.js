@@ -1030,3 +1030,7 @@ loadConfig();
 applyPhysiQAssessmentContext(loadFromPhysiQAssessment());
 updateRegionSelector();
 _loadAudioFromIDB().then(_applyImportedAudio);
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
