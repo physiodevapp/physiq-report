@@ -34,7 +34,7 @@
   @media(max-width:540px){.grid-2{grid-template-columns:1fr;}.grid-4{grid-template-columns:1fr 1fr;}}
   .field{display:flex;flex-direction:column;gap:4px;}
   .field label{font-size:11px;color:var(--text-muted);font-family:'DM Mono',monospace;}
-  input[type="password"],input[type="text"],select,textarea{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 12px;font-family:'DM Mono',monospace;font-size:12px;width:100%;outline:none;transition:border-color 0.2s;}
+  input[type="password"],input[type="text"],input[type="url"],select,textarea{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 12px;font-family:'DM Mono',monospace;font-size:12px;width:100%;outline:none;transition:border-color 0.2s;}
   input:focus,select:focus,textarea:focus{border-color:var(--accent);}
   select option{background:var(--bg);}
   textarea{resize:vertical;min-height:80px;font-family:'DM Sans',sans-serif;line-height:1.5;}
@@ -60,6 +60,8 @@
   .btn-secondary:hover{background:rgba(79,195,161,0.1);}
   .btn-word{background:#2b579a;color:#fff;border:none;border-radius:10px;padding:9px 16px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all 0.2s;}
   .btn-word:hover{background:#1e3f7a;}
+  .btn-seguimiento{background:var(--accent2);color:#fff;border:none;border-radius:10px;padding:9px 16px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all 0.2s;}
+  .btn-seguimiento:hover{background:#1a7fc1;}
   .progress-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;display:none;}
   .progress-step{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:13px;color:var(--text-muted);transition:color 0.3s;}
   .progress-step.active{color:var(--accent);}
@@ -140,6 +142,10 @@
       <div class="grid-2" style="margin-bottom:10px;">
         <div class="field"><label>Nombre de unidad / servicio</label><input type="text" id="clinic-unit" placeholder="Ej: Unidad de Fisioterapia Musculoesquelética"></div>
         <div class="field"><label>Ciudad (cabecera)</label><input type="text" id="clinic-city" placeholder="Ej: Madrid"></div>
+      </div>
+      <div class="field" style="margin-bottom:10px;">
+        <label>URL del kiosco de seguimientos <span style="font-size:11px;color:var(--text-muted);font-weight:400;">(opcional · activa el botón «Crear seguimiento» tras generar el informe)</span></label>
+        <input type="url" id="clinic-seguimiento-url" placeholder="https://script.google.com/macros/s/.../exec">
       </div>
 
       <div class="field" style="margin-bottom:12px;">
@@ -321,6 +327,7 @@
       <div class="result-actions">
         <button class="btn-secondary" onclick="copyReport()">Copiar</button>
         <button class="btn-word" onclick="downloadWord()">📄 Word</button>
+        <button class="btn-seguimiento" id="btn-seguimiento" onclick="openSeguimiento()" style="display:none;">📅 Crear seguimiento</button>
         <button class="btn-secondary" onclick="resetApp()">Nueva sesión</button>
       </div>
     </div>

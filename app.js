@@ -228,9 +228,10 @@ function saveConfig(silent) {
     bodySize:    document.getElementById('style-body-size').value,
     bodyColor:   document.getElementById('style-body-color').value,
     headerStyle: document.querySelector('input[name="hstyle"]:checked').value,
-    headerColor: document.getElementById('style-header-color').value,
-    tokens:      document.getElementById('token-slider').value,
-    template:    selectedTemplate,
+    headerColor:    document.getElementById('style-header-color').value,
+    seguimientoUrl: document.getElementById('clinic-seguimiento-url').value.trim(),
+    tokens:         document.getElementById('token-slider').value,
+    template:       selectedTemplate,
   };
   localStorage.setItem('physiq_config', JSON.stringify(cfg));
   if (logoBase64) { localStorage.setItem('physiq_logo', logoBase64); localStorage.setItem('physiq_logo_mime', logoMime); }
@@ -257,7 +258,8 @@ function loadConfig() {
   if (c.bodySize)    document.getElementById('style-body-size').value   = c.bodySize;
   if (c.bodyColor)   document.getElementById('style-body-color').value  = c.bodyColor;
   if (c.headerStyle) document.querySelector(`input[name="hstyle"][value="${c.headerStyle}"]`).checked = true;
-  if (c.headerColor) document.getElementById('style-header-color').value = c.headerColor;
+  if (c.headerColor)    document.getElementById('style-header-color').value    = c.headerColor;
+  if (c.seguimientoUrl) document.getElementById('clinic-seguimiento-url').value = c.seguimientoUrl;
   if (c.tokens) { document.getElementById('token-slider').value = c.tokens; }
   if (c.template) selectTemplate(c.template);
   updateSliderLabel();
@@ -560,11 +562,23 @@ ${info.diagnosis?`<span class="badge">🏥 ${info.diagnosis}</span>`:''}
     html += `</div></div>`;
   });
 
-  html += `<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">
-    <button class="toggle-transcript" onclick="toggleTranscript()">▶ Ver transcripción original</button>
-    <div class="raw-transcript" id="raw-transcript">${transcript}</div>
-  </div>`;
+  if (transcript && !transcript.startsWith('(No disponible')) {
+    html += `<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">
+      <button class="toggle-transcript" onclick="toggleTranscript()">▶ Ver transcripción original</button>
+      <div class="raw-transcript" id="raw-transcript">${transcript}</div>
+    </div>`;
+  }
   document.getElementById('result-body').innerHTML = html;
+
+  const cfg = JSON.parse(localStorage.getItem('physiq_config') || '{}');
+  const btn = document.getElementById('btn-seguimiento');
+  if (btn) btn.style.display = cfg.seguimientoUrl ? 'inline-flex' : 'none';
+}
+
+function openSeguimiento() {
+  const cfg = JSON.parse(localStorage.getItem('physiq_config') || '{}');
+  if (!cfg.seguimientoUrl) return;
+  window.open(cfg.seguimientoUrl, '_blank', 'noopener');
 }
 
 function renderBlock(text) {
