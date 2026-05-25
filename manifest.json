@@ -1,0 +1,19 @@
+{
+  "name": "PhysiQ Report",
+  "short_name": "PhysiQ-R",
+  "description": "Informes CIF-AFTA para fisioterapeutas",
+  "start_url": "/physiq-report/",
+  "scope": "/physiq-report/",
+  "display": "standalone",
+  "background_color": "#0e1117",
+  "theme_color": "#38d9a9",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
