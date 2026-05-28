@@ -1026,23 +1026,34 @@ function applyPhysiQAssessmentContext(data) {
 
 // ─── INDEXEDDB AUDIO (recepción desde physiq-assessment) ─────
 function _loadAudioFromIDB() {
-  return new Promise(resolve => {
-    const req = indexedDB.open('physiq', 1);
-    req.onupgradeneeded = e => e.target.result.createObjectStore('audio');
-    req.onsuccess = e => {
-      const db = e.target.result;
-      const tx = db.transaction('audio', 'readwrite');
-      const store = tx.objectStore('audio');
-      const get = store.get('pending');
-      get.onsuccess = () => {
-        const entry = get.result;
-        if (entry) store.delete('pending');
-        resolve(entry || null);
-      };
-      get.onerror = () => resolve(null);
+  return openSessionDB().then(db => new Promise(resolve => {
+    const tx    = db.transaction('audio', 'readwrite');
+    const store = tx.objectStore('audio');
+    const get   = store.get('pending');
+    get.onsuccess = () => {
+      const entry = get.result;
+      if (entry) store.delete('pending');
+      resolve(entry || null);
     };
-    req.onerror = () => resolve(null);
-  });
+    get.onerror = () => resolve(null);
+  })).catch(() => null);
+}
+
+// ─── SESSION CHIP ────────────────────────────────────────────
+function updateSessionChip(session) {
+  const chip  = document.getElementById('sessionChip');
+  const label = document.getElementById('sessionChipLabel');
+  if (!chip || !label) return;
+  if (!session) { chip.classList.remove('active'); return; }
+  label.textContent = session.patient
+    ? `${session.patient} · ${session.date || '—'}`
+    : `Sesión · ${session.date || '—'}`;
+  chip.classList.add('active');
+}
+
+function promptClearSession() {
+  if (!confirm('¿Borrar la sesión activa? Se perderán los datos importados.')) return;
+  clearSession().then(() => updateSessionChip(null));
 }
 
 function _applyImportedAudio(entry) {
@@ -1068,6 +1079,12 @@ applyPhysiQAssessmentContext(loadFromPhysiQAssessment());
 applyROMContext(loadROMDirect());
 updateRegionSelector();
 _loadAudioFromIDB().then(_applyImportedAudio);
+readSession().then(session => {
+  if (!session) return;
+  if (session.assessment && !window._physiqAssessmentContext) applyPhysiQAssessmentContext(session.assessment);
+  if (session.rom && !window._physiqROMContext) applyROMContext(session.rom);
+  updateSessionChip(session);
+});
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
