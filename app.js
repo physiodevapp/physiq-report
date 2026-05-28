@@ -968,17 +968,27 @@ function loadROMDirect() {
 function applyROMContext(romData) {
   if (!romData) return;
   window._physiqROMContext = romData;
-  const count  = Object.keys(romData.rom || {}).length;
-  const region = romData.region
-    ? romData.region.charAt(0).toUpperCase() + romData.region.slice(1)
-    : '—';
+
+  let summary;
+  if (romData.regions) {
+    const parts = Object.entries(romData.regions)
+      .filter(([, r]) => r.rom && Object.keys(r.rom).length)
+      .map(([, r]) => `${r.label} (${Object.keys(r.rom).length})`);
+    summary = parts.join(' · ');
+  } else {
+    const region = romData.region
+      ? romData.region.charAt(0).toUpperCase() + romData.region.slice(1)
+      : '—';
+    summary = `${region} · ${Object.keys(romData.rom || {}).length} movimientos`;
+  }
+
   const badge = document.createElement('div');
   badge.style.cssText = `
     background:rgba(79,156,249,0.08); border:1px solid rgba(79,156,249,0.25);
     border-radius:8px; padding:10px 14px; font-size:12px;
     color:var(--accent); font-family:'DM Mono',monospace; margin-bottom:12px;
   `;
-  badge.innerHTML = `✓ Movilidad importada desde PhysiQ-Motion · ${region} · ${count} movimientos`;
+  badge.innerHTML = `✓ Movilidad importada desde PhysiQ-Motion · ${summary}`;
   const main = document.querySelector('main');
   if (main) main.prepend(badge);
   checkReady();
