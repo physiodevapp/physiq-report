@@ -27,7 +27,7 @@ The app requires two active **Cloudflare Workers**:
 | `physiq-whisper` | Proxy to the Whisper API (audio transcription) |
 | `physiq-claude` | Proxy to the Anthropic API (report generation, model `claude-sonnet-4-5`) |
 
-Worker URLs are hardcoded in the `<script>` block of `index.html`. Update them if you deploy your own workers.
+Worker URLs are hardcoded in `app.js` (near `transcribeAudio` and `analyzeWithClaude`). Update them if you deploy your own workers.
 
 ## Self-hosting
 
@@ -51,3 +51,5 @@ All settings persist in the browser's `localStorage`.
 - Plain HTML/CSS/JS — no framework, no bundler
 - [`docx`](https://github.com/dolanmiu/docx) v8.5.0 (loaded from CDN at runtime)
 - Cloudflare Workers (Whisper + Anthropic Claude)
+- Cloudflare Turnstile (bot protection on Worker requests)
+- Service Worker (`sw.js`) — installable as a PWA, works offline for cached app shell
