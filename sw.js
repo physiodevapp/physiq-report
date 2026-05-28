@@ -45,20 +45,31 @@ self.addEventListener('fetch', event => {
 
   if (NETWORK_ONLY_HOSTS.some(h => url.hostname.includes(h))) return;
 
+  // CDN resources: cache-first (rarely change, long-lived)
+  if (CDN_HOSTS.some(h => url.hostname.includes(h))) {
+    event.respondWith(
+      caches.match(request).then(cached => {
+        if (cached) return cached;
+        return fetch(request).then(response => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE).then(cache => cache.put(request, clone));
+          }
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // App shell: network-first, cache fallback for offline
   event.respondWith(
-    caches.match(request).then(cached => {
-      if (cached) {
-        // For CDN resources, revalidate in background after serving from cache
-        if (CDN_HOSTS.includes(url.hostname)) return cached;
-        return cached;
+    fetch(request).then(response => {
+      if (response.ok) {
+        const clone = response.clone();
+        caches.open(CACHE).then(cache => cache.put(request, clone));
       }
-      return fetch(request).then(response => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE).then(cache => cache.put(request, clone));
-        }
-        return response;
-      });
-    })
+      return response;
+    }).catch(() => caches.match(request))
   );
 });
