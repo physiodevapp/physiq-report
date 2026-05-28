@@ -207,7 +207,7 @@ document.getElementById('patient-name').addEventListener('input', checkReady);
 
 function checkReady() {
   const hasName = !!document.getElementById('patient-name').value.trim();
-  const ok = hasName && (selectedFile || window._physiqAssessmentContext);
+  const ok = hasName && (selectedFile || window._physiqAssessmentContext || window._physiqROMContext);
   document.getElementById('generate-btn').disabled = !ok;
 }
 
@@ -354,6 +354,7 @@ async function transcribeAudio(file, region) {
 
 function buildPrompt(transcript, info, template) {
   const clinicalCtx = buildClinicalContext(window._physiqAssessmentContext);
+  const romCtx      = buildROMContext(window._physiqROMContext);
   const hasHypotheses = (window._physiqAssessmentContext?.h || []).length > 0;
 
   if (template === 'brief') {
@@ -362,7 +363,7 @@ Genera un informe clínico breve en español a partir de la transcripción de se
 
 PACIENTE: ${info.name} | Fecha: ${info.date} | Diagnóstico: ${info.diagnosis}
 
-${clinicalCtx ? clinicalCtx + '\n\n' : ''}TRANSCRIPCIÓN:
+${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}TRANSCRIPCIÓN:
 ${transcript}
 
 INSTRUCCIONES:
@@ -381,7 +382,7 @@ INSTRUCCIONES:
 
 PACIENTE: ${info.name} | Fecha: ${info.date} | Diagnóstico médico: ${info.diagnosis}
 
-${clinicalCtx ? clinicalCtx + '\n\n' : ''}TRANSCRIPCIÓN DE LA SESIÓN:
+${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}TRANSCRIPCIÓN DE LA SESIÓN:
 ${transcript}
 
 INSTRUCCIONES CRÍTICAS — LEE Y CUMPLE TODAS:
@@ -958,6 +959,31 @@ function loadFromPhysiQAssessment() {
   }
 }
 
+function loadROMDirect() {
+  const raw = new URLSearchParams(location.search).get('rom');
+  if (!raw) return null;
+  try { return decodePayload(raw); } catch { return null; }
+}
+
+function applyROMContext(romData) {
+  if (!romData) return;
+  window._physiqROMContext = romData;
+  const count  = Object.keys(romData.rom || {}).length;
+  const region = romData.region
+    ? romData.region.charAt(0).toUpperCase() + romData.region.slice(1)
+    : '—';
+  const badge = document.createElement('div');
+  badge.style.cssText = `
+    background:rgba(79,156,249,0.08); border:1px solid rgba(79,156,249,0.25);
+    border-radius:8px; padding:10px 14px; font-size:12px;
+    color:var(--accent); font-family:'DM Mono',monospace; margin-bottom:12px;
+  `;
+  badge.innerHTML = `✓ Movilidad importada desde PhysiQ-Motion · ${region} · ${count} movimientos`;
+  const main = document.querySelector('main');
+  if (main) main.prepend(badge);
+  checkReady();
+}
+
 function showImportedBadge(data) {
   const badge = document.createElement('div');
   badge.style.cssText = `
@@ -982,6 +1008,7 @@ function applyPhysiQAssessmentContext(data) {
   if (diag && data.mo) diag.value = data.mo;
 
   window._physiqAssessmentContext = data;
+  if (data.rom) applyROMContext(data.rom);
   showImportedBadge(data);
   updateRegionSelector();
   checkReady();
@@ -1028,6 +1055,7 @@ function _applyImportedAudio(entry) {
 
 loadConfig();
 applyPhysiQAssessmentContext(loadFromPhysiQAssessment());
+applyROMContext(loadROMDirect());
 updateRegionSelector();
 _loadAudioFromIDB().then(_applyImportedAudio);
 
