@@ -1,0 +1,34 @@
+name: Deploy to PhysiQ hub
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout physiq-report
+        uses: actions/checkout@v4
+
+      - name: Checkout physiq hub
+        uses: actions/checkout@v4
+        with:
+          repository: physiodevapp/physiq
+          token: ${{ secrets.PHYSIQ_DEPLOY_TOKEN }}
+          path: physiq-hub
+
+      - name: Copy files to hub
+        run: |
+          mkdir -p physiq-hub/report/lib
+          cp index.html app.js sw.js manifest.json favicon.svg apple-touch-icon.png physiq-hub/report/
+          cp lib/session.js lib/payload.js physiq-hub/report/lib/
+
+      - name: Commit and push
+        working-directory: physiq-hub
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add report/
+          git diff --cached --quiet || git commit -m "chore: update report from physiq-report@${{ github.sha }}"
+          git push
