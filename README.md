@@ -11,7 +11,7 @@ Open `index.html` directly in the browser. No installation, server, or build ste
 ## Workflow
 
 1. Configure your clinic details (name, logo, colors) — saved to localStorage.
-2. Enter patient data (name, date, diagnosis, session number).
+2. Patient data and clinical context are pre-filled automatically if a shared PhysiQ session is active (written by PhysiQ Assessment or PhysiQ Motion). Otherwise enter them manually.
 3. Upload the session audio (drag & drop or file picker).
 4. Choose a template:
    - **Brief note** — concise session note.

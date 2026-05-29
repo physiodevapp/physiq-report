@@ -31,6 +31,7 @@ There is no framework, no bundler, no modules.
 **Client-side persistence:**
 - `localStorage` key `physiq_config` (JSON) — all UI/clinic settings
 - `localStorage` key `physiq_logo` (base64) + `physiq_logo_mime` — uploaded logo
+- IDB DB `'physiq'` v2, store `'session'`, key `'active'` — shared session written by satellite apps (physiq-motion, physiq-assessment); physiq-report is read-only on this store
 
 **Key global variables in `app.js`:**
 - `selectedFile` — audio file selected by the user
@@ -104,167 +105,35 @@ git commit -m "short imperative title" -m "description when necessary"
 
 ---
 
-## Sibling repo: physiq-assessment
+## Sibling repos
 
-`physiq-assessment-standalone.html` (separate repo, also GitHub Pages) is an assessment assistant that guides the physiotherapist through 5 phases:
-
-- **Phase 1** — Triage and header (patient, mechanism, red flags)
-- **Phase 2** — Systemic screening by anatomical region
-- **Phase 3** — SINSS (severity, irritability, NRS)
-- **Phase 4** — CIF decision tree → diagnostic hypotheses
-- **Phase 4b** — Orthopaedic tests with likelihood ratios
-- **Phase 5** — Summary with scores, recommended PROM, and plan notes
-
-All data accumulates in a global `state` object (declared around line 3815 of the HTML).
+| Repo | URL | Role |
+|------|-----|------|
+| physiq-assessment | https://physiodevapp.github.io/physiq-assessment/ | 5-phase clinical assessment |
+| physiq-motion | https://physiodevapp.github.io/physiq-motion/ | Joint ROM measurement |
 
 ---
 
-## Integration: PhysiQ-Assessment → PhysiQ-Report
+## Integration: IDB shared session
 
-### Mechanism: URL param with Base64
-
-At the end of Phase 5, PhysiQ-Assessment will add a **"Generar informe CIF-AFTA"** button that:
-
-1. Builds a JSON payload with the relevant fields from `state`
-2. Encodes it as Base64
-3. Opens PhysiQ-Report with `?v=<base64>` in the URL
-
-PhysiQ-Report detects `?v=` on load, decodes it, and:
-- Pre-fills form fields (name, date, diagnosis)
-- Injects the structured clinical context into the Claude prompt
-
-**Measured payload size:** worst case ~3.2 KB in Base64. nginx GitHub Pages limit: 8 KB. No issue.
-
-### Payload (function `buildPhysiQPayload()` — to add in PhysiQ-Assessment, Phase 5)
+physiq-report is **read-only** on the shared IDB session. On startup it calls `readSession()` and applies whatever data the satellite apps have written:
 
 ```js
-function buildPhysiQPayload() {
-  return {
-    p:  state.patient,                   // always '' until Phase 1 UI input is added
-    r:  state.region,
-    d:  new Date().toLocaleDateString('es-ES'),
-    mo: state.motivoConsulta,
-    me: state.mecanismo,                 // 'Traumático' | 'Insidioso' | 'Post-quirúrgico'
-    cr: state.cronologia,                // 'Agudo (<6 semanas)' | 'Subagudo' | 'Crónico (>3 meses)'
-    rp: state.riesgoPsico,               // 'Bajo' | 'Medio' | 'Alto'
-    nr: state.severidad ?? 0,            // NRS general (0–10) — único campo NRS en state
-    ir: state.irritabilidadNivel,        // 'Baja' | 'Moderada' | 'Alta'
-    na: state.naturaleza,
-    si: state.sistemicoAlerta,           // boolean
-    br: Object.entries(state.banderasRojas)
-          .filter(([, v]) => v === 'SI')
-          .map(([k]) => BR_LABELS[k]),   // string[] — labels of positive red flags only
-    sq: getSistemicoAffirmativeTexts(),  // string[] — systemic screening questions answered 'SI'
-    h:  state.activeHypotheses.map(id => ({
-          id,
-          name: HYPOTHESES[id]?.name ?? id,
-          sc:   state.hypothesisScores[id]?.label ?? 'Sin evaluar',
-          lr:   state.hypothesisScores[id]?.totalLR ?? null,
-          tr:   state.testResults[id] ?? {}
-        })),
-    pn: state.planNotes                  // { variableControl, ventanaRecuperacion, anclajeHabito }
-  };
-}
-
-function exportToPhysiQ() {
-  const payload = buildPhysiQPayload();
-  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-  window.open(`https://physiodevapp.github.io/physiq-report/?v=${encoded}`);
-}
+readSession().then(session => {
+  if (!session) return;
+  if (session.assessment) applyPhysiQAssessmentContext(session.assessment);
+  if (session.rom)        applyROMContext(session.rom);
+  updateSessionChip(session);
+});
 ```
 
-### Reception in PhysiQ-Report (`app.js` — implemented)
+- `session.assessment` — written by physiq-assessment on export; pre-fills patient/date/diagnosis fields and injects structured clinical context into the Claude prompt via `buildClinicalContext()` (`lib/payload.js`)
+- `session.rom` — written by physiq-motion on export; injects ROM summary into the Claude prompt
 
-```js
-function loadFromPhysiQAssessment() {
-  const params = new URLSearchParams(location.search);
-  const v = params.get('v');
-  if (!v) return null;
-  try {
-    return JSON.parse(decodeURIComponent(escape(atob(v))));
-  } catch(e) {
-    console.warn('PhysiQ-Assessment payload inválido', e);
-    return null;
-  }
-}
+Both payloads persist across page reloads (TTL 24h). URL params (`?v=`, `?rom=`) are kept for backward compatibility.
 
-function applyPhysiQAssessmentContext(data) {
-  if (!data) return;
-  const name = document.getElementById('patient-name');
-  if (name && data.p) name.value = data.p;
+**Session chip** in the header shows `● patient · date [×]` when a session is active. `[×]` triggers `promptClearSession()` → `showConfirmBanner` → `resetApp()` + clears `window._physiqROMContext` + removes import badges + `clearSession()`.
 
-  const date = document.getElementById('session-date');
-  if (date && data.d) date.value = data.d;
+## Dialogs
 
-  const diag = document.getElementById('diagnosis');
-  if (diag && data.r) diag.value = data.r;
-
-  window._physiqAssessmentContext = data;
-  showImportedBadge(data);
-}
-
-function showImportedBadge(data) {
-  const badge = document.createElement('div');
-  badge.style.cssText = `
-    background:rgba(79,195,161,0.1); border:1px solid rgba(79,195,161,0.3);
-    border-radius:8px; padding:10px 14px; font-size:12px;
-    color:var(--accent); font-family:'DM Mono',monospace; margin-bottom:12px;
-  `;
-  badge.innerHTML = `✓ Valoración importada desde PhysiQ-Assessment · ${data.r || ''} · ${data.p || ''}`;
-  const main = document.querySelector('main');
-  if (main) main.prepend(badge);
-}
-```
-
-### Clinical context injected into the prompt
-
-`buildClinicalContext` lives in `lib/payload.js` (shared with tests). In `buildPrompt()` in `app.js`:
-
-```js
-function buildClinicalContext(data) {
-  if (!data) return '';
-  const hyps = (data.h || [])
-    .map(h => `  · ${h.name} — ${h.sc || 'sin evaluar'}`)
-    .join('\n');
-  const brText = data.br?.length > 0
-    ? data.br.map(s => `  ⚠️ ${s}`).join('\n')
-    : '  Negativas';
-  const sqText = data.sq?.length > 0
-    ? '\nAlertas sistémicas positivas:\n' + data.sq.map(s => `  · ${s}`).join('\n')
-    : '';
-  return `## DATOS DE VALORACIÓN ESTRUCTURADA (PhysiQ-Assessment)
-NOTA: estos datos proceden de una valoración clínica estructurada y son más fiables que la transcripción. Úsalos como fuente prioritaria cuando haya discrepancias.
-Paciente: ${data.p || '—'} · Región: ${data.r || '—'} · Fecha: ${data.d || '—'}
-Motivo de consulta: ${data.mo || '—'}
-Mecanismo: ${data.me || '—'} · Cronología: ${data.cr || '—'}
-NRS: ${data.nr ?? '—'}/10
-Irritabilidad: ${data.ir || '—'} · Naturaleza: ${data.na || '—'}
-Riesgo psicosocial: ${data.rp || '—'}
-Banderas rojas:
-${brText}
-Cribado sistémico: ${data.si ? '⚠️ Positivo' : 'Negativo'}${sqText}
-
-Hipótesis diagnósticas (por peso diagnóstico):
-${hyps || '  (sin hipótesis registradas)'}
-
-Notas del plan terapéutico:
-  · Variable de control: ${data.pn?.variableControl || '—'}
-  · Ventana de recuperación: ${data.pn?.ventanaRecuperacion || '—'}
-  · Anclaje de hábito: ${data.pn?.anclajeHabito || '—'}
-
----`;
-}
-```
-
-And in `buildPrompt(transcript, info, template)`:
-
-```js
-const clinicalCtx = buildClinicalContext(window._physiqAssessmentContext);
-const prompt = `${systemPrompt}\n\n${clinicalCtx}\n\n## TRANSCRIPCIÓN DE LA SESIÓN\n${transcript}`;
-```
-
-If there is no transcript (assessment-only flow), replace the transcript section with:
-```
-## TRANSCRIPCIÓN DE LA SESIÓN
-(No disponible — informe basado exclusivamente en los datos de la valoración estructurada)
-```
+Use `showConfirmBanner(title, text, actionLabel, callback)` — never use the native `confirm()` or `alert()`.
