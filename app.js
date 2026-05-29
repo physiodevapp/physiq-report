@@ -983,6 +983,7 @@ function applyROMContext(romData) {
   }
 
   const badge = document.createElement('div');
+  badge.id = 'romBadge';
   badge.style.cssText = `
     background:rgba(79,156,249,0.08); border:1px solid rgba(79,156,249,0.25);
     border-radius:8px; padding:10px 14px; font-size:12px;
@@ -996,6 +997,7 @@ function applyROMContext(romData) {
 
 function showImportedBadge(data) {
   const badge = document.createElement('div');
+  badge.id = 'assessmentBadge';
   badge.style.cssText = `
     background:rgba(79,195,161,0.1); border:1px solid rgba(79,195,161,0.3);
     border-radius:8px; padding:10px 14px; font-size:12px;
@@ -1076,7 +1078,12 @@ function promptClearSession() {
     'Nueva sesión',
     '¿Borrar la sesión activa? Se perderán los datos importados.',
     'Borrar sesión',
-    () => clearSession().then(() => updateSessionChip(null))
+    () => {
+      resetApp();
+      window._physiqROMContext = null;
+      ['romBadge', 'assessmentBadge'].forEach(id => document.getElementById(id)?.remove());
+      clearSession().then(() => updateSessionChip(null));
+    }
   );
 }
 
