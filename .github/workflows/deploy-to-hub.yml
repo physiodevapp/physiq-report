@@ -20,6 +20,7 @@ jobs:
 
       - name: Copy files to hub
         run: |
+          rm -rf physiq-hub/report
           mkdir -p physiq-hub/report/lib physiq-hub/report/icons
           cp index.html app.js sw.js manifest.json favicon.svg physiq-hub/report/
           cp icons/icon-192.png icons/icon-512.png physiq-hub/report/icons/
@@ -30,6 +31,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add report/
+          git add -A report/
           git diff --cached --quiet || git commit -m "chore: update report from physiq-report@${{ github.sha }}"
           git push
