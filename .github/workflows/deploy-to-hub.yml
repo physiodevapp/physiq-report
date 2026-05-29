@@ -20,8 +20,9 @@ jobs:
 
       - name: Copy files to hub
         run: |
-          mkdir -p physiq-hub/report/lib
-          cp index.html app.js sw.js manifest.json favicon.svg apple-touch-icon.png physiq-hub/report/
+          mkdir -p physiq-hub/report/lib physiq-hub/report/icons
+          cp index.html app.js sw.js manifest.json favicon.svg physiq-hub/report/
+          cp icons/icon-192.png icons/icon-512.png physiq-hub/report/icons/
           cp lib/session.js lib/payload.js physiq-hub/report/lib/
 
       - name: Commit and push
