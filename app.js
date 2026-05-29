@@ -1051,9 +1051,33 @@ function updateSessionChip(session) {
   chip.classList.add('active');
 }
 
+function showConfirmBanner(title, text, actionLabel, onConfirm) {
+  const existing = document.getElementById('confirmBanner');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-banner';
+  overlay.id = 'confirmBanner';
+  overlay.innerHTML = `
+    <div class="confirm-box">
+      <div class="confirm-box-title">${title}</div>
+      <div class="confirm-box-text">${text}</div>
+      <div class="confirm-box-btns">
+        <button class="confirm-btn-cancel" id="confirmCancel">Cancelar</button>
+        <button class="confirm-btn-ok" id="confirmAction">${actionLabel}</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.getElementById('confirmCancel').onclick = () => overlay.remove();
+  document.getElementById('confirmAction').onclick = () => { overlay.remove(); onConfirm(); };
+}
+
 function promptClearSession() {
-  if (!confirm('¿Borrar la sesión activa? Se perderán los datos importados.')) return;
-  clearSession().then(() => updateSessionChip(null));
+  showConfirmBanner(
+    'Nueva sesión',
+    '¿Borrar la sesión activa? Se perderán los datos importados.',
+    'Borrar sesión',
+    () => clearSession().then(() => updateSessionChip(null))
+  );
 }
 
 function _applyImportedAudio(entry) {
