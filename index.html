@@ -59,6 +59,9 @@
   .upload-title{font-size:13px;color:var(--text);margin-bottom:2px;}
   .upload-sub{font-size:11px;color:var(--text-muted);}
   .file-selected{margin-top:5px;font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);}
+  #session-rec-hint{display:none;margin-top:6px;text-align:center;}
+  #session-rec-hint button{background:rgba(79,195,161,0.08);border:1px solid rgba(79,195,161,0.25);border-radius:999px;padding:5px 14px;font-size:11px;color:var(--accent);cursor:pointer;font-family:'DM Mono',monospace;transition:background 0.15s;}
+  #session-rec-hint button:hover{background:rgba(79,195,161,0.16);}
   .logo-preview{max-height:50px;max-width:160px;border-radius:6px;margin-top:8px;display:none;}
   .radio-group{display:flex;gap:16px;margin-top:4px;flex-wrap:wrap;}
   .radio-group label{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-muted);cursor:pointer;font-family:'DM Mono',monospace;}
@@ -323,6 +326,9 @@
     <div class="upload-title">Sube el audio de la sesión</div>
     <div class="upload-sub">MP3, WAV, M4A, OGG · máx. 25MB</div>
     <div class="file-selected" id="file-name"></div>
+  </div>
+  <div id="session-rec-hint">
+    <button onclick="_useSessionRecording()">🎙 Grabación de sesión disponible (<span id="session-rec-duration"></span>) — Usar</button>
   </div>
 
   <!-- Region selector – only shown without PhysiQ-Assessment payload -->

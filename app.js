@@ -193,7 +193,7 @@ document.getElementById('logo-file').addEventListener('change', function(e) {
 
 document.getElementById('audio-file').addEventListener('change', function(e) {
   selectedFile = e.target.files[0];
-  if (selectedFile) { document.getElementById('file-name').textContent = '✓ ' + selectedFile.name; checkReady(); }
+  if (selectedFile) { _hideRecordingHint(); document.getElementById('file-name').textContent = '✓ ' + selectedFile.name; checkReady(); }
 });
 const az = document.getElementById('audio-zone');
 az.addEventListener('dragover', e => { e.preventDefault(); az.style.borderColor = 'var(--accent)'; });
@@ -934,6 +934,7 @@ function copyReport() {
 
 function resetApp() {
   selectedFile = null; transcriptText = ''; lastReportText = '';
+  _hideRecordingHint();
   document.getElementById('file-name').textContent = '';
   document.getElementById('audio-file').value = '';
   ['patient-name','session-date','diagnosis'].forEach(id => document.getElementById(id).value = '');
@@ -1050,16 +1051,24 @@ function _consumeAudioFromIDB() {
   })).catch(() => null);
 }
 
-function _offerSessionRecording(entry) {
-  if (!entry || selectedFile) return;
-  const mins = Math.floor(entry.duration / 60);
-  const secs = (entry.duration % 60).toString().padStart(2, '0');
-  showConfirmBanner(
-    'Grabación de sesión disponible',
-    `${mins}m ${secs}s · ¿Usarla como audio del informe?`,
-    'Usar grabación',
-    () => _consumeAudioFromIDB().then(_applyImportedAudio)
-  );
+function _showRecordingHint(duration) {
+  if (selectedFile) return;
+  const mins = Math.floor(duration / 60);
+  const secs = (duration % 60).toString().padStart(2, '0');
+  const label = document.getElementById('session-rec-duration');
+  if (label) label.textContent = `${mins}m ${secs}s`;
+  const hint = document.getElementById('session-rec-hint');
+  if (hint) hint.style.display = 'block';
+}
+
+function _hideRecordingHint() {
+  const hint = document.getElementById('session-rec-hint');
+  if (hint) hint.style.display = 'none';
+}
+
+function _useSessionRecording() {
+  _hideRecordingHint();
+  _consumeAudioFromIDB().then(_applyImportedAudio);
 }
 
 const _recCh = new BroadcastChannel('physiq-recorder');
@@ -1067,7 +1076,9 @@ let _lastRecState = 'idle';
 _recCh.onmessage = ({ data }) => {
   if (data.type !== 'RECORDER_STATE') return;
   if (data.state === 'stopped' && _lastRecState !== 'stopped' && data.hasAudio && !selectedFile)
-    _peekAudioFromIDB().then(_offerSessionRecording);
+    _showRecordingHint(data.duration);
+  if (data.state === 'idle' && _lastRecState !== 'idle')
+    _hideRecordingHint();
   _lastRecState = data.state;
 };
 
@@ -1120,6 +1131,7 @@ function promptClearSession() {
 
 function _applyImportedAudio(entry) {
   if (!entry) return;
+  _hideRecordingHint();
   selectedFile = new File([entry.blob], entry.name, { type: entry.type });
   document.getElementById('file-name').textContent = '✓ ' + entry.name;
   const mins = Math.floor(entry.duration / 60);
@@ -1141,7 +1153,7 @@ loadConfig();
 applyPhysiQAssessmentContext(loadFromPhysiQAssessment());
 applyROMContext(loadROMDirect());
 updateRegionSelector();
-_peekAudioFromIDB().then(_offerSessionRecording);
+_peekAudioFromIDB().then(entry => { if (entry) _showRecordingHint(entry.duration); });
 readSession().then(session => {
   if (!session) return;
   if (session.assessment && !window._physiqAssessmentContext) applyPhysiQAssessmentContext(session.assessment);
