@@ -1026,8 +1026,17 @@ function applyPhysiQAssessmentContext(data) {
   checkReady();
 }
 
-// ─── INDEXEDDB AUDIO (recepción desde physiq-assessment) ─────
-function _loadAudioFromIDB() {
+// ─── INDEXEDDB AUDIO (grabación del hub) ─────────────────────
+function _peekAudioFromIDB() {
+  return openSessionDB().then(db => new Promise(resolve => {
+    const tx  = db.transaction('audio', 'readonly');
+    const get = tx.objectStore('audio').get('pending');
+    get.onsuccess = () => resolve(get.result || null);
+    get.onerror   = () => resolve(null);
+  })).catch(() => null);
+}
+
+function _consumeAudioFromIDB() {
   return openSessionDB().then(db => new Promise(resolve => {
     const tx    = db.transaction('audio', 'readwrite');
     const store = tx.objectStore('audio');
@@ -1040,6 +1049,27 @@ function _loadAudioFromIDB() {
     get.onerror = () => resolve(null);
   })).catch(() => null);
 }
+
+function _offerSessionRecording(entry) {
+  if (!entry || selectedFile) return;
+  const mins = Math.floor(entry.duration / 60);
+  const secs = (entry.duration % 60).toString().padStart(2, '0');
+  showConfirmBanner(
+    'Grabación de sesión disponible',
+    `${mins}m ${secs}s · ¿Usarla como audio del informe?`,
+    'Usar grabación',
+    () => _consumeAudioFromIDB().then(_applyImportedAudio)
+  );
+}
+
+const _recCh = new BroadcastChannel('physiq-recorder');
+let _lastRecState = 'idle';
+_recCh.onmessage = ({ data }) => {
+  if (data.type !== 'RECORDER_STATE') return;
+  if (data.state === 'stopped' && _lastRecState !== 'stopped' && data.hasAudio && !selectedFile)
+    _peekAudioFromIDB().then(_offerSessionRecording);
+  _lastRecState = data.state;
+};
 
 // ─── SESSION CHIP ────────────────────────────────────────────
 let _sessionLabel = '';
@@ -1082,7 +1112,7 @@ function promptClearSession() {
     () => {
       resetApp();
       window._physiqROMContext = null;
-      ['romBadge', 'assessmentBadge'].forEach(id => document.getElementById(id)?.remove());
+      ['romBadge', 'assessmentBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
       clearSession().then(() => updateSessionChip(null));
     }
   );
@@ -1095,12 +1125,13 @@ function _applyImportedAudio(entry) {
   const mins = Math.floor(entry.duration / 60);
   const secs = (entry.duration % 60).toString().padStart(2, '0');
   const badge = document.createElement('div');
+  badge.id = 'audioBadge';
   badge.style.cssText = `
     background:rgba(79,195,161,0.08); border:1px solid rgba(79,195,161,0.25);
     border-radius:8px; padding:8px 14px; font-size:12px;
     color:var(--accent); font-family:'DM Mono',monospace; margin-bottom:8px;
   `;
-  badge.textContent = `🎙 Audio importado desde PhysiQ-Assessment · ${mins}m ${secs}s`;
+  badge.textContent = `🎙 Grabación de sesión · ${mins}m ${secs}s`;
   const main = document.querySelector('main');
   if (main) main.prepend(badge);
   checkReady();
@@ -1110,7 +1141,7 @@ loadConfig();
 applyPhysiQAssessmentContext(loadFromPhysiQAssessment());
 applyROMContext(loadROMDirect());
 updateRegionSelector();
-_loadAudioFromIDB().then(_applyImportedAudio);
+_peekAudioFromIDB().then(_offerSessionRecording);
 readSession().then(session => {
   if (!session) return;
   if (session.assessment && !window._physiqAssessmentContext) applyPhysiQAssessmentContext(session.assessment);
