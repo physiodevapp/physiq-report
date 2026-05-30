@@ -27,13 +27,18 @@
   @media(max-width:480px){header{height:48px;}.logo-main{font-size:1.1rem;}.logo-sub{font-size:1.1rem;}main{padding-top:calc(48px + 18px);}}
   @media(max-width:360px){.logo-sub-word{display:none;}.logo-sub-initial{display:inline;}}
   @media(max-height:500px) and (max-width:900px){header{height:44px;}main{padding-top:calc(44px + 18px);}}
-  .session-chip{display:none;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);background:rgba(56,217,169,0.08);border:1px solid rgba(56,217,169,0.2);border-radius:20px;padding:4px 10px;white-space:nowrap;max-width:220px;overflow:hidden;flex-shrink:1;min-width:0;}
-  .session-chip.active{display:flex;}
-  .session-chip-dot{font-size:8px;flex-shrink:0;}
-  .session-chip-label{overflow:hidden;text-overflow:ellipsis;min-width:0;flex-shrink:1;}
-  .session-chip-clear{background:none;border:none;color:var(--text-muted);cursor:pointer;padding:4px 2px 4px 4px;font-size:14px;line-height:1;flex-shrink:0;}
-  .session-chip-clear:hover{color:var(--danger);}
-  @media(max-width:360px){.session-chip-label{display:none;}.session-chip{padding:4px 8px;gap:4px;}}
+  .session-btn{display:none;background:none;border:none;cursor:pointer;font-size:11px;color:var(--accent);padding:6px;line-height:1;flex-shrink:0;}
+  .session-btn.active{display:block;}
+  .session-sheet{display:none;position:fixed;inset:0;z-index:500;flex-direction:column;justify-content:flex-end;}
+  .session-sheet.open{display:flex;}
+  .session-sheet-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.5);}
+  .session-sheet-card{position:relative;background:var(--surface);border-radius:16px 16px 0 0;padding:24px 20px 32px;display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--border);}
+  .session-sheet-info{display:flex;align-items:center;gap:10px;}
+  .session-sheet-dot{font-size:10px;color:var(--accent);}
+  .session-sheet-label{font-family:'DM Mono',monospace;font-size:14px;color:var(--text);}
+  .session-sheet-clear{background:none;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 16px;font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;text-align:left;transition:border-color 0.2s,color 0.2s;}
+  .session-sheet-clear:hover{border-color:var(--danger);color:var(--danger);}
+  .session-sheet-close{background:none;border:none;color:var(--text-muted);font-size:13px;cursor:pointer;padding:4px 0;text-align:center;}
   main{flex:1;padding:calc(64px + 18px) 14px 18px;display:flex;flex-direction:column;gap:12px;max-width:800px;width:100%;margin:0 auto;}
   .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
   .card-header{padding:12px 16px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;}
@@ -150,11 +155,7 @@
 <body>
 <header>
   <div class="logo"><span class="logo-main">PhysiQ</span><span class="logo-sub">— <span class="logo-sub-word">Report</span><span class="logo-sub-initial">R</span></span></div>
-  <div id="sessionChip" class="session-chip">
-    <span class="session-chip-dot">●</span>
-    <span class="session-chip-label" id="sessionChipLabel"></span>
-    <button class="session-chip-clear" onclick="promptClearSession()" title="Nueva sesión">×</button>
-  </div>
+  <button id="sessionBtn" class="session-btn" onclick="openSessionSheet()" aria-label="Sesión activa" title="Sesión activa">●</button>
 </header>
 <main>
 
@@ -386,6 +387,18 @@
 </div>
 
 <div id="cf-turnstile-container"></div>
+<div id="sessionSheet" class="session-sheet">
+  <div class="session-sheet-backdrop" onclick="closeSessionSheet()"></div>
+  <div class="session-sheet-card">
+    <div class="session-sheet-info">
+      <span class="session-sheet-dot">●</span>
+      <span id="sessionSheetLabel" class="session-sheet-label"></span>
+    </div>
+    <button class="session-sheet-clear" onclick="closeSessionSheet(); promptClearSession()">↺ Nueva sesión</button>
+    <button class="session-sheet-close" onclick="closeSessionSheet()">Cerrar</button>
+  </div>
+</div>
+
 <script src="lib/payload.js"></script>
 <script src="lib/session.js"></script>
 <script src="app.js"></script>

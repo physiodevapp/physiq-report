@@ -1043,14 +1043,22 @@ function _loadAudioFromIDB() {
 
 // ─── SESSION CHIP ────────────────────────────────────────────
 function updateSessionChip(session) {
-  const chip  = document.getElementById('sessionChip');
-  const label = document.getElementById('sessionChipLabel');
-  if (!chip || !label) return;
-  if (!session) { chip.classList.remove('active'); return; }
-  label.textContent = session.patient
+  const btn   = document.getElementById('sessionBtn');
+  const label = document.getElementById('sessionSheetLabel');
+  if (!btn) return;
+  if (!session) { btn.classList.remove('active'); return; }
+  if (label) label.textContent = session.patient
     ? `${session.patient} · ${session.date || '—'}`
     : `Sesión · ${session.date || '—'}`;
-  chip.classList.add('active');
+  btn.classList.add('active');
+}
+
+function openSessionSheet() {
+  document.getElementById('sessionSheet')?.classList.add('open');
+}
+
+function closeSessionSheet() {
+  document.getElementById('sessionSheet')?.classList.remove('open');
 }
 
 function showConfirmBanner(title, text, actionLabel, onConfirm) {
