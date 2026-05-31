@@ -8,13 +8,24 @@ let manualRegion = null;
 const TURNSTILE_SITEKEY = '0x4AAAAAADU3dzE5Tw_whVks';
 let _turnstileToken = null, _turnstileResolve = null, _turnstileWidgetId = null;
 
+function _showTurnstile() {
+  document.getElementById('cf-turnstile-container').style.display = 'flex';
+  document.getElementById('generate-btn').style.display = 'none';
+}
+
+function _showGenerateBtn() {
+  document.getElementById('cf-turnstile-container').style.display = 'none';
+  document.getElementById('generate-btn').style.display = '';
+}
+
 function initTurnstile() {
   _turnstileWidgetId = turnstile.render('#cf-turnstile-container', {
     sitekey: TURNSTILE_SITEKEY,
-    appearance: 'interaction-only',
+    appearance: 'always',
     callback: (token) => {
       _turnstileToken = token;
       if (_turnstileResolve) { _turnstileResolve(token); _turnstileResolve = null; }
+      _showGenerateBtn();
     },
   });
 }
@@ -29,12 +40,14 @@ function getTurnstileToken() {
       const t = _turnstileToken;
       _turnstileToken = null;
       turnstile.reset(_turnstileWidgetId);
+      _showTurnstile();
       resolve(t);
       return;
     }
     _turnstileResolve = (token) => {
       _turnstileToken = null;
       turnstile.reset(_turnstileWidgetId);
+      _showTurnstile();
       resolve(token);
     };
     setTimeout(() => {

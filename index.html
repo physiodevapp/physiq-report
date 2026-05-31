@@ -60,6 +60,7 @@
   .upload-sub{font-size:11px;color:var(--text-muted);}
   .file-selected{margin-top:5px;font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);}
   #session-rec-hint{display:none;margin-top:6px;text-align:center;}
+  #cf-turnstile-container{width:100%;display:flex;justify-content:center;align-items:center;min-height:65px;}
   #session-rec-hint button{background:rgba(79,195,161,0.08);border:1px solid rgba(79,195,161,0.25);border-radius:999px;padding:5px 14px;font-size:11px;color:var(--accent);cursor:pointer;font-family:'DM Mono',monospace;transition:background 0.15s;}
   #session-rec-hint button:hover{background:rgba(79,195,161,0.16);}
   .logo-preview{max-height:50px;max-width:160px;border-radius:6px;margin-top:8px;display:none;}
@@ -341,7 +342,9 @@
 
   <div class="error-box" id="error-box"></div>
 
-  <button class="btn-primary" id="generate-btn" onclick="generateReport()" disabled>
+  <div id="cf-turnstile-container"></div>
+
+  <button class="btn-primary" id="generate-btn" onclick="generateReport()" disabled style="display:none">
     Generar Informe CIF-AFTA
   </button>
 
@@ -385,8 +388,6 @@
     <div class="sheet-option" data-region="codo" onclick="setManualRegion('codo','Codo')"><span class="sheet-option-check"></span>🎾 Codo</div>
   </div>
 </div>
-
-<div id="cf-turnstile-container"></div>
 
 <script src="lib/payload.js"></script>
 <script src="lib/session.js"></script>
