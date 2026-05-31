@@ -1127,8 +1127,10 @@ function showConfirmBanner(title, text, actionLabel, onConfirm) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
-  document.getElementById('confirmCancel').onclick = () => overlay.remove();
-  document.getElementById('confirmAction').onclick = () => { overlay.remove(); onConfirm(); };
+  window.parent.postMessage({ type: 'PHYSIQ_WIDGET_HIDE' }, '*');
+  const dismiss = () => { overlay.remove(); window.parent.postMessage({ type: 'PHYSIQ_WIDGET_SHOW' }, '*'); };
+  document.getElementById('confirmCancel').onclick = dismiss;
+  document.getElementById('confirmAction').onclick = () => { dismiss(); onConfirm(); };
 }
 
 function promptClearSession() {
