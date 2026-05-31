@@ -9,12 +9,12 @@ const TURNSTILE_SITEKEY = '0x4AAAAAADU3dzE5Tw_whVks';
 let _turnstileToken = null, _turnstileResolve = null, _turnstileWidgetId = null;
 
 function _showTurnstile() {
-  document.getElementById('cf-turnstile-container').style.display = 'flex';
+  document.getElementById('turnstile-wrap').style.display = '';
   document.getElementById('generate-btn').style.display = 'none';
 }
 
 function _showGenerateBtn() {
-  document.getElementById('cf-turnstile-container').style.display = 'none';
+  document.getElementById('turnstile-wrap').style.display = 'none';
   document.getElementById('generate-btn').style.display = '';
 }
 
