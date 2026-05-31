@@ -1176,6 +1176,11 @@ readSession().then(session => {
   if (!session) return;
   if (session.assessment && !window._physiqAssessmentContext) applyPhysiQAssessmentContext(session.assessment);
   if (session.rom && !window._physiqROMContext) applyROMContext(session.rom);
+  const nameEl = document.getElementById('patient-name');
+  if (session.patient && nameEl && !nameEl.value) nameEl.value = session.patient;
+  const dateEl = document.getElementById('session-date');
+  if (session.date && dateEl && !dateEl.value) dateEl.value = session.date;
+  checkReady();
   updateSessionChip(session);
 });
 
