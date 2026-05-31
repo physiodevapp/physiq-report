@@ -1052,11 +1052,12 @@ function _consumeAudioFromIDB() {
 }
 
 function _showRecordingHint(duration) {
-  if (selectedFile) return;
   const mins = Math.floor(duration / 60);
   const secs = (duration % 60).toString().padStart(2, '0');
   const label = document.getElementById('session-rec-duration');
   if (label) label.textContent = `${mins}m ${secs}s`;
+  const action = document.getElementById('session-rec-action');
+  if (action) action.textContent = selectedFile ? 'Reemplazar' : 'Usar';
   const hint = document.getElementById('session-rec-hint');
   if (hint) hint.style.display = 'block';
 }
@@ -1075,7 +1076,9 @@ const _recCh = new BroadcastChannel('physiq-recorder');
 let _lastRecState = 'idle';
 _recCh.onmessage = ({ data }) => {
   if (data.type !== 'RECORDER_STATE') return;
-  if (data.state === 'stopped' && _lastRecState !== 'stopped' && data.hasAudio && !selectedFile)
+  if (data.state === 'recording' && _lastRecState === 'idle')
+    _hideRecordingHint();
+  if (data.state === 'stopped' && _lastRecState !== 'stopped' && data.hasAudio)
     _showRecordingHint(data.duration);
   if (data.state === 'idle' && _lastRecState !== 'idle')
     _hideRecordingHint();
