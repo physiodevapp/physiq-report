@@ -33,6 +33,7 @@
   @media(max-height:500px) and (max-width:900px){header{height:44px;}main{padding-top:calc(44px + 18px);}}
   .session-btn{display:none;background:none;border:none;cursor:pointer;color:var(--accent);padding:6px;flex-shrink:0;}
   .session-btn.active{display:flex;align-items:center;justify-content:center;}
+  .header-right{display:flex;align-items:center;gap:0.75rem;}
   .btn-translate{position:relative;background:transparent;border:none;color:var(--text3);font-size:1rem;cursor:pointer;padding:4px 8px;border-radius:6px;transition:color 0.2s;line-height:1;}
   .btn-translate:hover{color:var(--text2);}
   .translate-tooltip{position:absolute;top:calc(100% + 8px);right:0;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;white-space:nowrap;font-size:0.75rem;color:var(--text2);font-family:'DM Sans',sans-serif;font-weight:300;line-height:1.6;opacity:0;pointer-events:none;transition:opacity 0.2s;z-index:200;}
@@ -164,8 +165,10 @@
 <body>
 <header>
   <div class="logo"><span class="logo-main">PhysiQ</span><span class="logo-sub">— <span class="logo-sub-word">Report</span><span class="logo-sub-initial">R</span></span></div>
-  <button id="sessionBtn" class="session-btn" onclick="promptClearSession()" aria-label="Sesión activa" title="Sesión activa"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-6 8-6s8 2 8 6"/></svg></button>
-  <button class="btn-translate" onclick="handleTranslateClick()" aria-label="View in English">🌐<span class="translate-tooltip">View in English<br>Right-click → Translate to English</span></button>
+  <div class="header-right">
+    <button id="sessionBtn" class="session-btn" onclick="promptClearSession()" aria-label="Sesión activa" title="Sesión activa"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-6 8-6s8 2 8 6"/></svg></button>
+    <button class="btn-translate" onclick="handleTranslateClick()" aria-label="View in English">🌐<span class="translate-tooltip">View in English<br>Right-click → Translate to English</span></button>
+  </div>
 </header>
 <div class="translate-banner" id="translateBanner">
   🌐 <span>Long-press or right-click → Translate to English</span>
