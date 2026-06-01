@@ -973,12 +973,6 @@ function loadFromPhysiQAssessment() {
   }
 }
 
-function loadROMDirect() {
-  const raw = new URLSearchParams(location.search).get('rom');
-  if (!raw) return null;
-  try { return decodePayload(raw); } catch { return null; }
-}
-
 function applyROMContext(romData) {
   if (!romData) return;
   window._physiqROMContext = romData;
@@ -1169,7 +1163,6 @@ function _applyImportedAudio(entry) {
 
 loadConfig();
 applyPhysiQAssessmentContext(loadFromPhysiQAssessment());
-applyROMContext(loadROMDirect());
 updateRegionSelector();
 _peekAudioFromIDB().then(entry => { if (entry) _showRecordingHint(entry.duration); });
 readSession().then(session => {
