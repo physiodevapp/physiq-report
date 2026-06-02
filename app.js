@@ -216,7 +216,13 @@ az.addEventListener('drop', e => {
   const f = e.dataTransfer.files[0];
   if (f) { selectedFile = f; document.getElementById('file-name').textContent = '✓ ' + f.name; checkReady(); }
 });
-document.getElementById('patient-name').addEventListener('input', checkReady);
+document.getElementById('patient-name').addEventListener('input', () => {
+  checkReady();
+  const patient = document.getElementById('patient-name').value.trim();
+  if (patient) writeSession({ patient }).then(() => {
+    _sessionCh.postMessage({ type: 'SESSION_PATIENT', patient });
+  });
+});
 
 function checkReady() {
   const hasName = !!document.getElementById('patient-name').value.trim();
@@ -1080,6 +1086,14 @@ function _useSessionRecording() {
 }
 
 const _recCh = new BroadcastChannel('physiq-recorder');
+const _sessionCh = new BroadcastChannel('physiq-session');
+_sessionCh.onmessage = ({ data }) => {
+  if (data.type !== 'SESSION_PATIENT') return;
+  const el = document.getElementById('patient-name');
+  if (!el || document.activeElement === el) return;
+  el.value = data.patient || '';
+  checkReady();
+};
 let _lastRecState = 'idle';
 _recCh.onmessage = ({ data }) => {
   if (data.type !== 'RECORDER_STATE') return;
