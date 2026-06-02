@@ -981,6 +981,7 @@ function loadFromPhysiQAssessment() {
 
 function applyROMContext(romData) {
   if (!romData) return;
+  document.getElementById('romBadge')?.remove();
   window._physiqROMContext = romData;
 
   let summary;
@@ -1010,6 +1011,7 @@ function applyROMContext(romData) {
 }
 
 function showImportedBadge(data) {
+  document.getElementById('assessmentBadge')?.remove();
   const badge = document.createElement('div');
   badge.id = 'assessmentBadge';
   badge.style.cssText = `
@@ -1088,12 +1090,28 @@ function _useSessionRecording() {
 const _recCh = new BroadcastChannel('physiq-recorder');
 const _sessionCh = new BroadcastChannel('physiq-session');
 _sessionCh.onmessage = ({ data }) => {
-  if (data.type !== 'SESSION_PATIENT') return;
-  const el = document.getElementById('patient-name');
-  if (!el || document.activeElement === el) return;
-  el.value = data.patient || '';
-  writeSession({ patient: data.patient || '' });
-  checkReady();
+  if (data.type === 'SESSION_PATIENT') {
+    const el = document.getElementById('patient-name');
+    if (!el || document.activeElement === el) return;
+    el.value = data.patient || '';
+    writeSession({ patient: data.patient || '' });
+    checkReady();
+    return;
+  }
+  if (data.type === 'SESSION_ROM') {
+    if (data.rom && Object.keys(data.rom.regions || {}).length > 0) {
+      applyROMContext(data.rom);
+    } else {
+      document.getElementById('romBadge')?.remove();
+      window._physiqROMContext = null;
+    }
+    checkReady();
+    return;
+  }
+  if (data.type === 'SESSION_ASSESSMENT') {
+    applyPhysiQAssessmentContext(data.assessment);
+    return;
+  }
 };
 let _lastRecState = 'idle';
 _recCh.onmessage = ({ data }) => {
