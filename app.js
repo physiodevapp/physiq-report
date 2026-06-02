@@ -219,8 +219,8 @@ az.addEventListener('drop', e => {
 document.getElementById('patient-name').addEventListener('input', () => {
   checkReady();
   const patient = document.getElementById('patient-name').value.trim();
-  if (patient) writeSession({ patient }).then(() => {
-    _sessionCh.postMessage({ type: 'SESSION_PATIENT', patient });
+  writeSession({ patient }).then(() => {
+    if (patient) _sessionCh.postMessage({ type: 'SESSION_PATIENT', patient });
   });
 });
 
@@ -1092,6 +1092,7 @@ _sessionCh.onmessage = ({ data }) => {
   const el = document.getElementById('patient-name');
   if (!el || document.activeElement === el) return;
   el.value = data.patient || '';
+  writeSession({ patient: data.patient || '' });
   checkReady();
 };
 let _lastRecState = 'idle';
