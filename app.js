@@ -202,12 +202,7 @@ function _syncImportedCard() {
     document.getElementById('chevron-imported')?.classList.add('open');
   }
   const summary = document.getElementById('imported-card-summary');
-  if (!summary) return;
-  const parts = [];
-  if (document.getElementById('romBadge')) parts.push('Movilidad');
-  if (document.getElementById('assessmentBadge')) parts.push('Valoración');
-  if (document.getElementById('assessmentIncompleteBadge')) parts.push('Valoración en curso');
-  summary.textContent = parts.join(' · ');
+  if (summary) summary.textContent = '';
 }
 
 // ========= FILE INPUTS =========
