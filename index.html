@@ -176,6 +176,18 @@
 </div>
 <main>
 
+  <!-- Imported satellite data card -->
+  <div class="card" id="imported-card" style="display:none;">
+    <div class="card-header" onclick="toggleCard('imported')">
+      <div class="section-title">📥 Datos importados</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span id="imported-card-summary" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);"></span>
+        <span class="chevron open" id="chevron-imported">▼</span>
+      </div>
+    </div>
+    <div class="card-body open" id="body-imported" style="display:flex;flex-direction:column;gap:8px;"></div>
+  </div>
+
   <!-- Clinic + Style config -->
   <div class="card">
     <div class="card-header" onclick="toggleCard('clinic')">

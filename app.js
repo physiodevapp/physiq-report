@@ -190,6 +190,26 @@ function toggleCard(id) {
   body.classList.toggle('open', !open); chev.classList.toggle('open', !open);
 }
 
+function _syncImportedCard() {
+  const card = document.getElementById('imported-card');
+  if (!card) return;
+  const ids = ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge'];
+  const hasAny = ids.some(id => document.getElementById(id));
+  const wasHidden = card.style.display === 'none';
+  card.style.display = hasAny ? '' : 'none';
+  if (hasAny && wasHidden) {
+    document.getElementById('body-imported')?.classList.add('open');
+    document.getElementById('chevron-imported')?.classList.add('open');
+  }
+  const summary = document.getElementById('imported-card-summary');
+  if (!summary) return;
+  const parts = [];
+  if (document.getElementById('romBadge')) parts.push('Movilidad');
+  if (document.getElementById('assessmentBadge')) parts.push('Valoración');
+  if (document.getElementById('assessmentIncompleteBadge')) parts.push('Valoración en curso');
+  summary.textContent = parts.join(' · ');
+}
+
 // ========= FILE INPUTS =========
 document.getElementById('logo-file').addEventListener('change', function(e) {
   const file = e.target.files[0]; if (!file) return;
@@ -1002,11 +1022,12 @@ function applyROMContext(romData) {
   badge.style.cssText = `
     background:rgba(79,156,249,0.08); border:1px solid rgba(79,156,249,0.25);
     border-radius:8px; padding:10px 14px; font-size:12px;
-    color:var(--accent); font-family:'DM Mono',monospace; margin-bottom:12px;
+    color:var(--accent); font-family:'DM Mono',monospace;
   `;
   badge.innerHTML = `✓ Movilidad importada desde PhysiQ-Motion · ${summary}`;
-  const main = document.querySelector('main');
-  if (main) main.prepend(badge);
+  const body = document.getElementById('body-imported');
+  if (body) body.prepend(badge);
+  _syncImportedCard();
   checkReady();
 }
 
@@ -1019,13 +1040,14 @@ function _showAssessmentIncompleteBadge(phase) {
     badge.style.cssText = `
       background:rgba(255,176,58,0.08); border:1px solid rgba(255,176,58,0.3);
       border-radius:8px; padding:10px 14px; font-size:12px;
-      color:var(--text2); font-family:'DM Mono',monospace; margin-bottom:12px;
+      color:var(--text2); font-family:'DM Mono',monospace;
     `;
-    const main = document.querySelector('main');
-    if (!main) return;
-    main.prepend(badge);
+    const body = document.getElementById('body-imported');
+    if (!body) return;
+    body.appendChild(badge);
   }
   badge.innerHTML = `⏳ Valoración en curso · Fase ${phase === '4b' ? '4b' : phase} de 5`;
+  _syncImportedCard();
 }
 
 function showImportedBadge(data) {
@@ -1036,11 +1058,12 @@ function showImportedBadge(data) {
   badge.style.cssText = `
     background:rgba(79,195,161,0.1); border:1px solid rgba(79,195,161,0.3);
     border-radius:8px; padding:10px 14px; font-size:12px;
-    color:var(--accent); font-family:'DM Mono',monospace; margin-bottom:12px;
+    color:var(--accent); font-family:'DM Mono',monospace;
   `;
   badge.innerHTML = `✓ Valoración importada desde PhysiQ-Assessment · ${data.r || ''} · ${data.p || ''}`;
-  const main = document.querySelector('main');
-  if (main) main.prepend(badge);
+  const body = document.getElementById('body-imported');
+  if (body) body.appendChild(badge);
+  _syncImportedCard();
 }
 
 function applyPhysiQAssessmentContext(data) {
@@ -1192,6 +1215,7 @@ function promptClearSession() {
       resetApp();
       window._physiqROMContext = null;
       ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
+      _syncImportedCard();
       clearSession().then(() => updateSessionChip(null));
     }
   );
