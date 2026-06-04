@@ -1073,6 +1073,10 @@ function applyPhysiQAssessmentContext(data) {
   if (diag && data.mo) diag.value = data.mo;
 
   window._physiqAssessmentContext = data;
+  if (data.r) {
+    const label = data.r.charAt(0).toUpperCase() + data.r.slice(1);
+    setManualRegion(data.r, label);
+  }
   if (data.rom) applyROMContext(data.rom);
   showImportedBadge(data);
   updateRegionSelector();
