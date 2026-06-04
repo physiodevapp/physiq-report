@@ -1077,6 +1077,7 @@ function applyPhysiQAssessmentContext(data) {
   showImportedBadge(data);
   updateRegionSelector();
   checkReady();
+  readSession().then(session => { if (session) updateSessionChip(session); });
 }
 
 // ─── INDEXEDDB AUDIO (grabación del hub) ─────────────────────
@@ -1131,7 +1132,7 @@ _sessionCh.onmessage = ({ data }) => {
     const el = document.getElementById('patient-name');
     if (!el || document.activeElement === el) return;
     el.value = data.patient || '';
-    writeSession({ patient: data.patient || '' });
+    writeSession({ patient: data.patient || '' }).then(session => { if (session) updateSessionChip(session); });
     checkReady();
     return;
   }
@@ -1151,6 +1152,10 @@ _sessionCh.onmessage = ({ data }) => {
   }
   if (data.type === 'SESSION_ASSESSMENT_PARTIAL') {
     _showAssessmentIncompleteBadge(data.phase);
+    if (data.region && !window._physiqAssessmentContext) {
+      const label = data.region.charAt(0).toUpperCase() + data.region.slice(1);
+      setManualRegion(data.region, label);
+    }
     return;
   }
 };
