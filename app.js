@@ -1269,6 +1269,10 @@ readSession().then(session => {
     if (session.assessmentState.currentPhase !== 5 && maxVisited > 0) {
       _showAssessmentIncompleteBadge(_phaseLabels[maxVisited]);
     }
+    if (session.assessmentState.region) {
+      const label = session.assessmentState.region.charAt(0).toUpperCase() + session.assessmentState.region.slice(1);
+      setManualRegion(session.assessmentState.region, label);
+    }
   }
   const nameEl = document.getElementById('patient-name');
   if (session.patient && nameEl && !nameEl.value) nameEl.value = session.patient;
