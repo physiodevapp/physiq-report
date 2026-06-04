@@ -1158,6 +1158,17 @@ _sessionCh.onmessage = ({ data }) => {
     }
     return;
   }
+  if (data.type === 'SESSION_CLEAR') {
+    resetApp();
+    window._physiqROMContext = null;
+    window._physiqAssessmentContext = null;
+    setManualRegion('', 'Genérica');
+    updateRegionSelector();
+    ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
+    _syncImportedCard();
+    updateSessionChip(null);
+    return;
+  }
 };
 let _lastRecState = 'idle';
 _recCh.onmessage = ({ data }) => {
@@ -1214,6 +1225,9 @@ function promptClearSession() {
     () => {
       resetApp();
       window._physiqROMContext = null;
+      window._physiqAssessmentContext = null;
+      setManualRegion('', 'Genérica');
+      updateRegionSelector();
       ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
       _syncImportedCard();
       clearSession().then(() => updateSessionChip(null));
