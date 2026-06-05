@@ -2,7 +2,9 @@
 
 A clinical tool for physiotherapists that generates structured session reports from audio. It transcribes the recording with Whisper and drafts the report in Spanish following the ICF-APTA framework using Claude.
 
-**[→ Open app](https://physiodevapp.github.io/physiq-report/)**
+**Primary entry point: [PhysiQ Hub](https://physiodevapp.github.io/physiq/)** — installs as a single PWA covering all PhysiQ apps.
+
+**Standalone: [→ Open app](https://physiodevapp.github.io/physiq-report/)**
 
 ## Demo
 
@@ -12,11 +14,24 @@ Open `index.html` directly in the browser. No installation, server, or build ste
 
 1. Configure your clinic details (name, logo, colors) — saved to localStorage.
 2. Patient data and clinical context are pre-filled automatically if a shared PhysiQ session is active (written by PhysiQ Assessment or PhysiQ Motion). Otherwise enter them manually.
-3. Upload the session audio (drag & drop or file picker).
+3. Upload the session audio (drag & drop or file picker), or use audio recorded via the hub's built-in recorder.
 4. Choose a template:
    - **Brief note** — concise session note.
    - **Institutional narrative** — full report with ICF biopsychosocial structure.
 5. Generate the report → preview on screen → download as `.docx` with a custom clinical header.
+
+## Ecosystem integration
+
+When a PhysiQ session is active, context is imported automatically:
+
+| Source | Badge | What arrives |
+|--------|-------|--------------|
+| PhysiQ Assessment (complete) | green | Full clinical context injected into Claude prompt |
+| PhysiQ Assessment (in progress) | amber | Anatomical region applied to Whisper hint |
+| PhysiQ Motion | blue | ROM data injected into Claude prompt |
+| Hub recorder | green | Audio blob ready to use |
+
+All context updates happen in real time via `BroadcastChannel('physiq-session')` — no page reload needed.
 
 ## External requirements
 
@@ -32,7 +47,7 @@ Worker URLs are hardcoded in `app.js` (near `transcribeAudio` and `analyzeWithCl
 ## Self-hosting
 
 1. Create both workers on [Cloudflare](https://workers.cloudflare.com/) with access to the Whisper and Anthropic APIs.
-2. Update the worker URLs in `index.html`.
+2. Update the worker URLs in `app.js`.
 3. Serve `index.html` from any static host (Cloudflare Pages, GitHub Pages, etc.) or use it locally.
 
 ## Report customization

@@ -31,7 +31,8 @@ There is no framework, no bundler, no modules.
 **Client-side persistence:**
 - `localStorage` key `physiq_config` (JSON) — all UI/clinic settings
 - `localStorage` key `physiq_logo` (base64) + `physiq_logo_mime` — uploaded logo
-- IDB DB `'physiq'` v2, store `'session'`, key `'active'` — shared session written by satellite apps (physiq-motion, physiq-assessment); physiq-report is read-only on this store
+- IDB DB `'physiq'` v3, store `'session'`, key `'active'` — shared session written by satellite apps (physiq-motion, physiq-assessment); physiq-report is read-only on this store
+- IDB DB `'physiq'` v3, store `'audio'`, key `'pending'` — audio blob written by the hub recorder; physiq-report reads and optionally consumes it
 
 **Key global variables in `app.js`:**
 - `selectedFile` — audio file selected by the user
@@ -55,19 +56,23 @@ There is no framework, no bundler, no modules.
 |---|---|---|
 | `buildPrompt()` | `app.js` | Constructs the Claude prompt; switches between `brief` and `narrative` templates with explicit CIF instructions |
 | `buildClinicalContext()` | `lib/payload.js` | Formats `window._physiqAssessmentContext` into a structured text block injected before the transcript |
-| `decodePayload()` | `lib/payload.js` | Decodes the `?v=<base64>` URL param sent by PhysiQ-Assessment |
+| `decodePayload()` | `lib/payload.js` | Decodes the `?v=<base64>` URL param sent by PhysiQ-Assessment (backward-compat fallback) |
 | `renderReport()` | `app.js` | Parses markdown sections into collapsible HTML; calls `parseTablesInText()` and `parseHyperlinks()` |
 | `downloadWord()` | `app.js` | Builds `.docx` with custom header (logo + clinic info), footer (page numbers), and section-aware styling |
 | `loadDocx()` | `app.js` | Dynamic CDN loader with 3 fallbacks; must resolve before `downloadWord()` is called |
 | `saveConfig()` / `loadConfig()` | `app.js` | Serializes the entire UI state to/from `physiq_config` in localStorage |
 | `generateReport()` | `app.js` | Orchestrates the full pipeline; skips transcription step if no audio and `_physiqAssessmentContext` is present |
-| `loadFromPhysiQAssessment()` | `app.js` | Reads and decodes `?v=<base64>` from the URL on startup |
-| `applyPhysiQAssessmentContext()` | `app.js` | Prefills form fields from payload and stores it in `window._physiqAssessmentContext` |
-| `showImportedBadge()` | `app.js` | Injects a green confirmation banner in `<main>` when a payload is detected |
+| `applyPhysiQAssessmentContext()` | `app.js` | Pre-fills form fields from the assessment payload, stores in `window._physiqAssessmentContext`, calls `setManualRegion()`, shows `assessmentBadge` |
+| `applyROMContext()` | `app.js` | Applies ROM data from physiq-motion; removes old `romBadge`, creates new one, calls `_syncImportedCard()` |
+| `_showAssessmentIncompleteBadge(phase)` | `app.js` | Shows amber badge when assessment is in progress (phases 1–5 not yet finalized) |
+| `_syncImportedCard()` | `app.js` | Shows/hides `#imported-card` based on whether any clinical badges are present; auto-opens card when first badge appears |
+| `showImportedBadge(data)` | `app.js` | Shows green badge when a complete assessment payload arrives; removes incomplete badge |
 | `initTurnstile()` / `getTurnstileToken()` | `app.js` | Cloudflare Turnstile bot-protection widget; token is attached to every Worker request |
 | `getWhisperPrompt()` | `app.js` | Returns a region-specific hint string sent to Whisper to improve transcription accuracy |
 | `setManualRegion()` / `openRegionSheet()` | `app.js` | Region-picker bottom sheet for manual override of the anatomical region hint |
-| `_loadAudioFromIDB()` / `_applyImportedAudio()` | `app.js` | Load a previously imported audio file from IndexedDB (cross-app handoff from PhysiQ-Assessment) |
+| `_peekAudioFromIDB()` | `app.js` | Reads hub audio from IDB without consuming it |
+| `_consumeAudioFromIDB()` | `app.js` | Reads and deletes hub audio from IDB (called only when user confirms use) |
+| `_showRecordingHint(duration)` | `app.js` | Shows `#session-rec-hint` hint when hub recording stops with audio available |
 | `copyReport()` | `app.js` | Copies the rendered report text to the clipboard |
 
 ## Report templates
@@ -82,7 +87,7 @@ After Claude responds, the app inspects `lastReportText` for expected final sect
 
 The two workers are external to this repo. They proxy requests to the Whisper API and Anthropic API respectively. If either endpoint changes, update the hardcoded URLs in `app.js` (inside `transcribeAudio` and `analyzeWithClaude`).
 
-Every request to a worker includes a Cloudflare Turnstile token (`cf-turnstile-response` header). The widget is rendered in `interaction-only` mode — it appears only when a challenge is required. `getTurnstileToken()` returns a Promise that resolves once the token is available, refreshing the widget if expired.
+Every request to a worker includes a Cloudflare Turnstile token (`cf-turnstile-response` header). The widget is rendered in `always` mode — always visible. `getTurnstileToken()` returns a Promise that resolves once the token is available, refreshing the widget if expired. The widget **replaces the "Generar informe" button** until verified; once verified, the real button appears.
 
 ## Code conventions
 
@@ -105,35 +110,101 @@ git commit -m "short imperative title" -m "description when necessary"
 
 ---
 
-## Sibling repos
-
-| Repo | URL | Role |
-|------|-----|------|
-| physiq-assessment | https://physiodevapp.github.io/physiq-assessment/ | 5-phase clinical assessment |
-| physiq-motion | https://physiodevapp.github.io/physiq-motion/ | Joint ROM measurement |
-
----
-
 ## Integration: IDB shared session
 
-physiq-report is **read-only** on the shared IDB session. On startup it calls `readSession()` and applies whatever data the satellite apps have written:
+physiq-report is **read-only** on the shared IDB session (DB `'physiq'` v3). On startup it calls `readSession()` and applies data in this priority order:
 
 ```js
 readSession().then(session => {
   if (!session) return;
-  if (session.assessment) applyPhysiQAssessmentContext(session.assessment);
+  if (session.assessment) applyPhysiQAssessmentContext(session.assessment);  // complete — green badge
+  else if (session.assessmentState && session.assessmentState.maxVisitedIdx > 0)
+    _showAssessmentIncompleteBadge(phase);  // in progress — amber badge
   if (session.rom)        applyROMContext(session.rom);
   updateSessionChip(session);
 });
 ```
 
-- `session.assessment` — written by physiq-assessment on export; pre-fills patient/date/diagnosis fields and injects structured clinical context into the Claude prompt via `buildClinicalContext()` (`lib/payload.js`)
-- `session.rom` — written by physiq-motion on export; injects ROM summary into the Claude prompt
+- `session.assessment` — written by physiq-assessment on `finalizarValoracion()`; pre-fills patient/date/region/diagnosis fields and injects structured clinical context into the Claude prompt via `buildClinicalContext()`. Also calls `setManualRegion()` with the assessment region.
+- `session.assessmentState` — continuous draft written by physiq-assessment on every interaction; used to show the incomplete badge and apply the region even before finalization.
+- `session.rom` — written by physiq-motion on export; shows `romBadge`, injects ROM summary into the Claude prompt.
 
 Both payloads persist across page reloads (TTL 24h). URL params (`?v=`, `?rom=`) are kept for backward compatibility.
 
-**Session chip** in the header shows `● patient · date [×]` when a session is active. `[×]` triggers `promptClearSession()` → `showConfirmBanner` → `resetApp()` + clears `window._physiqROMContext` + removes import badges + `clearSession()`.
+## Imported context badges
+
+Clinical context badges live inside a collapsible card `#imported-card` (shown at top of `<main>`):
+
+| Badge ID | Color | Trigger | Meaning |
+|----------|-------|---------|---------|
+| `romBadge` | blue | `applyROMContext()` | ROM data from physiq-motion |
+| `assessmentBadge` | green | `showImportedBadge()` | Complete assessment (finalized) |
+| `assessmentIncompleteBadge` | amber | `_showAssessmentIncompleteBadge()` | Assessment in progress |
+| `audioBadge` | green | `_applyImportedAudio()` | Audio from hub recorder loaded |
+
+`_syncImportedCard()` updates `#imported-card` visibility and summary text whenever badges change. It is called at the end of every function that adds or removes a badge.
+
+`audioBadge` is inserted via `main.prepend()` outside `#imported-card` — audio is a recording event, not a clinical data import.
+
+**Cleanup rules:**
+- `applyROMContext()` removes the old `romBadge` before creating a new one
+- `showImportedBadge()` removes `assessmentIncompleteBadge` before creating the complete badge
+- `_showAssessmentIncompleteBadge()` removes `assessmentBadge` before creating the incomplete badge
+- `promptClearSession()` removes all 4 badges, then calls `_syncImportedCard()`
+
+## BroadcastChannel protocol
+
+physiq-report listens on `BroadcastChannel('physiq-session')` for real-time updates:
+
+| Type | Source | Action in report |
+|------|--------|-----------------|
+| `SESSION_PATIENT` | any satellite | updates session chip patient name |
+| `SESSION_ROM` | physiq-motion | calls `applyROMContext(data.rom)` or removes `romBadge` if null |
+| `SESSION_ASSESSMENT` | physiq-assessment (`finalizarValoracion`) | calls `applyPhysiQAssessmentContext(data.assessment)` → green badge |
+| `SESSION_ASSESSMENT_PARTIAL` | physiq-assessment (every phase) | calls `_showAssessmentIncompleteBadge(data.phase)` + `setManualRegion()` from `data.region` |
+| `SESSION_CLEAR` | any satellite | resets app, removes all badges |
+
+physiq-report also writes `writeSession({ patient })` when the `#patient-name` input changes.
+
+## Hub audio handoff
+
+The hub saves the audio blob to IDB `physiq` v3, store `'audio'`, key `'pending'` after stopping recording and emits `{ type: 'RECORDER_STATE', state: 'stopped', hasAudio: true, duration: N }` on `BroadcastChannel('physiq-recorder')`.
+
+physiq-report:
+- On BC `stopped` with `hasAudio: true` → `_showRecordingHint(duration)` — hint shows "Usar" / "Reemplazar"
+- On BC `idle → recording` → hides the hint
+- On confirm: `_consumeAudioFromIDB()` reads and deletes the blob, then calls `_applyImportedAudio()`
+
+## Session chip & clear
+
+Header button `#sessionBtn` (person SVG) shows when a session is active. Clicking → `promptClearSession()` → `showConfirmBanner` → `resetApp()` + clears `window._physiqROMContext` + removes all badges + calls `_syncImportedCard()` + `clearSession()`.
 
 ## Dialogs
 
 Use `showConfirmBanner(title, text, actionLabel, callback)` — never use the native `confirm()` or `alert()`.
+
+## Hub integration
+
+physiq-report runs inside an iframe in the PhysiQ hub. On load:
+
+```js
+if (window.self !== window.top) {
+  document.body.classList.add('in-hub');
+  document.querySelector('.logo-main').addEventListener('click', () => {
+    window.parent.postMessage({ type: 'PHYSIQ_GO_HOME' }, '*');
+  });
+}
+```
+
+CSS `.in-hub .logo-main` adds a `‹` back-arrow hint. `showConfirmBanner` sends `{ type: 'PHYSIQ_WIDGET_HIDE' }` / `{ type: 'PHYSIQ_WIDGET_SHOW' }` to the parent to hide/show the recorder widget during modals.
+
+---
+
+## Sibling repos
+
+The hub at `physiodevapp.github.io/physiq/` is the primary entry point for the ecosystem.
+
+| Repo | Hub path | Role |
+|------|----------|------|
+| physiq-assessment | /physiq/assessment/ | 5-phase clinical assessment |
+| physiq-motion | /physiq/motion/ | Joint ROM measurement |
