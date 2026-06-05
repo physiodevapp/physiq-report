@@ -193,7 +193,7 @@ function toggleCard(id) {
 function _syncImportedCard() {
   const card = document.getElementById('imported-card');
   if (!card) return;
-  const ids = ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge'];
+  const ids = ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge'];
   const hasAny = ids.some(id => document.getElementById(id));
   const wasHidden = card.style.display === 'none';
   card.style.display = hasAny ? '' : 'none';
@@ -1027,6 +1027,39 @@ function applyROMContext(romData) {
   checkReady();
 }
 
+function applyForceContext(forceData) {
+  if (!forceData) return;
+  document.getElementById('forceBadge')?.remove();
+
+  let summary = '';
+  if (forceData.laterality === 'comparison') {
+    const l = forceData.sides?.left?.peak;
+    const r = forceData.sides?.right?.peak;
+    const ai = forceData.asymmetryIndex;
+    summary = [
+      l !== null && l !== undefined ? `Izq ${l.toFixed(1)} kg` : null,
+      r !== null && r !== undefined ? `Der ${r.toFixed(1)} kg` : null,
+      ai !== null && ai !== undefined ? `AI ${ai.toFixed(1)}%` : null,
+    ].filter(Boolean).join(' · ');
+  } else {
+    const peak = forceData.peak;
+    const side = forceData.side === 'left' ? 'Izq' : forceData.side === 'right' ? 'Der' : null;
+    summary = [side, peak !== null && peak !== undefined ? `${peak.toFixed(1)} kg` : null].filter(Boolean).join(' ');
+  }
+
+  const badge = document.createElement('div');
+  badge.id = 'forceBadge';
+  badge.style.cssText = `
+    background:rgba(251,146,60,0.08); border:1px solid rgba(251,146,60,0.25);
+    border-radius:8px; padding:10px 14px; font-size:12px;
+    color:#fb923c; font-family:'DM Mono',monospace;
+  `;
+  badge.innerHTML = `✓ Fuerza importada desde PhysiQ-Force · ${summary}`;
+  const body = document.getElementById('body-imported');
+  if (body) body.appendChild(badge);
+  _syncImportedCard();
+}
+
 function _showAssessmentIncompleteBadge(phase) {
   document.getElementById('assessmentBadge')?.remove();
   let badge = document.getElementById('assessmentIncompleteBadge');
@@ -1163,13 +1196,22 @@ _sessionCh.onmessage = ({ data }) => {
     }
     return;
   }
+  if (data.type === 'SESSION_FORCE') {
+    if (data.force) {
+      applyForceContext(data.force);
+    } else {
+      document.getElementById('forceBadge')?.remove();
+      _syncImportedCard();
+    }
+    return;
+  }
   if (data.type === 'SESSION_CLEAR') {
     resetApp();
     window._physiqROMContext = null;
     window._physiqAssessmentContext = null;
     setManualRegion('', 'Genérica');
     updateRegionSelector();
-    ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
+    ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
     _syncImportedCard();
     updateSessionChip(null);
     return;
@@ -1233,7 +1275,7 @@ function promptClearSession() {
       window._physiqAssessmentContext = null;
       setManualRegion('', 'Genérica');
       updateRegionSelector();
-      ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
+      ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
       _syncImportedCard();
       clearSession().then(() => updateSessionChip(null));
     }
@@ -1268,6 +1310,7 @@ readSession().then(session => {
   if (!session) return;
   if (session.assessment && !window._physiqAssessmentContext) applyPhysiQAssessmentContext(session.assessment);
   if (session.rom && !window._physiqROMContext) applyROMContext(session.rom);
+  if (session.force && !document.getElementById('forceBadge')) applyForceContext(session.force);
   if (session.assessmentState && !session.assessment && !window._physiqAssessmentContext) {
     const _phaseLabels = [1, 2, 3, 4, '4b', 5];
     const maxVisited = session.assessmentState.maxVisitedIdx || 0;
