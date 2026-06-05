@@ -61,6 +61,7 @@
   .field label{font-size:11px;color:var(--text-muted);font-family:'DM Mono',monospace;}
   input[type="password"],input[type="text"],input[type="url"],select,textarea{background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 12px;font-family:'DM Mono',monospace;font-size:12px;width:100%;outline:none;transition:border-color 0.2s;}
   input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+  input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus,input:-webkit-autofill:active{-webkit-box-shadow:0 0 0 1000px var(--bg) inset!important;-webkit-text-fill-color:var(--text)!important;caret-color:var(--text);transition:background-color 5000s ease-in-out 0s;}
   select option{background:var(--bg);}
   textarea{resize:vertical;min-height:80px;font-family:'DM Sans',sans-serif;line-height:1.5;}
   input[type="color"]{padding:2px 4px;height:38px;cursor:pointer;background:var(--bg);border:1px solid var(--border);border-radius:8px;width:100%;}
