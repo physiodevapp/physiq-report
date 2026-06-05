@@ -1296,20 +1296,12 @@ function handleTranslateClick() {
   if (window.innerWidth > 768) return;
   const banner = document.getElementById('translateBanner');
   if (!banner) return;
-  const bannerH = banner.getBoundingClientRect().height;
-  banner.classList.add('visible');
-  const main = document.querySelector('main');
-  if (main && bannerH > 0) {
-    const currentPt = parseFloat(getComputedStyle(main).paddingTop);
-    main.style.paddingTop = (currentPt + bannerH) + 'px';
-  }
   clearTimeout(_translateTimer);
+  banner.classList.add('visible');
   _translateTimer = setTimeout(hideTranslateBanner, 4000);
 }
 function hideTranslateBanner() {
   clearTimeout(_translateTimer);
   const banner = document.getElementById('translateBanner');
   if (banner) banner.classList.remove('visible');
-  const main = document.querySelector('main');
-  if (main) main.style.paddingTop = '';
 }
