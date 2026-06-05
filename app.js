@@ -234,7 +234,8 @@ az.addEventListener('drop', e => {
 document.getElementById('patient-name').addEventListener('input', () => {
   checkReady();
   const patient = document.getElementById('patient-name').value.trim();
-  writeSession({ patient }).then(() => {
+  writeSession({ patient }).then(session => {
+    if (session) updateSessionChip(session);
     if (patient) _sessionCh.postMessage({ type: 'SESSION_PATIENT', patient });
   });
 });
