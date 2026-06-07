@@ -234,7 +234,8 @@ az.addEventListener('drop', e => {
 document.getElementById('patient-name').addEventListener('input', () => {
   checkReady();
   const patient = document.getElementById('patient-name').value.trim();
-  writeSession({ patient }).then(session => {
+  const date = document.getElementById('session-date').value.trim() || new Date().toLocaleDateString('es-ES');
+  writeSession({ patient, date }).then(session => {
     if (session) updateSessionChip(session);
     if (patient) _sessionCh.postMessage({ type: 'SESSION_PATIENT', patient });
   });
@@ -1291,7 +1292,10 @@ function promptClearSession() {
       updateRegionSelector();
       ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
       _syncImportedCard();
-      clearSession().then(() => updateSessionChip(null));
+      clearSession().then(() => {
+        updateSessionChip(null);
+        _sessionCh.postMessage({ type: 'SESSION_CLEAR' });
+      });
     }
   );
 }
