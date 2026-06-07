@@ -1042,7 +1042,7 @@ function applyForceContext(forceData) {
     if (m.laterality === 'comparison') {
       const l  = m.sides?.left?.peak;
       const r  = m.sides?.right?.peak;
-      const ai = m.asymmetryIndex ?? (m.lsi != null ? 100 - m.lsi : null);
+      const ai = m.asymmetryIndex ?? (l != null && r != null ? (() => { const avg = (l + r) / 2; return avg ? Math.abs(l - r) / avg * 100 : null; })() : null);
       return [
         label,
         l  != null ? `Izq ${l.toFixed(1)} kg`  : null,
