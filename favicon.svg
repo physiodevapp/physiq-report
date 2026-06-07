@@ -7,7 +7,7 @@
   </defs>
   <g transform="translate(16,15.2) scale(1.22) translate(-16,-16)">
     <path d="M8 5 H20 L25 10 V27 a1.5 1.5 0 0 1 -1.5 1.5 H8 a1.5 1.5 0 0 1 -1.5 -1.5 V6.5 a1.5 1.5 0 0 1 1.5 -1.5z"
-          fill="#111620" stroke="url(#g)" stroke-width="2" stroke-linejoin="round"/>
+          fill="none" stroke="url(#g)" stroke-width="2" stroke-linejoin="round"/>
     <line x1="10.5" y1="18" x2="20" y2="18" stroke="#4f9cf9" stroke-width="2" stroke-linecap="round"/>
     <line x1="10.5" y1="23.5" x2="16" y2="23.5" stroke="#38d9a9" stroke-width="2" stroke-linecap="round"/>
   </g>
