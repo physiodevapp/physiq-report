@@ -6,7 +6,6 @@ const APP_SHELL = [
   './app.js',
   './manifest.json',
   './favicon.svg',
-  './apple-touch-icon.png',
 ];
 
 const NETWORK_ONLY_HOSTS = [
