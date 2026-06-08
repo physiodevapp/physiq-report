@@ -363,6 +363,7 @@ function getWhisperPrompt(region) {
 
 function setManualRegion(key, label) {
   manualRegion = key || null;
+  writeSession({ manualRegion: key || null });
   const triggerText = document.getElementById('region-trigger-text');
   if (triggerText) triggerText.textContent = label;
   document.querySelectorAll('.sheet-option').forEach(opt => {
@@ -1380,6 +1381,10 @@ readSession().then(session => {
     if (session.date && dateEl) dateEl.value = session.date;
     const diagEl = document.getElementById('diagnosis');
     if (session.diagnosis && diagEl) diagEl.value = session.diagnosis;
+    if (session.manualRegion && !manualRegion) {
+      const label = session.manualRegion.charAt(0).toUpperCase() + session.manualRegion.slice(1);
+      setManualRegion(session.manualRegion, label);
+    }
   }
   checkReady();
   updateSessionChip(session);
