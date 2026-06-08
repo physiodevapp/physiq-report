@@ -1336,6 +1336,7 @@ function _applyImportedAudio(entry) {
 }
 
 loadConfig();
+document.getElementById('session-date').value = new Date().toLocaleDateString('es-ES');
 applyPhysiQAssessmentContext(loadFromPhysiQAssessment());
 updateRegionSelector();
 _peekAudioFromIDB().then(entry => { if (entry) _showRecordingHint(entry.duration); });
@@ -1357,10 +1358,12 @@ readSession().then(session => {
   }
   const nameEl = document.getElementById('patient-name');
   if (session.patient && nameEl && !nameEl.value) nameEl.value = session.patient;
-  const dateEl = document.getElementById('session-date');
-  if (session.date && dateEl && !dateEl.value) dateEl.value = session.date;
-  const diagEl = document.getElementById('diagnosis');
-  if (session.diagnosis && diagEl && !diagEl.value) diagEl.value = session.diagnosis;
+  if (!window._physiqAssessmentContext) {
+    const dateEl = document.getElementById('session-date');
+    if (session.date && dateEl) dateEl.value = session.date;
+    const diagEl = document.getElementById('diagnosis');
+    if (session.diagnosis && diagEl) diagEl.value = session.diagnosis;
+  }
   checkReady();
   updateSessionChip(session);
 });
