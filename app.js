@@ -679,6 +679,8 @@ function renderReport(reportText, transcript, info) {
   const cfg = JSON.parse(localStorage.getItem('physiq_config') || '{}');
   const btn = document.getElementById('btn-seguimiento');
   if (btn) btn.style.display = cfg.seguimientoUrl ? 'inline-flex' : 'none';
+  const shareBtn = document.getElementById('btn-share');
+  if (shareBtn) shareBtn.style.display = navigator.share ? '' : 'none';
 }
 
 function openSeguimiento() {
@@ -749,10 +751,11 @@ async function generateReport() {
   finally { _isProcessing = false; _showTurnstile(); }
 }
 
-// ========= DOWNLOAD WORD =========
+// ========= DOWNLOAD / SHARE WORD =========
 function downloadWord() { loadDocx(_buildAndDownloadWord); }
+function shareReport()  { loadDocx(_buildAndShareWord); }
 
-async function _buildAndDownloadWord() {
+async function _buildWordBlob() {
   const {Document, Packer, Paragraph, TextRun, ImageRun, Header, Footer,
          Table, TableRow, TableCell, AlignmentType, BorderStyle,
          TabStopType, PageNumber, PageBreak, WidthType, ShadingType, HeightRule, VerticalAlign,
@@ -953,12 +956,29 @@ async function _buildAndDownloadWord() {
   });
 
   const blob = await Packer.toBlob(doc);
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url;
-  a.download = `PhysiQ_${patientName.replace(/\s+/g,'_')}_${sessionDate.replace(/\//g,'-')}.docx`;
-  a.click();
+  const filename = `PhysiQ_${patientName.replace(/\s+/g,'_')}_${sessionDate.replace(/\//g,'-')}.docx`;
+  return { blob, filename, patientName };
+}
+
+async function _buildAndDownloadWord() {
+  const { blob, filename } = await _buildWordBlob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
+}
+
+async function _buildAndShareWord() {
+  const { blob, filename, patientName } = await _buildWordBlob();
+  const file = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    await navigator.share({ files: [file], title: `Informe de Fisioterapia — ${patientName}` });
+  } else {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  }
 }
 
 // Build TextRun array (and ExternalHyperlink) from a line that may contain links
