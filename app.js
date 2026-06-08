@@ -221,9 +221,24 @@ document.getElementById('logo-file').addEventListener('change', function(e) {
   reader.readAsDataURL(file);
 });
 
+function _setAudioFile(file) {
+  selectedFile = file;
+  document.getElementById('file-name').textContent = '✓ ' + file.name;
+  document.getElementById('audio-clear-btn').style.display = '';
+  _hideRecordingHint();
+  checkReady();
+}
+
+function clearAudio() {
+  selectedFile = null;
+  document.getElementById('file-name').textContent = '';
+  document.getElementById('audio-file').value = '';
+  document.getElementById('audio-clear-btn').style.display = 'none';
+  checkReady();
+}
+
 document.getElementById('audio-file').addEventListener('change', function(e) {
-  selectedFile = e.target.files[0];
-  if (selectedFile) { _hideRecordingHint(); document.getElementById('file-name').textContent = '✓ ' + selectedFile.name; checkReady(); }
+  if (e.target.files[0]) _setAudioFile(e.target.files[0]);
 });
 const az = document.getElementById('audio-zone');
 az.addEventListener('dragover', e => { e.preventDefault(); az.style.borderColor = 'var(--accent)'; });
@@ -231,7 +246,7 @@ az.addEventListener('dragleave', () => az.style.borderColor = '');
 az.addEventListener('drop', e => {
   e.preventDefault(); az.style.borderColor = '';
   const f = e.dataTransfer.files[0];
-  if (f) { selectedFile = f; document.getElementById('file-name').textContent = '✓ ' + f.name; checkReady(); }
+  if (f) _setAudioFile(f);
 });
 document.getElementById('patient-name').addEventListener('input', () => {
   checkReady();
@@ -989,6 +1004,7 @@ function resetApp() {
   _hideRecordingHint();
   document.getElementById('file-name').textContent = '';
   document.getElementById('audio-file').value = '';
+  document.getElementById('audio-clear-btn').style.display = 'none';
   ['patient-name','session-date','diagnosis'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('result-section').style.display = 'none';
   document.getElementById('progress-wrap').style.display = 'none';
@@ -1320,6 +1336,7 @@ function _applyImportedAudio(entry) {
   _hideRecordingHint();
   selectedFile = new File([entry.blob], entry.name, { type: entry.type });
   document.getElementById('file-name').textContent = '✓ ' + entry.name;
+  document.getElementById('audio-clear-btn').style.display = '';
   const mins = Math.floor(entry.duration / 60);
   const secs = (entry.duration % 60).toString().padStart(2, '0');
   const badge = document.createElement('div');
