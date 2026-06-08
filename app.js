@@ -328,6 +328,45 @@ function loadConfig() {
   }
 }
 
+// ========= CONFIG EXPORT / IMPORT =========
+function exportConfig() {
+  const cfg = localStorage.getItem('physiq_config') || '{}';
+  const logo = localStorage.getItem('physiq_logo') || null;
+  const logoMimeStored = localStorage.getItem('physiq_logo_mime') || null;
+  const bundle = { physiq_config: JSON.parse(cfg), physiq_logo: logo, physiq_logo_mime: logoMimeStored };
+  const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'physiq-config.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importConfig() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json,.json';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const bundle = JSON.parse(ev.target.result);
+        if (bundle.physiq_config) localStorage.setItem('physiq_config', JSON.stringify(bundle.physiq_config));
+        if (bundle.physiq_logo) { localStorage.setItem('physiq_logo', bundle.physiq_logo); localStorage.setItem('physiq_logo_mime', bundle.physiq_logo_mime || 'image/png'); }
+        loadConfig();
+        const ok = document.getElementById('saved-ok');
+        ok.textContent = '✓ Configuración importada';
+        ok.style.display = 'block';
+        setTimeout(() => { ok.style.display = 'none'; ok.textContent = '✓ Configuración guardada'; }, 2500);
+      } catch { alert('Archivo no válido'); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
 // ========= PROGRESS =========
 function setStep(n, s) { document.getElementById('step-'+n).className = 'progress-step '+s; }
 function showError(msg) {

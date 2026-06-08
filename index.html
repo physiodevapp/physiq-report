@@ -51,6 +51,7 @@
   .card-header:hover{background:rgba(255,255,255,0.02);}
   .card-body{padding:16px;border-top:1px solid var(--border);display:none;}
   .card-body.open{display:block;}
+  #body-imported.open{display:flex;flex-direction:column;gap:8px;}
   .section-title{font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:1.5px;}
   .chevron{color:var(--text-muted);font-size:11px;transition:transform 0.2s;}
   .chevron.open{transform:rotate(180deg);}
@@ -190,7 +191,7 @@
         <span class="chevron open" id="chevron-imported">▼</span>
       </div>
     </div>
-    <div class="card-body open" id="body-imported" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <div class="card-body open" id="body-imported"></div>
   </div>
 
   <!-- Clinic + Style config -->
@@ -294,7 +295,11 @@
         <input type="color" id="style-header-color" value="#38d9a9">
       </div>
 
-      <button class="btn-save" onclick="saveConfig()">💾 Guardar configuración</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button class="btn-save" onclick="saveConfig()">💾 Guardar</button>
+        <button class="btn-secondary" onclick="exportConfig()">📤 Exportar</button>
+        <button class="btn-secondary" onclick="importConfig()">📥 Importar</button>
+      </div>
       <div class="saved-ok" id="saved-ok">✓ Configuración guardada</div>
     </div>
   </div>
