@@ -7,8 +7,10 @@ let manualRegion = null;
 // ========= TURNSTILE =========
 const TURNSTILE_SITEKEY = '0x4AAAAAADU3dzE5Tw_whVks';
 let _turnstileToken = null, _turnstileResolve = null, _turnstileWidgetId = null;
+let _isProcessing = false;
 
 function _showTurnstile() {
+  if (_isProcessing) return;
   document.getElementById('turnstile-wrap').style.display = '';
   document.getElementById('generate-btn').style.display = 'none';
 }
@@ -25,7 +27,7 @@ function initTurnstile() {
     callback: (token) => {
       _turnstileToken = token;
       if (_turnstileResolve) { _turnstileResolve(token); _turnstileResolve = null; }
-      _showGenerateBtn();
+      else if (!_isProcessing) { _showGenerateBtn(); }
     },
   });
 }
@@ -545,14 +547,22 @@ function detectTruncation(reportText) {
 }
 
 // ========= RENDER REPORT =========
+function toggleResultBody() {
+  const body = document.getElementById('result-body');
+  const chev = document.getElementById('chevron-result');
+  const collapsed = body.classList.toggle('collapsed');
+  chev.classList.toggle('open', !collapsed);
+}
+
 function renderReport(reportText, transcript, info) {
   lastReportText = reportText;
-  let html = `<div style="margin-bottom:12px;display:flex;gap:6px;flex-wrap:wrap;">
+  document.getElementById('result-chips').innerHTML = `<div style="display:flex;gap:6px;flex-wrap:wrap;">
     <span class="badge">👤 ${info.name}</span>
     ${info.date?`<span class="badge">📅 ${info.date}</span>`:''}
-${info.diagnosis?`<span class="badge">🏥 ${info.diagnosis}</span>`:''}
+    ${info.diagnosis?`<span class="badge">🏥 ${info.diagnosis}</span>`:''}
     <span class="badge">📐 ${selectedTemplate === 'brief' ? 'Breve' : 'Narrativo'}</span>
   </div>`;
+  let html = '';
 
   if (detectTruncation(reportText)) {
     html += `<div style="background:rgba(255,193,7,0.1);border:1px solid #ffc107;border-radius:8px;padding:12px;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start;">
@@ -658,6 +668,7 @@ async function generateReport() {
   document.getElementById('generate-btn').innerHTML = '<div class="spinner"></div> Procesando...';
   document.getElementById('progress-wrap').style.display = 'block';
   [1,2,3].forEach(i => setStep(i,''));
+  _isProcessing = true;
   try {
     if (selectedFile) {
       setStep(1,'active');
@@ -677,6 +688,7 @@ async function generateReport() {
     renderReport(report, transcriptText, info);
     document.getElementById('generate-btn').innerHTML = '✓ Informe generado';
   } catch(err) { showError(err.message); }
+  finally { _isProcessing = false; _showTurnstile(); }
 }
 
 // ========= DOWNLOAD WORD =========

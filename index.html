@@ -104,9 +104,13 @@
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
   .result-section{display:none;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
   .result-header{padding:13px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
+  .result-title-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;}
+  .result-title-toggle:hover{opacity:0.8;}
   .result-title{font-family:'DM Serif Display',serif;font-size:15px;color:var(--accent);}
   .result-actions{display:flex;gap:8px;flex-wrap:wrap;}
-  .result-body{padding:16px;}
+  .result-chips{padding:10px 16px 12px;}
+  .result-body{padding:16px;border-top:1px solid var(--border);}
+  .result-body.collapsed{display:none;}
   .cif-section{margin-bottom:14px;}
   .cif-section-title{font-family:'DM Mono',monospace;font-size:11px;color:var(--accent2);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:5px;padding-bottom:4px;border-bottom:1px solid var(--border);}
   .cif-content{font-size:13px;line-height:1.7;color:var(--text);white-space:pre-wrap;}
@@ -394,15 +398,19 @@
   <!-- Result -->
   <div class="result-section" id="result-section">
     <div class="result-header">
-      <div class="result-title">📋 Informe CIF-AFTA</div>
+      <div class="result-title-toggle" onclick="toggleResultBody()">
+        <div class="result-title">📋 Informe CIF-AFTA</div>
+        <span class="chevron" id="chevron-result">▼</span>
+      </div>
       <div class="result-actions">
         <button class="btn-secondary" onclick="copyReport()">Copiar</button>
-        <button class="btn-word" onclick="downloadWord()">📄 Word</button>
+        <button class="btn-word" onclick="downloadWord()"><svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;margin-right:5px;"><rect width="24" height="24" rx="3" fill="#2b579a"/><text x="12" y="17" font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">W</text></svg>Word</button>
         <button class="btn-seguimiento" id="btn-seguimiento" onclick="openSeguimiento()" style="display:none;">📅 Crear seguimiento</button>
         <button class="btn-secondary" onclick="resetApp()">Nueva sesión</button>
       </div>
     </div>
-    <div class="result-body" id="result-body"></div>
+    <div class="result-chips" id="result-chips"></div>
+    <div class="result-body collapsed" id="result-body"></div>
   </div>
 
 </main>
