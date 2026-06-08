@@ -242,6 +242,9 @@ document.getElementById('patient-name').addEventListener('input', () => {
     if (patient) _sessionCh.postMessage({ type: 'SESSION_PATIENT', patient });
   });
 });
+document.getElementById('diagnosis').addEventListener('input', () => {
+  writeSession({ diagnosis: document.getElementById('diagnosis').value.trim() });
+});
 
 function checkReady() {
   const hasName = !!document.getElementById('patient-name').value.trim();
@@ -1356,6 +1359,8 @@ readSession().then(session => {
   if (session.patient && nameEl && !nameEl.value) nameEl.value = session.patient;
   const dateEl = document.getElementById('session-date');
   if (session.date && dateEl && !dateEl.value) dateEl.value = session.date;
+  const diagEl = document.getElementById('diagnosis');
+  if (session.diagnosis && diagEl && !diagEl.value) diagEl.value = session.diagnosis;
   checkReady();
   updateSessionChip(session);
 });
