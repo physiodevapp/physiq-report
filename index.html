@@ -411,7 +411,6 @@
     <div class="result-header">
       <div class="result-title-toggle" onclick="toggleResultBody()">
         <div class="result-title">📋 Informe CIF-AFTA</div>
-        <span class="chevron" id="chevron-result">▼</span>
       </div>
       <div class="result-actions">
         <button class="btn-secondary" onclick="copyReport()">📋<span class="btn-label"> Copiar</span></button>
@@ -419,6 +418,7 @@
         <button class="btn-secondary" id="btn-share" onclick="shareReport()" style="display:none;">🔗<span class="btn-label"> Compartir</span></button>
         <button class="btn-seguimiento" id="btn-seguimiento" onclick="openSeguimiento()" style="display:none;">📅<span class="btn-label"> Crear seguimiento</span></button>
       </div>
+      <span class="chevron" id="chevron-result" onclick="toggleResultBody()" style="cursor:pointer;">▼</span>
     </div>
     <div class="result-chips" id="result-chips"></div>
     <div class="result-body collapsed" id="result-body"></div>
