@@ -437,8 +437,7 @@ function updateRegionSelector() {
 }
 
 // ========= TRANSCRIBE (via Cloudflare Worker) =========
-async function transcribeAudio(file, region) {
-  const token = await getTurnstileToken();
+async function transcribeAudio(file, region, token) {
   const fd = new FormData();
   fd.append('file', file);
   fd.append('prompt', getWhisperPrompt(region));
@@ -591,8 +590,7 @@ RECORDATORIO FINAL: tu respuesta DEBE empezar literalmente con la cadena "## CON
 }
 
 // ========= ANALYZE (via Cloudflare Worker) =========
-async function analyzeWithClaude(transcript, info) {
-  const token = await getTurnstileToken();
+async function analyzeWithClaude(transcript, info, token) {
   const prompt = buildPrompt(transcript, info, selectedTemplate);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 180000);
@@ -753,16 +751,21 @@ async function generateReport() {
   [1,2,3].forEach(i => setStep(i,''));
   _isProcessing = true;
   try {
+    let claudeToken;
     if (selectedFile) {
+      const whisperToken = await getTurnstileToken();
+      const claudeTokenPromise = getTurnstileToken(); // CF re-verifies while Whisper runs
       setStep(1,'active');
-      transcriptText = await transcribeAudio(selectedFile, window._physiqAssessmentContext?.r ?? manualRegion);
+      transcriptText = await transcribeAudio(selectedFile, window._physiqAssessmentContext?.r ?? manualRegion, whisperToken);
       setStep(1,'done');
+      claudeToken = await claudeTokenPromise;
     } else {
       transcriptText = '(No disponible — informe basado exclusivamente en los datos de la valoración estructurada)';
       setStep(1,'done');
+      claudeToken = await getTurnstileToken();
     }
     setStep(2,'active');
-    const report = await analyzeWithClaude(transcriptText, info);
+    const report = await analyzeWithClaude(transcriptText, info, claudeToken);
     setStep(2,'done'); setStep(3,'active');
     await new Promise(r => setTimeout(r, 350));
     setStep(3,'done');
