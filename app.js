@@ -439,7 +439,7 @@ function updateRegionSelector() {
 }
 
 // ========= TRANSCRIBE (via Cloudflare Worker) =========
-async function transcribeAudio(file, region, token) {
+async function transcribeAudio(file, region) {
   const fd = new FormData();
   fd.append('file', file);
   fd.append('prompt', getWhisperPrompt(region));
@@ -448,7 +448,6 @@ async function transcribeAudio(file, region, token) {
   try {
     const res = await fetch('https://physiq-whisper.edu-gamboa-rodriguez.workers.dev', {
       method: 'POST',
-      headers: { 'cf-turnstile-response': token },
       body: fd,
       signal: ctrl.signal
     });
@@ -753,21 +752,17 @@ async function generateReport() {
   _isProcessing = true;
   try {
     document.getElementById('generate-btn').innerHTML = '<div class="spinner"></div> Verificando...';
+    const claudeToken = await _getToken();
+    document.getElementById('generate-btn').innerHTML = '<div class="spinner"></div> Procesando...';
     document.getElementById('processing-overlay').classList.add('open');
     if (selectedFile) {
-      // Token for Whisper — show overlay if not pre-verified
-      const whisperToken = await _getToken();
-      // Widget has been reset; it re-verifies in background while Whisper runs
       setStep(1,'active');
-      transcriptText = await transcribeAudio(selectedFile, window._physiqAssessmentContext?.r ?? manualRegion, whisperToken);
+      transcriptText = await transcribeAudio(selectedFile, window._physiqAssessmentContext?.r ?? manualRegion);
       setStep(1,'done');
     } else {
       transcriptText = '(No disponible — informe basado exclusivamente en los datos de la valoración estructurada)';
       setStep(1,'done');
     }
-    document.getElementById('generate-btn').innerHTML = '<div class="spinner"></div> Procesando...';
-    // Token for Claude — use pre-verified token if Whisper gave time to re-verify, else show overlay
-    const claudeToken = await _getToken();
     setStep(2,'active');
     const report = await analyzeWithClaude(transcriptText, info, claudeToken);
     setStep(2,'done'); setStep(3,'active');
