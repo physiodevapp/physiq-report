@@ -879,8 +879,6 @@ async function _buildWordBlob() {
     }));
   });
 
-  children.push(new Paragraph({spacing:{after:200}}));
-
   // ── SECTIONS (parse ##, ###, ####, tables) ──
   const sections = lastReportText.split(/^## /m).filter(s => s.trim());
   sections.forEach(section => {
@@ -983,13 +981,18 @@ async function _buildAndShareWord() {
   const { blob, filename, patientName } = await _buildWordBlob();
   const file = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    await navigator.share({ files: [file], title: `Informe de Fisioterapia — ${patientName}` });
-  } else {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename; a.click();
-    URL.revokeObjectURL(url);
+    try {
+      await navigator.share({ files: [file], title: `Informe de Fisioterapia — ${patientName}` });
+      return;
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      // share failed (e.g. MIME not supported at runtime) — fall through to download
+    }
   }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
 }
 
 // Build TextRun array (and ExternalHyperlink) from a line that may contain links
