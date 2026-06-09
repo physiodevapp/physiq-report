@@ -442,13 +442,21 @@ async function transcribeAudio(file, region) {
   const fd = new FormData();
   fd.append('file', file);
   fd.append('prompt', getWhisperPrompt(region));
-  const res = await fetch('https://physiq-whisper.edu-gamboa-rodriguez.workers.dev', {
-    method: 'POST',
-    headers: { 'cf-turnstile-response': token },
-    body: fd
-  });
-  if (!res.ok) { const e = await res.json(); throw new Error('Whisper: '+(e.error?.message||res.status)); }
-  return (await res.json()).text;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 120000);
+  try {
+    const res = await fetch('https://physiq-whisper.edu-gamboa-rodriguez.workers.dev', {
+      method: 'POST',
+      headers: { 'cf-turnstile-response': token },
+      body: fd,
+      signal: ctrl.signal
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error('Whisper: '+(e.error?.message||res.status)); }
+    return (await res.json()).text;
+  } catch(err) {
+    if (err.name === 'AbortError') throw new Error('Whisper: tiempo de espera agotado (>2 min). Comprueba la conexión.');
+    throw err;
+  } finally { clearTimeout(timer); }
 }
 
 // ========= PROMPTS =========
@@ -586,17 +594,25 @@ RECORDATORIO FINAL: tu respuesta DEBE empezar literalmente con la cadena "## CON
 async function analyzeWithClaude(transcript, info) {
   const token = await getTurnstileToken();
   const prompt = buildPrompt(transcript, info, selectedTemplate);
-  const res = await fetch('https://physiq-claude.edu-gamboa-rodriguez.workers.dev', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'cf-turnstile-response': token },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
-      max_tokens: getTokens(),
-      messages: [{ role: 'user', content: prompt }]
-    })
-  });
-  if (!res.ok) { const e = await res.json(); throw new Error('Claude: '+(e.error?.message||res.status)); }
-  return (await res.json()).content[0].text;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 180000);
+  try {
+    const res = await fetch('https://physiq-claude.edu-gamboa-rodriguez.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'cf-turnstile-response': token },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: getTokens(),
+        messages: [{ role: 'user', content: prompt }]
+      }),
+      signal: ctrl.signal
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error('Claude: '+(e.error?.message||res.status)); }
+    return (await res.json()).content[0].text;
+  } catch(err) {
+    if (err.name === 'AbortError') throw new Error('Claude: tiempo de espera agotado (>3 min). Inténtalo de nuevo.');
+    throw err;
+  } finally { clearTimeout(timer); }
 }
 
 // ========= TRUNCATION DETECTION =========
@@ -754,7 +770,7 @@ async function generateReport() {
     document.getElementById('result-section').style.display = 'block';
     renderReport(report, transcriptText, info);
     document.getElementById('generate-btn').innerHTML = '✓ Informe generado';
-  } catch(err) { showError(err.message); }
+  } catch(err) { console.error('[PhysiQ] generateReport error:', err); showError(err.message); }
   finally { _isProcessing = false; setTimeout(_showTurnstile, 2000); }
 }
 
