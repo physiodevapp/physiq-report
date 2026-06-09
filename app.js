@@ -819,18 +819,22 @@ async function _buildWordBlob() {
   });
 
   const _rightLines = [];
-  if (clinicName) _rightLines.push(new Paragraph({
+  if (clinicUnit) _rightLines.push(new Paragraph({
     alignment: AlignmentType.RIGHT, spacing:{after:30},
-    children:[new TextRun({text: clinicName, bold:true, size:22, font, color:titleColor})]
-  }));
-  const _subLine = [clinicCol ? `Nº Col. ${clinicCol}` : null, clinicUnit || null].filter(Boolean).join(' · ');
-  if (_subLine) _rightLines.push(new Paragraph({
-    alignment: AlignmentType.RIGHT, spacing:{after:30},
-    children:[new TextRun({text: _subLine, size:18, font, color:bodyColor})]
+    children:[new TextRun({text: clinicUnit, bold:true, size:22, font, color:titleColor})]
   }));
   _rightLines.push(new Paragraph({
-    alignment: AlignmentType.RIGHT, spacing:{after:0},
+    alignment: AlignmentType.RIGHT, spacing:{after:30},
     children:[new TextRun({text: 'Paciente: ' + patientName, size:20, font, color:bodyColor})]
+  }));
+  const _physioLine = [clinicName || null, clinicCol ? `N. col. ${clinicCol}` : null].filter(Boolean).join(' | ');
+  if (_physioLine) _rightLines.push(new Paragraph({
+    alignment: AlignmentType.RIGHT, spacing:{after:30},
+    children:[new TextRun({text: _physioLine, size:18, font, color:bodyColor})]
+  }));
+  if (clinicCity || sessionDate) _rightLines.push(new Paragraph({
+    alignment: AlignmentType.RIGHT, spacing:{after:0},
+    children:[new TextRun({text: [clinicCity, sessionDate ? `a ${sessionDate}` : null].filter(Boolean).join(', '), size:18, font, color:bodyColor})]
   }));
 
   const headerRightCell = new TableCell({
