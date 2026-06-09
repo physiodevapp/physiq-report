@@ -17,6 +17,20 @@ function _closeTurnstileOverlay() {
   document.getElementById('turnstile-overlay').classList.remove('open');
 }
 
+// Get a Turnstile token: use pre-verified one if available, otherwise show overlay.
+// Always resets the widget afterwards so it re-verifies in background for the next call.
+async function _getToken() {
+  if (!_turnstileToken) _openTurnstileOverlay();
+  try {
+    return await getTurnstileToken();
+  } finally {
+    _closeTurnstileOverlay();
+    if (typeof turnstile !== 'undefined' && _turnstileWidgetId != null) {
+      turnstile.reset(_turnstileWidgetId);
+    }
+  }
+}
+
 function initTurnstile() {
   _turnstileWidgetId = turnstile.render('#cf-turnstile-container', {
     sitekey: TURNSTILE_SITEKEY,
@@ -738,20 +752,12 @@ async function generateReport() {
   [1,2,3].forEach(i => setStep(i,''));
   _isProcessing = true;
   try {
-    // Get tokens upfront via overlay (managed challenge, usually auto-verifies)
-    _openTurnstileOverlay();
-    let whisperToken = null, claudeToken;
-    if (selectedFile) {
-      whisperToken = await getTurnstileToken();
-      turnstile.reset(_turnstileWidgetId);
-      claudeToken = await getTurnstileToken();
-    } else {
-      claudeToken = await getTurnstileToken();
-    }
-    _closeTurnstileOverlay();
-    document.getElementById('generate-btn').innerHTML = '<div class="spinner"></div> Procesando...';
+    document.getElementById('generate-btn').innerHTML = '<div class="spinner"></div> Verificando...';
     document.getElementById('processing-overlay').classList.add('open');
     if (selectedFile) {
+      // Token for Whisper — show overlay if not pre-verified
+      const whisperToken = await _getToken();
+      // Widget has been reset; it re-verifies in background while Whisper runs
       setStep(1,'active');
       transcriptText = await transcribeAudio(selectedFile, window._physiqAssessmentContext?.r ?? manualRegion, whisperToken);
       setStep(1,'done');
@@ -759,6 +765,9 @@ async function generateReport() {
       transcriptText = '(No disponible — informe basado exclusivamente en los datos de la valoración estructurada)';
       setStep(1,'done');
     }
+    document.getElementById('generate-btn').innerHTML = '<div class="spinner"></div> Procesando...';
+    // Token for Claude — use pre-verified token if Whisper gave time to re-verify, else show overlay
+    const claudeToken = await _getToken();
     setStep(2,'active');
     const report = await analyzeWithClaude(transcriptText, info, claudeToken);
     setStep(2,'done'); setStep(3,'active');
