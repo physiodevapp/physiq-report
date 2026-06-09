@@ -9,16 +9,12 @@ const TURNSTILE_SITEKEY = '0x4AAAAAADU3dzE5Tw_whVks';
 let _turnstileToken = null, _turnstileResolve = null, _turnstileWidgetId = null;
 let _isProcessing = false;
 
-function _showTurnstile() {
-  if (_isProcessing) return;
-  document.getElementById('turnstile-wrap').classList.remove('tw-hidden');
-  document.getElementById('generate-btn').style.display = 'none';
+function _openTurnstileOverlay() {
+  document.getElementById('turnstile-overlay').classList.add('open');
 }
 
-function _showGenerateBtn() {
-  // use tw-hidden instead of display:none so CF iframe stays active for auto-refresh
-  document.getElementById('turnstile-wrap').classList.add('tw-hidden');
-  document.getElementById('generate-btn').style.display = '';
+function _closeTurnstileOverlay() {
+  document.getElementById('turnstile-overlay').classList.remove('open');
 }
 
 function initTurnstile() {
@@ -28,7 +24,6 @@ function initTurnstile() {
     callback: (token) => {
       _turnstileToken = token;
       if (_turnstileResolve) { _turnstileResolve(token); _turnstileResolve = null; }
-      else if (!_isProcessing) { _showGenerateBtn(); }
     },
   });
 }
@@ -42,17 +37,10 @@ function getTurnstileToken() {
     if (_turnstileToken) {
       const t = _turnstileToken;
       _turnstileToken = null;
-      turnstile.reset(_turnstileWidgetId);
-      if (!_isProcessing) _showTurnstile();
       resolve(t);
       return;
     }
-    _turnstileResolve = (token) => {
-      _turnstileToken = null;
-      turnstile.reset(_turnstileWidgetId);
-      if (!_isProcessing) _showTurnstile();
-      resolve(token);
-    };
+    _turnstileResolve = resolve;
     setTimeout(() => {
       if (_turnstileResolve) {
         _turnstileResolve = null;
@@ -746,23 +734,30 @@ async function generateReport() {
   document.getElementById('error-box').style.display = 'none';
   document.getElementById('result-section').style.display = 'none';
   document.getElementById('generate-btn').disabled = true;
-  document.getElementById('generate-btn').innerHTML = '<div class="spinner"></div> Procesando...';
-  document.getElementById('processing-overlay').classList.add('open');
+  document.getElementById('generate-btn').innerHTML = '<div class="spinner"></div> Verificando...';
   [1,2,3].forEach(i => setStep(i,''));
   _isProcessing = true;
   try {
-    let claudeToken;
+    // Get tokens upfront via overlay (managed challenge, usually auto-verifies)
+    _openTurnstileOverlay();
+    let whisperToken = null, claudeToken;
     if (selectedFile) {
-      const whisperToken = await getTurnstileToken();
-      const claudeTokenPromise = getTurnstileToken(); // CF re-verifies while Whisper runs
+      whisperToken = await getTurnstileToken();
+      turnstile.reset(_turnstileWidgetId);
+      claudeToken = await getTurnstileToken();
+    } else {
+      claudeToken = await getTurnstileToken();
+    }
+    _closeTurnstileOverlay();
+    document.getElementById('generate-btn').innerHTML = '<div class="spinner"></div> Procesando...';
+    document.getElementById('processing-overlay').classList.add('open');
+    if (selectedFile) {
       setStep(1,'active');
       transcriptText = await transcribeAudio(selectedFile, window._physiqAssessmentContext?.r ?? manualRegion, whisperToken);
       setStep(1,'done');
-      claudeToken = await claudeTokenPromise;
     } else {
       transcriptText = '(No disponible — informe basado exclusivamente en los datos de la valoración estructurada)';
       setStep(1,'done');
-      claudeToken = await getTurnstileToken();
     }
     setStep(2,'active');
     const report = await analyzeWithClaude(transcriptText, info, claudeToken);
@@ -774,7 +769,7 @@ async function generateReport() {
     renderReport(report, transcriptText, info);
     document.getElementById('generate-btn').innerHTML = '✓ Informe generado';
   } catch(err) { console.error('[PhysiQ] generateReport error:', err); showError(err.message); }
-  finally { _isProcessing = false; setTimeout(_showTurnstile, 2000); }
+  finally { _isProcessing = false; _closeTurnstileOverlay(); }
 }
 
 // ========= DOWNLOAD / SHARE WORD =========
