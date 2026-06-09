@@ -346,7 +346,7 @@ function exportConfig() {
   const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'physiq_report-config.json';
+  a.download = 'physiq-report_config.json';
   a.click();
   URL.revokeObjectURL(a.href);
 }
