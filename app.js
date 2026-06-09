@@ -42,30 +42,19 @@ function getTurnstileToken() {
       const t = _turnstileToken;
       _turnstileToken = null;
       turnstile.reset(_turnstileWidgetId);
-      if (_isProcessing) {
-        // Show widget so managed-challenge checkbox is reachable during processing,
-        // but don't hide the "Procesando..." button.
-        document.getElementById('turnstile-wrap').style.display = '';
-      } else {
-        _showTurnstile();
-      }
+      if (!_isProcessing) _showTurnstile();
       resolve(t);
       return;
     }
     _turnstileResolve = (token) => {
       _turnstileToken = null;
       turnstile.reset(_turnstileWidgetId);
-      if (_isProcessing) {
-        document.getElementById('turnstile-wrap').style.display = 'none';
-      } else {
-        _showTurnstile();
-      }
+      if (!_isProcessing) _showTurnstile();
       resolve(token);
     };
     setTimeout(() => {
       if (_turnstileResolve) {
         _turnstileResolve = null;
-        if (_isProcessing) document.getElementById('turnstile-wrap').style.display = 'none';
         reject(new Error('Tiempo de verificación agotado. Recarga la página e inténtalo de nuevo.'));
       }
     }, 90000);
@@ -764,7 +753,7 @@ async function generateReport() {
     renderReport(report, transcriptText, info);
     document.getElementById('generate-btn').innerHTML = '✓ Informe generado';
   } catch(err) { showError(err.message); }
-  finally { _isProcessing = false; _showTurnstile(); }
+  finally { _isProcessing = false; setTimeout(_showTurnstile, 2000); }
 }
 
 // ========= DOWNLOAD / SHARE WORD =========
