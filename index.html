@@ -78,8 +78,14 @@
   #session-rec-hint button{background:rgba(79,195,161,0.08);border:1px solid rgba(79,195,161,0.25);border-radius:999px;padding:5px 14px;font-size:11px;color:var(--accent);cursor:pointer;font-family:'DM Mono',monospace;transition:background 0.15s;}
   #session-rec-hint button:hover{background:rgba(79,195,161,0.16);}
   .logo-preview{max-height:50px;max-width:160px;border-radius:6px;margin-top:8px;display:none;}
-  .radio-group{display:flex;gap:16px;margin-top:4px;flex-wrap:wrap;}
-  .radio-group label{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-muted);cursor:pointer;font-family:'DM Mono',monospace;}
+  .hstyle-group{display:inline-flex;margin-top:6px;}
+  .hstyle-btn{background:transparent;color:var(--accent);border:1px solid var(--accent);padding:8px 14px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all 0.2s;white-space:nowrap;}
+  .hstyle-btn:first-child{border-radius:10px 0 0 10px;}
+  .hstyle-btn:last-child{border-radius:0 10px 10px 0;}
+  .hstyle-btn:not(:first-child){border-left:none;}
+  .hstyle-btn.active{background:var(--accent);color:#0e1117;}
+  .hstyle-btn:hover:not(.active){background:rgba(79,195,161,0.1);}
+  @media(max-width:768px){.hstyle-group{display:flex;width:100%;} .hstyle-group .hstyle-btn{flex:1;}}
   .sep{border:none;border-top:1px solid var(--border);margin:14px 0;}
   .subsection{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;}
   .btn-save{background:var(--accent);color:#0e1117;border:none;border-radius:8px;padding:9px 18px;font-family:'DM Sans',sans-serif;font-weight:500;font-size:13px;cursor:pointer;margin-top:12px;transition:all 0.2s;}
@@ -287,10 +293,10 @@
 
       <div class="field" style="margin-bottom:10px;">
         <label>Estilo del encabezado</label>
-        <div class="radio-group">
-          <label><input type="radio" name="hstyle" value="line" checked> Línea de color</label>
-          <label><input type="radio" name="hstyle" value="bg"> Fondo de color</label>
-          <label><input type="radio" name="hstyle" value="none"> Sin estilo</label>
+        <div class="hstyle-group">
+          <button type="button" class="hstyle-btn active" data-value="line" onclick="setHstyle(this)">Línea</button>
+          <button type="button" class="hstyle-btn" data-value="bg" onclick="setHstyle(this)">Fondo</button>
+          <button type="button" class="hstyle-btn" data-value="none" onclick="setHstyle(this)">Sin estilo</button>
         </div>
       </div>
       <div class="field" style="margin-bottom:12px;">

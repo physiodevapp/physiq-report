@@ -278,6 +278,11 @@ function checkReady() {
   document.getElementById('generate-btn').disabled = !ok;
 }
 
+function setHstyle(btn) {
+  document.querySelectorAll('.hstyle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
 // ========= CONFIG SAVE/LOAD =========
 function saveConfig(silent) {
   const cfg = {
@@ -294,7 +299,7 @@ function saveConfig(silent) {
     titleItalic: document.getElementById('style-title-italic').value,
     bodySize:    document.getElementById('style-body-size').value,
     bodyColor:   document.getElementById('style-body-color').value,
-    headerStyle: document.querySelector('input[name="hstyle"]:checked').value,
+    headerStyle: document.querySelector('.hstyle-btn.active')?.dataset.value || 'line',
     headerColor:    document.getElementById('style-header-color').value,
     seguimientoUrl: document.getElementById('clinic-seguimiento-url').value.trim(),
     tokens:         document.getElementById('token-slider').value,
@@ -324,7 +329,7 @@ function loadConfig() {
   if (c.titleItalic) document.getElementById('style-title-italic').value= c.titleItalic;
   if (c.bodySize)    document.getElementById('style-body-size').value   = c.bodySize;
   if (c.bodyColor)   document.getElementById('style-body-color').value  = c.bodyColor;
-  if (c.headerStyle) document.querySelector(`input[name="hstyle"][value="${c.headerStyle}"]`).checked = true;
+  if (c.headerStyle) { const b = document.querySelector(`.hstyle-btn[data-value="${c.headerStyle}"]`); if (b) setHstyle(b); }
   if (c.headerColor)    document.getElementById('style-header-color').value    = c.headerColor;
   if (c.seguimientoUrl) document.getElementById('clinic-seguimiento-url').value = c.seguimientoUrl;
   if (c.tokens) { document.getElementById('token-slider').value = c.tokens; }
