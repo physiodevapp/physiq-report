@@ -1069,7 +1069,9 @@ function copyReport() {
   });
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.querySelector('.result-actions .btn-secondary');
-    btn.textContent = '✓ Copiado'; setTimeout(()=>btn.textContent='Copiar',2000);
+    const label = btn.querySelector('.btn-label');
+    if (label) { label.textContent = ' Copiado'; setTimeout(() => label.textContent = ' Copiar', 2000); }
+    else { btn.textContent = '✓ Copiado'; setTimeout(() => btn.textContent = 'Copiar', 2000); }
   });
 }
 
