@@ -42,22 +42,33 @@ function getTurnstileToken() {
       const t = _turnstileToken;
       _turnstileToken = null;
       turnstile.reset(_turnstileWidgetId);
-      _showTurnstile();
+      if (_isProcessing) {
+        // Show widget so managed-challenge checkbox is reachable during processing,
+        // but don't hide the "Procesando..." button.
+        document.getElementById('turnstile-wrap').style.display = '';
+      } else {
+        _showTurnstile();
+      }
       resolve(t);
       return;
     }
     _turnstileResolve = (token) => {
       _turnstileToken = null;
       turnstile.reset(_turnstileWidgetId);
-      _showTurnstile();
+      if (_isProcessing) {
+        document.getElementById('turnstile-wrap').style.display = 'none';
+      } else {
+        _showTurnstile();
+      }
       resolve(token);
     };
     setTimeout(() => {
       if (_turnstileResolve) {
         _turnstileResolve = null;
+        if (_isProcessing) document.getElementById('turnstile-wrap').style.display = 'none';
         reject(new Error('Tiempo de verificación agotado. Recarga la página e inténtalo de nuevo.'));
       }
-    }, 30000);
+    }, 90000);
   });
 }
 
