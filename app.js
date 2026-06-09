@@ -830,11 +830,11 @@ async function _buildWordBlob() {
   const _physioLine = [clinicName || null, clinicCol ? `N. col. ${clinicCol}` : null].filter(Boolean).join(' | ');
   if (_physioLine) _rightLines.push(new Paragraph({
     alignment: AlignmentType.RIGHT, spacing:{after:30},
-    children:[new TextRun({text: _physioLine, size:18, font, color:'ADADAD', italics:true})]
+    children:[new TextRun({text: _physioLine, size:18, font, color:'ADADAD'})]
   }));
   if (clinicCity || sessionDate) _rightLines.push(new Paragraph({
     alignment: AlignmentType.RIGHT, spacing:{after:0},
-    children:[new TextRun({text: [clinicCity, sessionDate ? `a ${sessionDate}` : null].filter(Boolean).join(', '), size:18, font, color:'ADADAD', italics:true})]
+    children:[new TextRun({text: [clinicCity, sessionDate ? `a ${sessionDate}` : null].filter(Boolean).join(', '), size:18, font, color:'ADADAD'})]
   }));
 
   const headerRightCell = new TableCell({
