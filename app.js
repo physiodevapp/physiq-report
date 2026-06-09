@@ -184,7 +184,15 @@ function selectTemplate(t) {
 function toggleCard(id) {
   const body = document.getElementById('body-'+id), chev = document.getElementById('chevron-'+id);
   const open = body.classList.contains('open');
-  body.classList.toggle('open', !open); chev.classList.toggle('open', !open);
+  if (!open) {
+    document.querySelectorAll('.card-body.open').forEach(el => {
+      el.classList.remove('open');
+      const c = document.getElementById('chevron-' + el.id.replace('body-', ''));
+      if (c) c.classList.remove('open');
+    });
+  }
+  body.classList.toggle('open', !open);
+  chev.classList.toggle('open', !open);
 }
 
 function _syncImportedCard() {
