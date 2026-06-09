@@ -771,7 +771,7 @@ async function generateReport() {
     renderReport(report, transcriptText, info);
     document.getElementById('generate-btn').innerHTML = '✓ Informe generado';
   } catch(err) { console.error('[PhysiQ] generateReport error:', err); showError(err.message); }
-  finally { _isProcessing = false; setTimeout(_showTurnstile, 2000); }
+  finally { _isProcessing = false; _showTurnstile(); }
 }
 
 // ========= DOWNLOAD / SHARE WORD =========
