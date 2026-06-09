@@ -826,7 +826,7 @@ async function _buildWordBlob() {
     alignment: AlignmentType.RIGHT, spacing:{after:30},
     children:[new TextRun({text: 'Paciente: ' + patientName, size:20, font, color:bodyColor})]
   }));
-  const _physioLine = [clinicName || null, clinicCol ? `N. col. ${clinicCol}` : null].filter(Boolean).join(' | ');
+  const _physioLine = [clinicName.trim() || null, clinicCol ? `N. col. ${clinicCol}` : null].filter(Boolean).join(' | ');
   if (_physioLine) _rightLines.push(new Paragraph({
     alignment: AlignmentType.RIGHT, spacing:{after:30},
     children:[new TextRun({text: _physioLine, size:18, font, color:'ADADAD'})]
