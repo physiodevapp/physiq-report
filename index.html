@@ -99,7 +99,10 @@
   .btn-word:hover{background:#1e3f7a;}
   .btn-seguimiento{background:var(--accent2);color:#fff;border:none;border-radius:10px;padding:9px 16px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all 0.2s;}
   .btn-seguimiento:hover{background:#1a7fc1;}
-  .progress-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;display:none;}
+  .tw-hidden{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;}
+  #processing-overlay{display:none;position:fixed;inset:0;background:rgba(14,17,23,0.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:200;align-items:center;justify-content:center;}
+  #processing-overlay.open{display:flex;}
+  #processing-dialog{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px 28px;width:min(380px,calc(100vw - 32px));}
   .progress-step{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:13px;color:var(--text-muted);transition:color 0.3s;}
   .progress-step.active{color:var(--accent);}
   .progress-step.done{color:var(--text);}
@@ -306,8 +309,8 @@
 
       <div class="config-actions" style="display:flex;gap:8px;align-items:center;">
         <button class="btn-save" style="margin-top:0;" onclick="saveConfig()">⚙️<span class="btn-label"> Guardar</span></button>
-        <button class="btn-secondary" onclick="exportConfig()">⬆️<span class="btn-label"> Exportar</span></button>
-        <button class="btn-secondary" onclick="importConfig()">⬇️<span class="btn-label"> Importar</span></button>
+        <button class="btn-secondary" onclick="exportConfig()">⬇️<span class="btn-label"> Exportar</span></button>
+        <button class="btn-secondary" onclick="importConfig()">⬆️<span class="btn-label"> Importar</span></button>
       </div>
       <div class="saved-ok" id="saved-ok">✓ Configuración guardada</div>
     </div>
@@ -402,13 +405,6 @@
     Generar Informe CIF-AFTA
   </button>
 
-  <!-- Progress -->
-  <div class="progress-wrap" id="progress-wrap">
-    <div class="section-title" style="margin-bottom:8px;">Procesando sesión...</div>
-    <div class="progress-step" id="step-1"><div class="step-dot"></div>Transcribiendo audio con Whisper...</div>
-    <div class="progress-step" id="step-2"><div class="step-dot"></div>Analizando con Claude (CIF-AFTA)...</div>
-    <div class="progress-step" id="step-3"><div class="step-dot"></div>Estructurando informe final...</div>
-  </div>
 
   <!-- Result -->
   <div class="result-section" id="result-section">
@@ -429,6 +425,16 @@
   </div>
 
 </main>
+
+<!-- Processing modal -->
+<div id="processing-overlay">
+  <div id="processing-dialog">
+    <div class="section-title" style="margin-bottom:12px;">Procesando sesión...</div>
+    <div class="progress-step" id="step-1"><div class="step-dot"></div>Transcribiendo audio con Whisper...</div>
+    <div class="progress-step" id="step-2"><div class="step-dot"></div>Analizando con Claude (CIF-AFTA)...</div>
+    <div class="progress-step" id="step-3"><div class="step-dot"></div>Estructurando informe final...</div>
+  </div>
+</div>
 
 <!-- Region bottom sheet -->
 <div class="sheet-overlay" id="sheet-overlay" onclick="closeRegionSheet()"></div>

@@ -11,12 +11,13 @@ let _isProcessing = false;
 
 function _showTurnstile() {
   if (_isProcessing) return;
-  document.getElementById('turnstile-wrap').style.display = '';
+  document.getElementById('turnstile-wrap').classList.remove('tw-hidden');
   document.getElementById('generate-btn').style.display = 'none';
 }
 
 function _showGenerateBtn() {
-  document.getElementById('turnstile-wrap').style.display = 'none';
+  // use tw-hidden instead of display:none so CF iframe stays active for auto-refresh
+  document.getElementById('turnstile-wrap').classList.add('tw-hidden');
   document.getElementById('generate-btn').style.display = '';
 }
 
@@ -57,7 +58,7 @@ function getTurnstileToken() {
         _turnstileResolve = null;
         reject(new Error('Tiempo de verificación agotado. Recarga la página e inténtalo de nuevo.'));
       }
-    }, 90000);
+    }, 300000);
   });
 }
 
@@ -342,7 +343,7 @@ function exportConfig() {
   const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'physiq-config.json';
+  a.download = 'physiq_report-config.json';
   a.click();
   URL.revokeObjectURL(a.href);
 }
@@ -377,7 +378,7 @@ function setStep(n, s) { document.getElementById('step-'+n).className = 'progres
 function showError(msg) {
   document.getElementById('error-box').textContent = '⚠️ ' + msg;
   document.getElementById('error-box').style.display = 'block';
-  document.getElementById('progress-wrap').style.display = 'none';
+  document.getElementById('processing-overlay').classList.remove('open');
   document.getElementById('generate-btn').disabled = false;
   document.getElementById('generate-btn').innerHTML = 'Generar Informe CIF-AFTA';
 }
@@ -731,7 +732,7 @@ async function generateReport() {
   document.getElementById('result-section').style.display = 'none';
   document.getElementById('generate-btn').disabled = true;
   document.getElementById('generate-btn').innerHTML = '<div class="spinner"></div> Procesando...';
-  document.getElementById('progress-wrap').style.display = 'block';
+  document.getElementById('processing-overlay').classList.add('open');
   [1,2,3].forEach(i => setStep(i,''));
   _isProcessing = true;
   try {
@@ -748,7 +749,7 @@ async function generateReport() {
     setStep(2,'done'); setStep(3,'active');
     await new Promise(r => setTimeout(r, 350));
     setStep(3,'done');
-    document.getElementById('progress-wrap').style.display = 'none';
+    document.getElementById('processing-overlay').classList.remove('open');
     document.getElementById('result-section').style.display = 'block';
     renderReport(report, transcriptText, info);
     document.getElementById('generate-btn').innerHTML = '✓ Informe generado';
@@ -1069,7 +1070,7 @@ function resetApp() {
   document.getElementById('audio-clear-btn').style.display = 'none';
   ['patient-name','session-date','diagnosis'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('result-section').style.display = 'none';
-  document.getElementById('progress-wrap').style.display = 'none';
+  document.getElementById('processing-overlay').classList.remove('open');
   document.getElementById('error-box').style.display = 'none';
   document.getElementById('generate-btn').disabled = true;
   document.getElementById('generate-btn').innerHTML = 'Generar Informe CIF-AFTA';
