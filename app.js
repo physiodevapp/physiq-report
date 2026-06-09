@@ -336,6 +336,7 @@ function loadConfig() {
 
 // ========= CONFIG EXPORT / IMPORT =========
 function exportConfig() {
+  saveConfig(true); // flush current form state before reading localStorage
   const cfg = localStorage.getItem('physiq_config') || '{}';
   const logo = localStorage.getItem('physiq_logo') || null;
   const logoMimeStored = localStorage.getItem('physiq_logo_mime') || null;
