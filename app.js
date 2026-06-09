@@ -818,6 +818,21 @@ async function _buildWordBlob() {
     })]
   });
 
+  const _rightLines = [];
+  if (clinicName) _rightLines.push(new Paragraph({
+    alignment: AlignmentType.RIGHT, spacing:{after:30},
+    children:[new TextRun({text: clinicName, bold:true, size:22, font, color:titleColor})]
+  }));
+  const _subLine = [clinicCol ? `Nº Col. ${clinicCol}` : null, clinicUnit || null].filter(Boolean).join(' · ');
+  if (_subLine) _rightLines.push(new Paragraph({
+    alignment: AlignmentType.RIGHT, spacing:{after:30},
+    children:[new TextRun({text: _subLine, size:18, font, color:bodyColor})]
+  }));
+  _rightLines.push(new Paragraph({
+    alignment: AlignmentType.RIGHT, spacing:{after:0},
+    children:[new TextRun({text: 'Paciente: ' + patientName, size:20, font, color:bodyColor})]
+  }));
+
   const headerRightCell = new TableCell({
     width: {size: 5886, type: WidthType.DXA},
     borders: {
@@ -827,17 +842,7 @@ async function _buildWordBlob() {
       right:  {style: BorderStyle.NONE},
     },
     verticalAlign: VerticalAlign.CENTER,
-    children: [
-      new Paragraph({
-        alignment: AlignmentType.RIGHT,
-        spacing: {after: 40},
-        children: [new TextRun({text: clinicUnit || '', bold:true, size:22, font, color: titleColor})]
-      }),
-      new Paragraph({
-        alignment: AlignmentType.RIGHT,
-        children: [new TextRun({text: 'Paciente: ' + patientName, size:20, font, color: bodyColor})]
-      })
-    ]
+    children: _rightLines
   });
 
   const headerTable = new Table({
@@ -930,31 +935,14 @@ async function _buildWordBlob() {
     });
   });
 
-  // ── RGPD on new page, justified, dynamically pushed toward bottom ──
+  // ── RGPD: flows naturally after last section, no forced page break ──
   if (rgpd.trim()) {
-    children.push(new Paragraph({children:[new PageBreak()]}));
-
-    const rgpdText = rgpd.trim();
-    const charsPerLine = 100;
-    const estimatedRgpdLines = rgpdText.split('\n').reduce((acc, line) => {
-      const trimmed = line.trim();
-      if (!trimmed) return acc;
-      return acc + Math.max(1, Math.ceil(trimmed.length / charsPerLine));
-    }, 0);
-
-    const linesPerPage = 59;
-    const spacersNeeded = Math.max(0, linesPerPage - estimatedRgpdLines - 1);
-
-    for (let i = 0; i < spacersNeeded; i++) {
-      children.push(new Paragraph({children:[new TextRun({text:'', size:bodySize, font})], spacing:{after:0}}));
-    }
-
-    rgpdText.split('\n').filter(l=>l.trim()).forEach(line => {
-      const rgpdSize = Math.max(bodySize-4,16);
+    const rgpdSize = Math.max(bodySize - 4, 16);
+    rgpd.trim().split('\n').filter(l => l.trim()).forEach((line, i) => {
       const runs = buildRunsFromLine(line.trim(), {size:rgpdSize, font, color:'ADADAD', italics:true}, {TextRun, ExternalHyperlink});
       children.push(new Paragraph({
         children: runs,
-        spacing:{after:80, line:276, lineRule:'auto'},
+        spacing:{before: i === 0 ? 400 : 0, after:80, line:276, lineRule:'auto'},
         alignment: AlignmentType.JUSTIFIED,
       }));
     });
