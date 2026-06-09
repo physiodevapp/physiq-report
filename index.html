@@ -99,10 +99,7 @@
   .btn-word:hover{background:#1e3f7a;}
   .btn-seguimiento{background:var(--accent2);color:#fff;border:none;border-radius:10px;padding:9px 16px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all 0.2s;}
   .btn-seguimiento:hover{background:#1a7fc1;}
-  #turnstile-overlay{display:none;position:fixed;inset:0;background:rgba(14,17,23,0.88);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:200;align-items:center;justify-content:center;}
-  #turnstile-overlay.open{display:flex;}
-  #turnstile-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 24px;display:flex;flex-direction:column;align-items:center;gap:12px;max-width:360px;width:90%;text-align:center;}
-  #turnstile-card p{font-size:12px;color:var(--text-muted);font-family:'DM Mono',monospace;}
+  #cf-turnstile-container{display:flex;justify-content:center;align-items:center;min-height:65px;}
   #processing-overlay{display:none;position:fixed;inset:0;background:rgba(14,17,23,0.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:200;align-items:center;justify-content:center;}
   #processing-overlay.open{display:flex;}
   #processing-dialog{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px 28px;width:min(380px,calc(100vw - 32px));}
@@ -399,7 +396,12 @@
 
   <div class="error-box" id="error-box"></div>
 
-  <button class="btn-primary" id="generate-btn" onclick="generateReport()" disabled>
+  <div id="turnstile-wrap">
+    <p style="text-align:center;font-size:12px;color:var(--text-muted);margin-bottom:8px;">Verifica que eres humano para poder generar el informe</p>
+    <div id="cf-turnstile-container"></div>
+  </div>
+
+  <button class="btn-primary" id="generate-btn" onclick="generateReport()" disabled style="display:none">
     Generar Informe CIF-AFTA
   </button>
 
@@ -424,13 +426,6 @@
 
 </main>
 
-<!-- Turnstile overlay -->
-<div id="turnstile-overlay">
-  <div id="turnstile-card">
-    <p>Verificación de seguridad</p>
-    <div id="cf-turnstile-container"></div>
-  </div>
-</div>
 
 <!-- Processing modal -->
 <div id="processing-overlay">
