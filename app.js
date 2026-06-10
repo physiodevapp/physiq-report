@@ -9,6 +9,16 @@ const TURNSTILE_SITEKEY = '0x4AAAAAADU3dzE5Tw_whVks';
 let _turnstileToken = null, _turnstileResolve = null, _turnstileWidgetId = null;
 let _isProcessing = false;
 
+function _openProcessingOverlay() {
+  _openProcessingOverlay();
+  document.body.style.overflow = 'hidden';
+}
+
+function _closeProcessingOverlay() {
+  _closeProcessingOverlay();
+  document.body.style.overflow = '';
+}
+
 function _showTurnstile() {
   if (_isProcessing) return;
   document.getElementById('turnstile-wrap').style.display = '';
@@ -381,7 +391,7 @@ function setStep(n, s) { document.getElementById('step-'+n).className = 'progres
 function showError(msg) {
   document.getElementById('error-box').textContent = '⚠️ ' + msg;
   document.getElementById('error-box').style.display = 'block';
-  document.getElementById('processing-overlay').classList.remove('open');
+  _closeProcessingOverlay();
   document.getElementById('generate-btn').disabled = false;
   document.getElementById('generate-btn').innerHTML = 'Generar Informe CIF-AFTA';
 }
@@ -752,7 +762,7 @@ async function generateReport() {
   _isProcessing = true;
   try {
     const claudeToken = await getTurnstileToken();
-    document.getElementById('processing-overlay').classList.add('open');
+    _openProcessingOverlay();
     if (selectedFile) {
       setStep(1,'active');
       transcriptText = await transcribeAudio(selectedFile, window._physiqAssessmentContext?.r ?? manualRegion);
@@ -766,7 +776,7 @@ async function generateReport() {
     setStep(2,'done'); setStep(3,'active');
     await new Promise(r => setTimeout(r, 350));
     setStep(3,'done');
-    document.getElementById('processing-overlay').classList.remove('open');
+    _closeProcessingOverlay();
     document.getElementById('result-section').style.display = 'block';
     renderReport(report, transcriptText, info);
     document.getElementById('generate-btn').innerHTML = '✓ Informe generado';
@@ -1087,7 +1097,7 @@ function resetApp() {
   document.getElementById('audio-clear-btn').style.display = 'none';
   ['patient-name','session-date','diagnosis'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('result-section').style.display = 'none';
-  document.getElementById('processing-overlay').classList.remove('open');
+  _closeProcessingOverlay();
   document.getElementById('error-box').style.display = 'none';
   document.getElementById('generate-btn').disabled = true;
   document.getElementById('generate-btn').innerHTML = 'Generar Informe CIF-AFTA';

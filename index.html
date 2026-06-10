@@ -432,7 +432,7 @@
   <div id="processing-dialog">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
       <div class="section-title">Procesando sesión...</div>
-      <button onclick="document.getElementById('processing-overlay').classList.remove('open')" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;line-height:1;padding:0 0 0 12px;" title="Cerrar (el proceso continúa en background)">×</button>
+      <button onclick="_closeProcessingOverlay()" style="background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;line-height:1;padding:0 0 0 12px;" title="Cerrar (el proceso continúa en background)">×</button>
     </div>
     <div class="progress-step" id="step-1"><div class="step-dot"></div>Transcribiendo audio con Whisper...</div>
     <div class="progress-step" id="step-2"><div class="step-dot"></div>Analizando con Claude (CIF-AFTA)...</div>
