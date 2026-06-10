@@ -514,8 +514,14 @@ async function callOrchestrator(file, region, info, token, onTranscript) {
       }
     }
 
-    // Stream ended without 'done' (e.g. worker crashed mid-stream)
-    console.warn('[PhysiQ] SSE stream ended without done event. Raw received:', rawReceived.slice(0, 500));
+    // Stream ended without 'done' — try plain-JSON fallback (non-SSE worker response)
+    console.warn('[PhysiQ] SSE stream ended without done event. Raw received:', rawReceived.slice(0, 800));
+    try {
+      const json = JSON.parse(rawReceived);
+      if (json.report) return { transcript: json.transcript ?? '', report: json.report };
+      if (json.transcript && !json.report)
+        throw new Error('El worker devolvió la transcripción pero no generó el informe. Inténtalo de nuevo.');
+    } catch (e) { if (!e.message.includes('JSON')) throw e; }
     if (report) return { transcript, report };
     throw new Error('La conexión se cerró inesperadamente. Inténtalo de nuevo.');
 
