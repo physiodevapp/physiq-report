@@ -791,12 +791,11 @@ async function generateReport() {
     setStep(2,'done'); setStep(3,'active');
     await new Promise(r => setTimeout(r, 350));
     setStep(3,'done');
-    _closeProcessingOverlay();
     document.getElementById('result-section').style.display = 'block';
     renderReport(result.report, transcriptText, info);
     document.getElementById('generate-btn').innerHTML = '✓ Informe generado';
   } catch(err) { console.error('[PhysiQ] generateReport error:', err); showError(err.message); }
-  finally { _isProcessing = false; _showTurnstile(); }
+  finally { _isProcessing = false; _closeProcessingOverlay(); _showTurnstile(); }
 }
 
 // ========= DOWNLOAD / SHARE WORD =========
