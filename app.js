@@ -450,14 +450,12 @@ function updateRegionSelector() {
   if (el) el.style.display = window._physiqAssessmentContext ? 'none' : 'block';
 }
 
-// ========= ORCHESTRATOR (single Cloudflare Worker: Turnstile + Whisper + Claude, SSE) =========
-// onTranscript() is called as soon as Whisper finishes (before Claude starts).
+// ========= ORCHESTRATOR (single Cloudflare Worker: Turnstile + Whisper + Claude) =========
 async function callOrchestrator(file, region, info, token, onTranscript) {
-  const promptTemplate = buildPrompt('{{TRANSCRIPT}}', info, selectedTemplate);
   const fd = new FormData();
   if (file) fd.append('file', file);
   fd.append('whisperHint', getWhisperPrompt(region));
-  fd.append('prompt', promptTemplate);
+  fd.append('prompt', buildPrompt('{{TRANSCRIPT}}', info, selectedTemplate));
   fd.append('maxTokens', String(getTokens()));
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 300000);
@@ -468,63 +466,11 @@ async function callOrchestrator(file, region, info, token, onTranscript) {
       body: fd,
       signal: ctrl.signal
     });
-    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || res.status); }
-
-    // Read SSE stream
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = '';
-    let transcript = '';
-    let report = '';
-
-    let rawReceived = '';
-
-    const parseBlock = (block) => {
-      let type = '', dataStr = '';
-      for (const line of block.split('\n')) {
-        if (line.startsWith('event:')) type = line.slice(6).trim();
-        else if (line.startsWith('data:')) dataStr = line.slice(5).trim();
-      }
-      if (!dataStr) return false;
-      let data;
-      try { data = JSON.parse(dataStr); } catch { return false; }
-      if (!type) type = data.type || '';
-      if (type === 'transcript') { transcript = data.text ?? ''; if (onTranscript) onTranscript(); }
-      else if (type === 'report_chunk') { report += data.text ?? ''; }
-      else if (type === 'done') { return true; }
-      else if (type === 'error') { throw new Error(data.message || data.error || 'Error desconocido'); }
-      return false;
-    };
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        if (buf.trim() && parseBlock(buf)) return { transcript, report };
-        break;
-      }
-
-      const chunk = decoder.decode(value, { stream: true });
-      rawReceived += chunk;
-      buf += chunk;
-      const blocks = buf.split('\n\n');
-      buf = blocks.pop() ?? '';
-
-      for (const block of blocks) {
-        if (parseBlock(block)) return { transcript, report };
-      }
-    }
-
-    // Stream ended without 'done' — try plain-JSON fallback (non-SSE worker response)
-    console.warn('[PhysiQ] SSE stream ended without done event. Raw received:', rawReceived.slice(0, 800));
-    try {
-      const json = JSON.parse(rawReceived);
-      if (json.report) return { transcript: json.transcript ?? '', report: json.report };
-      if (json.transcript && !json.report)
-        throw new Error('El worker devolvió la transcripción pero no generó el informe. Inténtalo de nuevo.');
-    } catch (e) { if (!e.message.includes('JSON')) throw e; }
-    if (report) return { transcript, report };
-    throw new Error('La conexión se cerró inesperadamente. Inténtalo de nuevo.');
-
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error?.message || res.status);
+    if (!json.report) throw new Error('El worker no devolvió el informe. Inténtalo de nuevo.');
+    if (onTranscript) onTranscript();
+    return { transcript: json.transcript ?? '', report: json.report };
   } catch(err) {
     if (err.name === 'AbortError') throw new Error('Tiempo de espera agotado. El informe tardó demasiado en generarse.');
     throw err;
