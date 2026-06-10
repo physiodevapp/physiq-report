@@ -477,34 +477,35 @@ async function callOrchestrator(file, region, info, token, onTranscript) {
     let transcript = '';
     let report = '';
 
+    const parseBlock = (block) => {
+      let type = '', dataStr = '';
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event:')) type = line.slice(6).trim();
+        else if (line.startsWith('data:')) dataStr = line.slice(5).trim();
+      }
+      if (!dataStr) return false;
+      let data;
+      try { data = JSON.parse(dataStr); } catch { return false; }
+      if (type === 'transcript') { transcript = data.text; if (onTranscript) onTranscript(); }
+      else if (type === 'report_chunk') { report += data.text; }
+      else if (type === 'done') { return true; }
+      else if (type === 'error') { throw new Error(data.message); }
+      return false;
+    };
+
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        if (buf.trim() && parseBlock(buf)) return { transcript, report };
+        break;
+      }
 
       buf += decoder.decode(value, { stream: true });
       const blocks = buf.split('\n\n');
       buf = blocks.pop() ?? '';
 
       for (const block of blocks) {
-        let type = '', dataStr = '';
-        for (const line of block.split('\n')) {
-          if (line.startsWith('event:')) type = line.slice(6).trim();
-          else if (line.startsWith('data:')) dataStr = line.slice(5).trim();
-        }
-        if (!dataStr) continue;
-        let data;
-        try { data = JSON.parse(dataStr); } catch { continue; }
-
-        if (type === 'transcript') {
-          transcript = data.text;
-          if (onTranscript) onTranscript();
-        } else if (type === 'report_chunk') {
-          report += data.text;
-        } else if (type === 'done') {
-          return { transcript, report };
-        } else if (type === 'error') {
-          throw new Error(data.message);
-        }
+        if (parseBlock(block)) return { transcript, report };
       }
     }
 
