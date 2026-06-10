@@ -450,7 +450,7 @@ function updateRegionSelector() {
   if (el) el.style.display = window._physiqAssessmentContext ? 'none' : 'block';
 }
 
-// ========= ORCHESTRATOR (single Cloudflare Worker: Turnstile + Whisper + Claude) =========
+// ========= ORCHESTRATOR (single Cloudflare Worker: Turnstile + Whisper + Claude, SSE) =========
 async function callOrchestrator(file, region, info, token, onTranscript) {
   const fd = new FormData();
   if (file) fd.append('file', file);
@@ -466,11 +466,45 @@ async function callOrchestrator(file, region, info, token, onTranscript) {
       body: fd,
       signal: ctrl.signal
     });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error?.message || res.status);
-    if (!json.report) throw new Error('El worker no devolvió el informe. Inténtalo de nuevo.');
-    if (onTranscript) onTranscript();
-    return { transcript: json.transcript ?? '', report: json.report };
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || res.status); }
+
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '', transcript = '', report = '';
+
+    const parseBlock = (block) => {
+      let type = '', dataStr = '';
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event:')) type = line.slice(6).trim();
+        else if (line.startsWith('data:')) dataStr = line.slice(5).trim();
+      }
+      if (!dataStr) return false;
+      let data;
+      try { data = JSON.parse(dataStr); } catch { return false; }
+      if (type === 'transcript') { transcript = data.text ?? ''; if (onTranscript) onTranscript(); }
+      else if (type === 'report_chunk') { report += data.text ?? ''; }
+      else if (type === 'done') { return true; }
+      else if (type === 'error') { throw new Error(data.message || 'Error desconocido'); }
+      return false;
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        if (buf.trim() && parseBlock(buf)) return { transcript, report };
+        break;
+      }
+      buf += decoder.decode(value, { stream: true });
+      const blocks = buf.split('\n\n');
+      buf = blocks.pop() ?? '';
+      for (const block of blocks) {
+        if (parseBlock(block)) return { transcript, report };
+      }
+    }
+
+    if (report) return { transcript, report };
+    throw new Error('La conexión se cerró inesperadamente. Inténtalo de nuevo.');
+
   } catch(err) {
     if (err.name === 'AbortError') throw new Error('Tiempo de espera agotado. El informe tardó demasiado en generarse.');
     throw err;
