@@ -10,12 +10,12 @@ let _turnstileToken = null, _turnstileResolve = null, _turnstileWidgetId = null;
 let _isProcessing = false;
 
 function _openProcessingOverlay() {
-  _openProcessingOverlay();
+  document.getElementById('processing-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
 
 function _closeProcessingOverlay() {
-  _closeProcessingOverlay();
+  document.getElementById('processing-overlay').classList.remove('open');
   document.body.style.overflow = '';
 }
 
