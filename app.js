@@ -4,6 +4,8 @@ let selectedTemplate = 'narrative';
 let lastReportText = '';
 let manualRegion = null;
 
+const ORCHESTRATOR_URL = 'https://physiq-orchestrator.edu-gamboa-rodriguez.workers.dev';
+
 // ========= TURNSTILE =========
 const TURNSTILE_SITEKEY = '0x4AAAAAADU3dzE5Tw_whVks';
 let _turnstileToken = null, _turnstileResolve = null, _turnstileWidgetId = null;
@@ -448,23 +450,27 @@ function updateRegionSelector() {
   if (el) el.style.display = window._physiqAssessmentContext ? 'none' : 'block';
 }
 
-// ========= TRANSCRIBE (via Cloudflare Worker) =========
-async function transcribeAudio(file, region) {
+// ========= ORCHESTRATOR (single Cloudflare Worker: Turnstile + Whisper + Claude) =========
+async function callOrchestrator(file, region, info, token) {
+  const promptTemplate = buildPrompt('{{TRANSCRIPT}}', info, selectedTemplate);
   const fd = new FormData();
-  fd.append('file', file);
-  fd.append('prompt', getWhisperPrompt(region));
+  if (file) fd.append('file', file);
+  fd.append('whisperHint', getWhisperPrompt(region));
+  fd.append('prompt', promptTemplate);
+  fd.append('maxTokens', String(getTokens()));
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 120000);
+  const timer = setTimeout(() => ctrl.abort(), 300000);
   try {
-    const res = await fetch('https://physiq-whisper.edu-gamboa-rodriguez.workers.dev', {
+    const res = await fetch(ORCHESTRATOR_URL, {
       method: 'POST',
+      headers: { 'cf-turnstile-response': token },
       body: fd,
       signal: ctrl.signal
     });
-    if (!res.ok) { const e = await res.json(); throw new Error('Whisper: '+(e.error?.message||res.status)); }
-    return (await res.json()).text;
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || res.status); }
+    return await res.json(); // { transcript, report }
   } catch(err) {
-    if (err.name === 'AbortError') throw new Error('Whisper: tiempo de espera agotado (>2 min). Comprueba la conexión.');
+    if (err.name === 'AbortError') throw new Error('Tiempo de espera agotado. El informe tardó demasiado en generarse.');
     throw err;
   } finally { clearTimeout(timer); }
 }
@@ -600,29 +606,6 @@ ESTRUCTURA OBLIGATORIA — empieza DIRECTAMENTE con la primera sección, sin tí
 RECORDATORIO FINAL: tu respuesta DEBE empezar literalmente con la cadena "## CONDICIÓN DE SALUD Y FACTORES CONTEXTUALES" como primer texto, sin nada antes.`;
 }
 
-// ========= ANALYZE (via Cloudflare Worker) =========
-async function analyzeWithClaude(transcript, info, token) {
-  const prompt = buildPrompt(transcript, info, selectedTemplate);
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 180000);
-  try {
-    const res = await fetch('https://physiq-claude.edu-gamboa-rodriguez.workers.dev', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'cf-turnstile-response': token },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: getTokens(),
-        messages: [{ role: 'user', content: prompt }]
-      }),
-      signal: ctrl.signal
-    });
-    if (!res.ok) { const e = await res.json(); throw new Error('Claude: '+(e.error?.message||res.status)); }
-    return (await res.json()).content[0].text;
-  } catch(err) {
-    if (err.name === 'AbortError') throw new Error('Claude: tiempo de espera agotado (>3 min). Inténtalo de nuevo.');
-    throw err;
-  } finally { clearTimeout(timer); }
-}
 
 // ========= TRUNCATION DETECTION =========
 function detectTruncation(reportText) {
@@ -761,24 +744,18 @@ async function generateReport() {
   [1,2,3].forEach(i => setStep(i,''));
   _isProcessing = true;
   try {
-    const claudeToken = await getTurnstileToken();
+    const token = await getTurnstileToken();
     _openProcessingOverlay();
-    if (selectedFile) {
-      setStep(1,'active');
-      transcriptText = await transcribeAudio(selectedFile, window._physiqAssessmentContext?.r ?? manualRegion);
-      setStep(1,'done');
-    } else {
-      transcriptText = '(No disponible — informe basado exclusivamente en los datos de la valoración estructurada)';
-      setStep(1,'done');
-    }
-    setStep(2,'active');
-    const report = await analyzeWithClaude(transcriptText, info, claudeToken);
-    setStep(2,'done'); setStep(3,'active');
+    setStep(1,'active'); setStep(2,'active');
+    const region = window._physiqAssessmentContext?.r ?? manualRegion;
+    const result = await callOrchestrator(selectedFile, region, info, token);
+    transcriptText = result.transcript;
+    setStep(1,'done'); setStep(2,'done'); setStep(3,'active');
     await new Promise(r => setTimeout(r, 350));
     setStep(3,'done');
     _closeProcessingOverlay();
     document.getElementById('result-section').style.display = 'block';
-    renderReport(report, transcriptText, info);
+    renderReport(result.report, transcriptText, info);
     document.getElementById('generate-btn').innerHTML = '✓ Informe generado';
   } catch(err) { console.error('[PhysiQ] generateReport error:', err); showError(err.message); }
   finally { _isProcessing = false; _showTurnstile(); }
