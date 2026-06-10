@@ -239,7 +239,7 @@ document.getElementById('logo-file').addEventListener('change', function(e) {
 function _setAudioFile(file) {
   selectedFile = file;
   document.getElementById('file-name').textContent = '✓ ' + file.name;
-  document.getElementById('audio-clear-btn').style.display = '';
+  document.getElementById('audio-clear-btn').style.display = 'flex';
   _hideRecordingHint();
   checkReady();
 }
@@ -1440,7 +1440,7 @@ function _applyImportedAudio(entry) {
   _hideRecordingHint();
   selectedFile = new File([entry.blob], entry.name, { type: entry.type });
   document.getElementById('file-name').textContent = '✓ ' + entry.name;
-  document.getElementById('audio-clear-btn').style.display = '';
+  document.getElementById('audio-clear-btn').style.display = 'flex';
   const mins = Math.floor(entry.duration / 60);
   const secs = (entry.duration % 60).toString().padStart(2, '0');
   const badge = document.createElement('div');
