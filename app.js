@@ -477,6 +477,8 @@ async function callOrchestrator(file, region, info, token, onTranscript) {
     let transcript = '';
     let report = '';
 
+    let rawReceived = '';
+
     const parseBlock = (block) => {
       let type = '', dataStr = '';
       for (const line of block.split('\n')) {
@@ -486,10 +488,11 @@ async function callOrchestrator(file, region, info, token, onTranscript) {
       if (!dataStr) return false;
       let data;
       try { data = JSON.parse(dataStr); } catch { return false; }
-      if (type === 'transcript') { transcript = data.text; if (onTranscript) onTranscript(); }
-      else if (type === 'report_chunk') { report += data.text; }
+      if (!type) type = data.type || '';
+      if (type === 'transcript') { transcript = data.text ?? ''; if (onTranscript) onTranscript(); }
+      else if (type === 'report_chunk') { report += data.text ?? ''; }
       else if (type === 'done') { return true; }
-      else if (type === 'error') { throw new Error(data.message); }
+      else if (type === 'error') { throw new Error(data.message || data.error || 'Error desconocido'); }
       return false;
     };
 
@@ -500,7 +503,9 @@ async function callOrchestrator(file, region, info, token, onTranscript) {
         break;
       }
 
-      buf += decoder.decode(value, { stream: true });
+      const chunk = decoder.decode(value, { stream: true });
+      rawReceived += chunk;
+      buf += chunk;
       const blocks = buf.split('\n\n');
       buf = blocks.pop() ?? '';
 
@@ -510,6 +515,7 @@ async function callOrchestrator(file, region, info, token, onTranscript) {
     }
 
     // Stream ended without 'done' (e.g. worker crashed mid-stream)
+    console.warn('[PhysiQ] SSE stream ended without done event. Raw received:', rawReceived.slice(0, 500));
     if (report) return { transcript, report };
     throw new Error('La conexión se cerró inesperadamente. Inténtalo de nuevo.');
 
