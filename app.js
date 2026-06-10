@@ -450,8 +450,9 @@ function updateRegionSelector() {
   if (el) el.style.display = window._physiqAssessmentContext ? 'none' : 'block';
 }
 
-// ========= ORCHESTRATOR (single Cloudflare Worker: Turnstile + Whisper + Claude) =========
-async function callOrchestrator(file, region, info, token) {
+// ========= ORCHESTRATOR (single Cloudflare Worker: Turnstile + Whisper + Claude, SSE) =========
+// onTranscript() is called as soon as Whisper finishes (before Claude starts).
+async function callOrchestrator(file, region, info, token, onTranscript) {
   const promptTemplate = buildPrompt('{{TRANSCRIPT}}', info, selectedTemplate);
   const fd = new FormData();
   if (file) fd.append('file', file);
@@ -468,7 +469,49 @@ async function callOrchestrator(file, region, info, token) {
       signal: ctrl.signal
     });
     if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || res.status); }
-    return await res.json(); // { transcript, report }
+
+    // Read SSE stream
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    let transcript = '';
+    let report = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buf += decoder.decode(value, { stream: true });
+      const blocks = buf.split('\n\n');
+      buf = blocks.pop() ?? '';
+
+      for (const block of blocks) {
+        let type = '', dataStr = '';
+        for (const line of block.split('\n')) {
+          if (line.startsWith('event:')) type = line.slice(6).trim();
+          else if (line.startsWith('data:')) dataStr = line.slice(5).trim();
+        }
+        if (!dataStr) continue;
+        let data;
+        try { data = JSON.parse(dataStr); } catch { continue; }
+
+        if (type === 'transcript') {
+          transcript = data.text;
+          if (onTranscript) onTranscript();
+        } else if (type === 'report_chunk') {
+          report += data.text;
+        } else if (type === 'done') {
+          return { transcript, report };
+        } else if (type === 'error') {
+          throw new Error(data.message);
+        }
+      }
+    }
+
+    // Stream ended without 'done' (e.g. worker crashed mid-stream)
+    if (report) return { transcript, report };
+    throw new Error('La conexión se cerró inesperadamente. Inténtalo de nuevo.');
+
   } catch(err) {
     if (err.name === 'AbortError') throw new Error('Tiempo de espera agotado. El informe tardó demasiado en generarse.');
     throw err;
@@ -746,11 +789,13 @@ async function generateReport() {
   try {
     const token = await getTurnstileToken();
     _openProcessingOverlay();
-    setStep(1,'active'); setStep(2,'active');
+    setStep(1,'active');
     const region = window._physiqAssessmentContext?.r ?? manualRegion;
-    const result = await callOrchestrator(selectedFile, region, info, token);
+    const result = await callOrchestrator(selectedFile, region, info, token, () => {
+      setStep(1,'done'); setStep(2,'active');
+    });
     transcriptText = result.transcript;
-    setStep(1,'done'); setStep(2,'done'); setStep(3,'active');
+    setStep(2,'done'); setStep(3,'active');
     await new Promise(r => setTimeout(r, 350));
     setStep(3,'done');
     _closeProcessingOverlay();
