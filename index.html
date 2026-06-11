@@ -194,8 +194,8 @@
   .config-btn:hover{border-color:var(--accent2);background:rgba(79,156,249,0.04);}
   .cfg-btn-icon{font-size:22px;}
   .cfg-btn-label{font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);}
-  .cfg-dot{position:absolute;top:9px;right:9px;width:7px;height:7px;border-radius:50%;background:var(--accent);opacity:0;transition:opacity 0.2s;}
-  .cfg-dot.active{opacity:1;}
+  .cfg-btn-sub{font-family:'DM Mono',monospace;font-size:9px;color:var(--text-muted);text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 4px;}
+  .cfg-btn-sub.empty{color:var(--danger);}
   /* ── Config sheets ── */
   .config-sheet{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-radius:16px 16px 0 0;z-index:101;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);max-height:90vh;display:flex;flex-direction:column;border-top:1px solid var(--border);}
   .config-sheet.open{transform:translateY(0);}
@@ -257,20 +257,22 @@
       <button class="config-btn" onclick="openConfigSheet('patient')">
         <span class="cfg-btn-icon">🧑‍⚕️</span>
         <span class="cfg-btn-label">Paciente</span>
-        <span class="cfg-dot" id="dot-patient"></span>
+        <span class="cfg-btn-sub empty" id="sub-patient">Sin nombre</span>
       </button>
       <button class="config-btn" onclick="openConfigSheet('clinic')">
         <span class="cfg-btn-icon">⚙️</span>
         <span class="cfg-btn-label">Clínica</span>
-        <span class="cfg-dot" id="dot-clinic"></span>
+        <span class="cfg-btn-sub empty" id="sub-clinic">Sin configurar</span>
       </button>
       <button class="config-btn" onclick="openConfigSheet('template')">
         <span class="cfg-btn-icon">📐</span>
         <span class="cfg-btn-label">Plantilla</span>
+        <span class="cfg-btn-sub" id="sub-template">Narrativa</span>
       </button>
       <button class="config-btn" onclick="openConfigSheet('options')">
         <span class="cfg-btn-icon">📝</span>
         <span class="cfg-btn-label">Opciones</span>
+        <span class="cfg-btn-sub" id="sub-options">Completo</span>
       </button>
     </div>
 

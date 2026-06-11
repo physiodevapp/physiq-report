@@ -212,6 +212,7 @@ function updateSliderLabel() {
   const meta = sliderMeta.find(m => m.tokens === val) || sliderMeta[5];
   document.getElementById('slider-label').textContent =
     `~${meta.words} palabras · ${meta.label} · coste estimado ${meta.cost} por informe`;
+  _updateConfigBtns();
 }
 
 function getTokens() { return parseInt(document.getElementById('token-slider').value) || 4000; }
@@ -220,6 +221,7 @@ function selectTemplate(t) {
   selectedTemplate = t;
   document.getElementById('tpl-brief').classList.toggle('selected', t === 'brief');
   document.getElementById('tpl-narrative').classList.toggle('selected', t === 'narrative');
+  _updateConfigBtns();
   saveConfig(true);
 }
 
@@ -279,13 +281,29 @@ function _updateImportBadges() {
   set('badge-force', 'badge-force-text', hasForce, forceLabel);
 
   set('badge-audio', 'badge-audio-text', hasAudio, hasAudio ? 'Audio ✓' : 'Audio');
+
+  const hasAny = hasROM || hasAssessment || hasForce || hasAudio;
+  const row = document.querySelector('.import-badges');
+  if (row) row.style.display = hasAny ? 'flex' : 'none';
 }
 
-function _updateConfigDots() {
-  const hasPatient = !!document.getElementById('patient-name')?.value.trim();
-  const hasClinic  = !!document.getElementById('clinic-name')?.value.trim();
-  document.getElementById('dot-patient')?.classList.toggle('active', hasPatient);
-  document.getElementById('dot-clinic')?.classList.toggle('active', hasClinic);
+function _updateConfigBtns() {
+  const patientVal = document.getElementById('patient-name')?.value.trim() || '';
+  const clinicVal  = document.getElementById('clinic-name')?.value.trim() || '';
+
+  const subPat = document.getElementById('sub-patient');
+  if (subPat) { subPat.textContent = patientVal || 'Sin nombre'; subPat.classList.toggle('empty', !patientVal); }
+
+  const subCli = document.getElementById('sub-clinic');
+  if (subCli) { subCli.textContent = clinicVal || 'Sin configurar'; subCli.classList.toggle('empty', !clinicVal); }
+
+  const subTpl = document.getElementById('sub-template');
+  if (subTpl) subTpl.textContent = selectedTemplate === 'brief' ? 'Breve' : 'Narrativa';
+
+  const val  = parseInt(document.getElementById('token-slider')?.value) || 4000;
+  const meta = sliderMeta.find(m => m.tokens === val) || sliderMeta[5];
+  const subOpt = document.getElementById('sub-options');
+  if (subOpt) subOpt.textContent = meta.label;
 }
 
 // ========= FILE INPUTS =========
@@ -343,7 +361,7 @@ document.getElementById('diagnosis').addEventListener('input', () => {
 });
 
 function checkReady() {
-  _updateConfigDots();
+  _updateConfigBtns();
   const hasName = !!document.getElementById('patient-name').value.trim();
   const ok = hasName && (selectedFile || window._physiqAssessmentContext || window._physiqROMContext || window._physiqForceContext);
   document.getElementById('generate-btn').disabled = !ok;
@@ -1529,7 +1547,7 @@ function _applyImportedAudio(entry) {
 }
 
 loadConfig();
-_updateConfigDots();
+_updateConfigBtns();
 _updateImportBadges();
 document.getElementById('session-date').value = new Date().toLocaleDateString('es-ES');
 applyPhysiQAssessmentContext(loadFromPhysiQAssessment());
