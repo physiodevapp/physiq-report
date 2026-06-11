@@ -54,6 +54,7 @@ function _closeProcessingOverlay() {
 
 function _showTurnstile() {
   if (_isProcessing) return;
+  if (_turnstileToken) { _showGenerateBtn(); return; }
   document.getElementById('turnstile-wrap').style.display = '';
   document.getElementById('generate-btn').style.display = 'none';
 }
