@@ -4,6 +4,7 @@ let selectedTemplate = 'narrative';
 let lastReportText = '';
 let manualRegion = null;
 let _activeSheet = null;
+let _sheetSnapshot = {};
 
 // ========= SHEET MANAGEMENT =========
 function openConfigSheet(type) {
@@ -11,6 +12,9 @@ function openConfigSheet(type) {
     document.getElementById(_activeSheet === '_region' ? 'region-sheet' : 'sheet-' + _activeSheet)?.classList.remove('open');
   }
   _activeSheet = type;
+  // Snapshot values that auto-change inside the sheet (so overlay-close can revert)
+  if (type === 'template') _sheetSnapshot.template = selectedTemplate;
+  if (type === 'options')  _sheetSnapshot.tokens   = document.getElementById('token-slider')?.value;
   document.getElementById('sheet-overlay').classList.add('open');
   document.getElementById('sheet-' + type).classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -18,16 +22,34 @@ function openConfigSheet(type) {
 
 function openImportSheet() { openConfigSheet('imported'); }
 
-function closeActiveSheet() {
+function _closeSheet() {
   if (_activeSheet === '_region') {
     document.getElementById('region-sheet')?.classList.remove('open');
   } else if (_activeSheet) {
     document.getElementById('sheet-' + _activeSheet)?.classList.remove('open');
   }
   _activeSheet = null;
+  _sheetSnapshot = {};
   document.getElementById('sheet-overlay').classList.remove('open');
   document.body.style.overflow = '';
   _updateConfigBtns();
+}
+
+function closeActiveSheet() {
+  // Overlay tap = cancel: revert uncommitted selections
+  if (_activeSheet === 'template' && _sheetSnapshot.template !== undefined) {
+    selectTemplate(_sheetSnapshot.template);
+  }
+  if (_activeSheet === 'options' && _sheetSnapshot.tokens !== undefined) {
+    const s = document.getElementById('token-slider');
+    if (s) { s.value = _sheetSnapshot.tokens; updateSliderLabel(); }
+  }
+  _closeSheet();
+}
+
+function confirmActiveSheet() {
+  // Listo button = commit: no revert
+  _closeSheet();
 }
 
 function restoreConfigArea() {
@@ -529,7 +551,7 @@ function openRegionSheet() {
   document.body.style.overflow = 'hidden';
 }
 
-function closeRegionSheet() { closeActiveSheet(); }
+function closeRegionSheet() { _closeSheet(); }
 
 function updateRegionSelector() {
   const el = document.getElementById('region-selector');
