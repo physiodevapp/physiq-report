@@ -4,6 +4,8 @@ let selectedTemplate = 'narrative';
 let lastReportText = '';
 let manualRegion = null;
 
+const ORCHESTRATOR_URL = 'https://physiq-orchestrator.edu-gamboa-rodriguez.workers.dev';
+
 // ========= TURNSTILE =========
 const TURNSTILE_SITEKEY = '0x4AAAAAADU3dzE5Tw_whVks';
 let _turnstileToken = null, _turnstileResolve = null, _turnstileWidgetId = null;
@@ -237,7 +239,7 @@ document.getElementById('logo-file').addEventListener('change', function(e) {
 function _setAudioFile(file) {
   selectedFile = file;
   document.getElementById('file-name').textContent = '✓ ' + file.name;
-  document.getElementById('audio-clear-btn').style.display = '';
+  document.getElementById('audio-clear-btn').style.display = 'flex';
   _hideRecordingHint();
   checkReady();
 }
@@ -448,23 +450,63 @@ function updateRegionSelector() {
   if (el) el.style.display = window._physiqAssessmentContext ? 'none' : 'block';
 }
 
-// ========= TRANSCRIBE (via Cloudflare Worker) =========
-async function transcribeAudio(file, region) {
+// ========= ORCHESTRATOR (single Cloudflare Worker: Turnstile + Whisper + Claude, SSE) =========
+async function callOrchestrator(file, region, info, token, onTranscript) {
   const fd = new FormData();
-  fd.append('file', file);
-  fd.append('prompt', getWhisperPrompt(region));
+  if (file) fd.append('file', file);
+  fd.append('whisperHint', getWhisperPrompt(region));
+  fd.append('prompt', buildPrompt('{{TRANSCRIPT}}', info, selectedTemplate));
+  fd.append('maxTokens', String(getTokens()));
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 120000);
+  const timer = setTimeout(() => ctrl.abort(), 300000);
   try {
-    const res = await fetch('https://physiq-whisper.edu-gamboa-rodriguez.workers.dev', {
+    const res = await fetch(ORCHESTRATOR_URL, {
       method: 'POST',
+      headers: { 'cf-turnstile-response': token },
       body: fd,
       signal: ctrl.signal
     });
-    if (!res.ok) { const e = await res.json(); throw new Error('Whisper: '+(e.error?.message||res.status)); }
-    return (await res.json()).text;
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || res.status); }
+
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '', transcript = '', report = '';
+
+    const parseBlock = (block) => {
+      let type = '', dataStr = '';
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event:')) type = line.slice(6).trim();
+        else if (line.startsWith('data:')) dataStr = line.slice(5).trim();
+      }
+      if (!dataStr) return false;
+      let data;
+      try { data = JSON.parse(dataStr); } catch { return false; }
+      if (type === 'transcript') { transcript = data.text ?? ''; if (onTranscript) onTranscript(); }
+      else if (type === 'report_chunk') { report += data.text ?? ''; }
+      else if (type === 'done') { return true; }
+      else if (type === 'error') { throw new Error(data.message || 'Error desconocido'); }
+      return false;
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        if (buf.trim() && parseBlock(buf)) return { transcript, report };
+        break;
+      }
+      buf += decoder.decode(value, { stream: true });
+      const blocks = buf.split('\n\n');
+      buf = blocks.pop() ?? '';
+      for (const block of blocks) {
+        if (parseBlock(block)) return { transcript, report };
+      }
+    }
+
+    if (report) return { transcript, report };
+    throw new Error('La conexión se cerró inesperadamente. Inténtalo de nuevo.');
+
   } catch(err) {
-    if (err.name === 'AbortError') throw new Error('Whisper: tiempo de espera agotado (>2 min). Comprueba la conexión.');
+    if (err.name === 'AbortError') throw new Error('Tiempo de espera agotado. El informe tardó demasiado en generarse.');
     throw err;
   } finally { clearTimeout(timer); }
 }
@@ -600,29 +642,6 @@ ESTRUCTURA OBLIGATORIA — empieza DIRECTAMENTE con la primera sección, sin tí
 RECORDATORIO FINAL: tu respuesta DEBE empezar literalmente con la cadena "## CONDICIÓN DE SALUD Y FACTORES CONTEXTUALES" como primer texto, sin nada antes.`;
 }
 
-// ========= ANALYZE (via Cloudflare Worker) =========
-async function analyzeWithClaude(transcript, info, token) {
-  const prompt = buildPrompt(transcript, info, selectedTemplate);
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 180000);
-  try {
-    const res = await fetch('https://physiq-claude.edu-gamboa-rodriguez.workers.dev', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'cf-turnstile-response': token },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: getTokens(),
-        messages: [{ role: 'user', content: prompt }]
-      }),
-      signal: ctrl.signal
-    });
-    if (!res.ok) { const e = await res.json(); throw new Error('Claude: '+(e.error?.message||res.status)); }
-    return (await res.json()).content[0].text;
-  } catch(err) {
-    if (err.name === 'AbortError') throw new Error('Claude: tiempo de espera agotado (>3 min). Inténtalo de nuevo.');
-    throw err;
-  } finally { clearTimeout(timer); }
-}
 
 // ========= TRUNCATION DETECTION =========
 function detectTruncation(reportText) {
@@ -761,27 +780,22 @@ async function generateReport() {
   [1,2,3].forEach(i => setStep(i,''));
   _isProcessing = true;
   try {
-    const claudeToken = await getTurnstileToken();
+    const token = await getTurnstileToken();
     _openProcessingOverlay();
-    if (selectedFile) {
-      setStep(1,'active');
-      transcriptText = await transcribeAudio(selectedFile, window._physiqAssessmentContext?.r ?? manualRegion);
-      setStep(1,'done');
-    } else {
-      transcriptText = '(No disponible — informe basado exclusivamente en los datos de la valoración estructurada)';
-      setStep(1,'done');
-    }
-    setStep(2,'active');
-    const report = await analyzeWithClaude(transcriptText, info, claudeToken);
+    setStep(1,'active');
+    const region = window._physiqAssessmentContext?.r ?? manualRegion;
+    const result = await callOrchestrator(selectedFile, region, info, token, () => {
+      setStep(1,'done'); setStep(2,'active');
+    });
+    transcriptText = result.transcript;
     setStep(2,'done'); setStep(3,'active');
     await new Promise(r => setTimeout(r, 350));
     setStep(3,'done');
-    _closeProcessingOverlay();
     document.getElementById('result-section').style.display = 'block';
-    renderReport(report, transcriptText, info);
+    renderReport(result.report, transcriptText, info);
     document.getElementById('generate-btn').innerHTML = '✓ Informe generado';
   } catch(err) { console.error('[PhysiQ] generateReport error:', err); showError(err.message); }
-  finally { _isProcessing = false; _showTurnstile(); }
+  finally { _isProcessing = false; _closeProcessingOverlay(); _showTurnstile(); }
 }
 
 // ========= DOWNLOAD / SHARE WORD =========
@@ -1426,7 +1440,7 @@ function _applyImportedAudio(entry) {
   _hideRecordingHint();
   selectedFile = new File([entry.blob], entry.name, { type: entry.type });
   document.getElementById('file-name').textContent = '✓ ' + entry.name;
-  document.getElementById('audio-clear-btn').style.display = '';
+  document.getElementById('audio-clear-btn').style.display = 'flex';
   const mins = Math.floor(entry.duration / 60);
   const secs = (entry.duration % 60).toString().padStart(2, '0');
   const badge = document.createElement('div');
