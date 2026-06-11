@@ -27,6 +27,7 @@ function closeActiveSheet() {
   _activeSheet = null;
   document.getElementById('sheet-overlay').classList.remove('open');
   document.body.style.overflow = '';
+  _updateConfigBtns();
 }
 
 function restoreConfigArea() {
@@ -212,7 +213,6 @@ function updateSliderLabel() {
   const meta = sliderMeta.find(m => m.tokens === val) || sliderMeta[5];
   document.getElementById('slider-label').textContent =
     `~${meta.words} palabras · ${meta.label} · coste estimado ${meta.cost} por informe`;
-  _updateConfigBtns();
 }
 
 function getTokens() { return parseInt(document.getElementById('token-slider').value) || 4000; }
@@ -221,7 +221,6 @@ function selectTemplate(t) {
   selectedTemplate = t;
   document.getElementById('tpl-brief').classList.toggle('selected', t === 'brief');
   document.getElementById('tpl-narrative').classList.toggle('selected', t === 'narrative');
-  _updateConfigBtns();
   saveConfig(true);
 }
 
