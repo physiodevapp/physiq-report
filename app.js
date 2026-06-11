@@ -3,6 +3,36 @@ let selectedFile = null, transcriptText = '', logoBase64 = null, logoMime = 'ima
 let selectedTemplate = 'narrative';
 let lastReportText = '';
 let manualRegion = null;
+let _activeSheet = null;
+
+// ========= SHEET MANAGEMENT =========
+function openConfigSheet(type) {
+  if (_activeSheet) {
+    document.getElementById(_activeSheet === '_region' ? 'region-sheet' : 'sheet-' + _activeSheet)?.classList.remove('open');
+  }
+  _activeSheet = type;
+  document.getElementById('sheet-overlay').classList.add('open');
+  document.getElementById('sheet-' + type).classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function openImportSheet() { openConfigSheet('imported'); }
+
+function closeActiveSheet() {
+  if (_activeSheet === '_region') {
+    document.getElementById('region-sheet')?.classList.remove('open');
+  } else if (_activeSheet) {
+    document.getElementById('sheet-' + _activeSheet)?.classList.remove('open');
+  }
+  _activeSheet = null;
+  document.getElementById('sheet-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function restoreConfigArea() {
+  document.getElementById('step-config').style.display = 'flex';
+  document.getElementById('result-section').style.display = 'none';
+}
 
 const ORCHESTRATOR_URL = 'https://physiq-orchestrator.edu-gamboa-rodriguez.workers.dev';
 
@@ -208,18 +238,54 @@ function toggleCard(id) {
 }
 
 function _syncImportedCard() {
-  const card = document.getElementById('imported-card');
-  if (!card) return;
-  const ids = ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge'];
-  const hasAny = ids.some(id => document.getElementById(id));
-  const wasHidden = card.style.display === 'none';
-  card.style.display = hasAny ? '' : 'none';
-  if (hasAny && wasHidden) {
-    document.getElementById('body-imported')?.classList.add('open');
-    document.getElementById('chevron-imported')?.classList.add('open');
+  _updateImportBadges();
+}
+
+function _updateImportBadges() {
+  const hasROM = !!window._physiqROMContext;
+  const hasAssessment = !!window._physiqAssessmentContext || !!document.getElementById('assessmentIncompleteBadge');
+  const hasForce = !!window._physiqForceContext;
+  const hasAudio = !!document.getElementById('audioBadge');
+
+  const set = (btnId, textId, active, label) => {
+    document.getElementById(btnId)?.classList.toggle('has-data', active);
+    const el = document.getElementById(textId);
+    if (el) el.textContent = label;
+  };
+
+  let romLabel = 'ROM';
+  if (hasROM) {
+    const rd = window._physiqROMContext;
+    if (rd.regions) {
+      const n = Object.values(rd.regions).filter(r => r.rom && Object.keys(r.rom).length).length;
+      romLabel = n ? `ROM · ${n}` : 'ROM ✓';
+    } else {
+      const n = Object.keys(rd.rom || {}).length;
+      romLabel = n ? `ROM · ${n}` : 'ROM ✓';
+    }
   }
-  const summary = document.getElementById('imported-card-summary');
-  if (summary) summary.textContent = '';
+  set('badge-rom', 'badge-rom-text', hasROM, romLabel);
+
+  let assessLabel = 'Assessment';
+  if (window._physiqAssessmentContext) assessLabel = 'Assessment ✓';
+  else if (document.getElementById('assessmentIncompleteBadge')) assessLabel = 'Assessment ~';
+  set('badge-assessment', 'badge-assessment-text', hasAssessment, assessLabel);
+
+  let forceLabel = 'Force';
+  if (hasForce) {
+    const n = Array.isArray(window._physiqForceContext) ? window._physiqForceContext.length : 1;
+    forceLabel = `Force · ${n}`;
+  }
+  set('badge-force', 'badge-force-text', hasForce, forceLabel);
+
+  set('badge-audio', 'badge-audio-text', hasAudio, hasAudio ? 'Audio ✓' : 'Audio');
+}
+
+function _updateConfigDots() {
+  const hasPatient = !!document.getElementById('patient-name')?.value.trim();
+  const hasClinic  = !!document.getElementById('clinic-name')?.value.trim();
+  document.getElementById('dot-patient')?.classList.toggle('active', hasPatient);
+  document.getElementById('dot-clinic')?.classList.toggle('active', hasClinic);
 }
 
 // ========= FILE INPUTS =========
@@ -277,6 +343,7 @@ document.getElementById('diagnosis').addEventListener('input', () => {
 });
 
 function checkReady() {
+  _updateConfigDots();
   const hasName = !!document.getElementById('patient-name').value.trim();
   const ok = hasName && (selectedFile || window._physiqAssessmentContext || window._physiqROMContext || window._physiqForceContext);
   document.getElementById('generate-btn').disabled = !ok;
@@ -436,14 +503,16 @@ function setManualRegion(key, label) {
 }
 
 function openRegionSheet() {
+  if (_activeSheet) {
+    document.getElementById(_activeSheet === '_region' ? 'region-sheet' : 'sheet-' + _activeSheet)?.classList.remove('open');
+  }
+  _activeSheet = '_region';
   document.getElementById('sheet-overlay').classList.add('open');
   document.getElementById('region-sheet').classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
 
-function closeRegionSheet() {
-  document.getElementById('sheet-overlay').classList.remove('open');
-  document.getElementById('region-sheet').classList.remove('open');
-}
+function closeRegionSheet() { closeActiveSheet(); }
 
 function updateRegionSelector() {
   const el = document.getElementById('region-selector');
@@ -792,6 +861,7 @@ async function generateReport() {
     await new Promise(r => setTimeout(r, 350));
     setStep(3,'done');
     document.getElementById('result-section').style.display = 'block';
+    document.getElementById('step-config').style.display = 'none';
     renderReport(result.report, transcriptText, info);
     document.getElementById('generate-btn').innerHTML = '✓ Informe generado';
   } catch(err) { console.error('[PhysiQ] generateReport error:', err); showError(err.message); }
@@ -1111,6 +1181,7 @@ function resetApp() {
   document.getElementById('audio-clear-btn').style.display = 'none';
   ['patient-name','session-date','diagnosis'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('result-section').style.display = 'none';
+  document.getElementById('step-config').style.display = 'flex';
   _closeProcessingOverlay();
   document.getElementById('error-box').style.display = 'none';
   document.getElementById('generate-btn').disabled = true;
@@ -1451,12 +1522,15 @@ function _applyImportedAudio(entry) {
     color:var(--accent); font-family:'DM Mono',monospace; margin-bottom:8px;
   `;
   badge.textContent = `🎙 Grabación de sesión · ${mins}m ${secs}s`;
-  const main = document.querySelector('main');
-  if (main) main.prepend(badge);
+  const body = document.getElementById('body-imported');
+  if (body) body.appendChild(badge);
+  _syncImportedCard();
   checkReady();
 }
 
 loadConfig();
+_updateConfigDots();
+_updateImportBadges();
 document.getElementById('session-date').value = new Date().toLocaleDateString('es-ES');
 applyPhysiQAssessmentContext(loadFromPhysiQAssessment());
 updateRegionSelector();
