@@ -289,18 +289,24 @@ function _updateImportBadges() {
 }
 
 function _updateConfigBtns() {
-  const patientVal = document.getElementById('patient-name')?.value.trim() || '';
-  const clinicVal  = document.getElementById('clinic-name')?.value.trim() || '';
+  const g = id => document.getElementById(id)?.value.trim() || '';
 
-  const subPat = document.getElementById('sub-patient');
-  if (subPat) { subPat.textContent = patientVal || 'Sin nombre'; subPat.classList.toggle('empty', !patientVal); }
+  // Paciente: name + date + diagnosis all required
+  const patName = g('patient-name'), patDate = g('session-date'), patDiag = g('diagnosis');
+  const patOk   = !!(patName && patDate && patDiag);
+  const subPat  = document.getElementById('sub-patient');
+  if (subPat) { subPat.textContent = patOk ? patName : 'Incompleto'; subPat.classList.toggle('empty', !patOk); }
 
+  // Clínica: name + col + unit + city required; seguimiento URL optional
+  const cliOk = !!(g('clinic-name') && g('clinic-col') && g('clinic-unit') && g('clinic-city'));
   const subCli = document.getElementById('sub-clinic');
-  if (subCli) { subCli.textContent = clinicVal || 'Sin configurar'; subCli.classList.toggle('empty', !clinicVal); }
+  if (subCli) { subCli.textContent = cliOk ? g('clinic-name') : 'Sin configurar'; subCli.classList.toggle('empty', !cliOk); }
 
+  // Plantilla
   const subTpl = document.getElementById('sub-template');
   if (subTpl) subTpl.textContent = selectedTemplate === 'brief' ? 'Breve' : 'Narrativa';
 
+  // Opciones
   const val  = parseInt(document.getElementById('token-slider')?.value) || 4000;
   const meta = sliderMeta.find(m => m.tokens === val) || sliderMeta[5];
   const subOpt = document.getElementById('sub-options');
@@ -357,7 +363,9 @@ document.getElementById('patient-name').addEventListener('input', () => {
     if (patient) _sessionCh.postMessage({ type: 'SESSION_PATIENT', patient });
   });
 });
+document.getElementById('session-date').addEventListener('input', () => { checkReady(); });
 document.getElementById('diagnosis').addEventListener('input', () => {
+  checkReady();
   writeSession({ diagnosis: document.getElementById('diagnosis').value.trim() });
 });
 
