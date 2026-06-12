@@ -142,6 +142,7 @@
   .region-trigger-value{font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);display:flex;align-items:center;gap:5px;}
   .sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:100;opacity:0;pointer-events:none;transition:opacity 0.25s;}
   .sheet-overlay.open{opacity:1;pointer-events:all;}
+  @media(min-width:640px){.sheet-overlay.open{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}}
   .region-sheet{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-radius:16px 16px 0 0;z-index:101;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);max-height:70vh;display:flex;flex-direction:column;border-top:1px solid var(--border);}
   .region-sheet.open{transform:translateY(0);}
   .sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0;flex-shrink:0;}
@@ -180,6 +181,37 @@
   .confirm-btn-cancel:hover{border-color:var(--text);color:var(--text);}
   .confirm-btn-ok{background:var(--accent);border:none;color:#0e1117;border-radius:8px;padding:9px 18px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:background 0.2s;}
   .confirm-btn-ok:hover{background:#2ab89a;}
+  /* ── Import badges ── */
+  .import-badges{display:flex;gap:6px;}
+  .import-badge{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 6px;cursor:pointer;transition:all 0.2s;min-width:0;overflow:hidden;}
+  .import-badge:hover{border-color:var(--accent2);}
+  .import-badge.has-data{border-color:rgba(56,217,169,0.4);background:rgba(56,217,169,0.05);}
+  .import-badge-icon{font-size:18px;line-height:1;}
+  .import-badge-text{font-family:'DM Mono',monospace;font-size:9px;color:var(--text-muted);text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;padding:0 4px;}
+  .import-badge.has-data .import-badge-text{color:var(--accent);}
+  /* ── Config grid ── */
+  .config-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .config-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;position:relative;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 10px;cursor:pointer;transition:all 0.2s;color:var(--text2);width:100%;}
+  .config-btn:hover{border-color:var(--accent2);background:rgba(79,156,249,0.04);}
+  .cfg-btn-icon{font-size:22px;}
+  .cfg-btn-label{font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);}
+  .cfg-btn-sub{font-family:'DM Mono',monospace;font-size:9px;color:var(--text-muted);text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 4px;}
+  .cfg-btn-sub.empty{color:var(--danger);}
+  /* ── Config sheets ── */
+  .config-sheet{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-radius:16px 16px 0 0;z-index:101;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);max-height:90vh;display:flex;flex-direction:column;border-top:1px solid var(--border);}
+  .config-sheet.open{transform:translateY(0);}
+  @media(min-width:640px){
+    .config-sheet,.region-sheet{left:50%;right:auto;bottom:auto;top:50%;width:min(560px,90%);max-height:85vh;border-radius:16px;border:1px solid var(--border);transform:translate(-50%,-50%) scale(0.96);opacity:0;pointer-events:none;transition:transform 0.22s cubic-bezier(0.32,0.72,0,1),opacity 0.22s ease;}
+    .config-sheet.open,.region-sheet.open{transform:translate(-50%,-50%) scale(1);opacity:1;pointer-events:auto;}
+    .sheet-handle{display:none;}
+  }
+  .sheet-body{overflow-y:auto;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));flex:1;min-height:0;}
+  /* ── Step config wrapper ── */
+  #step-config{display:flex;flex-direction:column;gap:12px;}
+  /* ── Nueva sesión ── */
+  .result-new-session{padding:12px 16px;border-top:1px solid var(--border);}
+  .btn-new-session{width:100%;background:transparent;color:var(--text-muted);border:1px solid var(--border);border-radius:10px;padding:9px 16px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;transition:all 0.2s;}
+  .btn-new-session:hover{border-color:var(--text);color:var(--text);}
 </style>
 </head>
 <body>
@@ -196,25 +228,151 @@
 </div>
 <main>
 
-  <!-- Imported satellite data card -->
-  <div class="card" id="imported-card" style="display:none;">
-    <div class="card-header" onclick="toggleCard('imported')">
-      <div class="section-title">📥 Datos importados</div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span id="imported-card-summary" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);"></span>
-        <span class="chevron open" id="chevron-imported">▼</span>
+  <div id="step-config">
+
+    <!-- Region selector (hidden when assessment context provides region) -->
+    <div id="region-selector" style="display:none;">
+      <button class="region-trigger" onclick="openRegionSheet()">
+        <span class="region-trigger-label">Región anatómica</span>
+        <span class="region-trigger-value"><span id="region-trigger-text">Genérica</span> ▾</span>
+      </button>
+    </div>
+
+    <!-- Imported status badges (always visible) -->
+    <div class="import-badges">
+      <button class="import-badge" id="badge-rom" onclick="openImportSheet()">
+        <span class="import-badge-icon">📐</span>
+        <span class="import-badge-text" id="badge-rom-text">ROM</span>
+      </button>
+      <button class="import-badge" id="badge-assessment" onclick="openImportSheet()">
+        <span class="import-badge-icon">📋</span>
+        <span class="import-badge-text" id="badge-assessment-text">Assessment</span>
+      </button>
+      <button class="import-badge" id="badge-force" onclick="openImportSheet()">
+        <span class="import-badge-icon">💪</span>
+        <span class="import-badge-text" id="badge-force-text">Force</span>
+      </button>
+      <button class="import-badge" id="badge-audio" onclick="openImportSheet()">
+        <span class="import-badge-icon">🎤</span>
+        <span class="import-badge-text" id="badge-audio-text">Audio</span>
+      </button>
+    </div>
+
+    <!-- Config buttons 2×2 -->
+    <div class="config-grid">
+      <button class="config-btn" onclick="openConfigSheet('patient')">
+        <span class="cfg-btn-icon">🧑‍⚕️</span>
+        <span class="cfg-btn-label">Paciente</span>
+        <span class="cfg-btn-sub empty" id="sub-patient">Sin nombre</span>
+      </button>
+      <button class="config-btn" onclick="openConfigSheet('clinic')">
+        <span class="cfg-btn-icon">⚙️</span>
+        <span class="cfg-btn-label">Clínica</span>
+        <span class="cfg-btn-sub empty" id="sub-clinic">Sin configurar</span>
+      </button>
+      <button class="config-btn" onclick="openConfigSheet('template')">
+        <span class="cfg-btn-icon">📐</span>
+        <span class="cfg-btn-label">Plantilla</span>
+        <span class="cfg-btn-sub" id="sub-template">Narrativa</span>
+      </button>
+      <button class="config-btn" onclick="openConfigSheet('options')">
+        <span class="cfg-btn-icon">📝</span>
+        <span class="cfg-btn-label">Opciones</span>
+        <span class="cfg-btn-sub" id="sub-options">Completo</span>
+      </button>
+    </div>
+
+    <!-- Audio upload -->
+    <div class="upload-zone" id="audio-zone">
+      <input type="file" id="audio-file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm">
+      <button id="audio-clear-btn" onclick="event.stopPropagation();clearAudio()">✕</button>
+      <div class="upload-icon">🎙️</div>
+      <div class="upload-title">Sube el audio de la sesión</div>
+      <div class="upload-sub">MP3, WAV, M4A, OGG · máx. 25MB</div>
+      <div class="file-selected" id="file-name"></div>
+    </div>
+    <div id="session-rec-hint">
+      <button onclick="_useSessionRecording()">🎙 Grabación de sesión disponible (<span id="session-rec-duration"></span>) — <span id="session-rec-action">Usar</span></button>
+    </div>
+
+    <div class="error-box" id="error-box"></div>
+
+    <div id="turnstile-wrap">
+      <p style="text-align:center;font-size:12px;color:var(--text-muted);margin-bottom:8px;">Verifica que eres humano para poder generar el informe</p>
+      <div id="cf-turnstile-container"></div>
+    </div>
+
+    <button class="btn-primary" id="generate-btn" onclick="generateReport()" disabled style="display:none">
+      Generar Informe CIF-AFTA
+    </button>
+
+  </div><!-- /step-config -->
+
+  <!-- Result section (shown after generation) -->
+  <div class="result-section" id="result-section">
+    <div class="result-header">
+      <div class="result-header-top" onclick="toggleResultBody()">
+        <div class="result-title">📋 Informe CIF-AFTA</div>
+        <span class="chevron" id="chevron-result">▼</span>
+      </div>
+      <div class="result-actions">
+        <button class="btn-secondary" onclick="copyReport()">📋<span class="btn-label"> Copiar</span></button>
+        <button class="btn-word" onclick="downloadWord()"><svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;margin-right:5px;"><rect width="24" height="24" rx="3" fill="#2b579a"/><text x="12" y="17" font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">W</text></svg><span class="btn-label">Word</span></button>
+        <button class="btn-secondary" id="btn-share" onclick="shareReport()" style="display:none;">🔗<span class="btn-label"> Compartir</span></button>
+        <button class="btn-seguimiento" id="btn-seguimiento" onclick="openSeguimiento()" style="display:none;">📅<span class="btn-label"> Crear seguimiento</span></button>
       </div>
     </div>
-    <div class="card-body open" id="body-imported"></div>
+    <div class="result-chips" id="result-chips"></div>
+    <div class="result-body collapsed" id="result-body"></div>
+    <div class="result-new-session">
+      <button class="btn-new-session" onclick="restoreConfigArea()">↺ Nueva sesión</button>
+    </div>
   </div>
 
-  <!-- Clinic + Style config -->
-  <div class="card">
-    <div class="card-header" onclick="toggleCard('clinic')">
-      <div class="section-title">⚙️ Configuración de clínica y estilo</div>
-      <span class="chevron" id="chevron-clinic">▼</span>
+</main>
+
+
+<!-- Processing modal -->
+<div id="processing-overlay">
+  <div id="processing-dialog">
+    <div class="section-title" style="margin-bottom:12px;">Procesando sesión...</div>
+    <div class="progress-step" id="step-1"><div class="step-dot"></div>Transcribiendo audio con Whisper...</div>
+    <div class="progress-step" id="step-2"><div class="step-dot"></div>Analizando con Claude (CIF-AFTA)...</div>
+    <div class="progress-step" id="step-3"><div class="step-dot"></div>Estructurando informe final...</div>
+  </div>
+</div>
+
+<!-- Sheet overlay (shared) -->
+<div class="sheet-overlay" id="sheet-overlay" onclick="closeActiveSheet()"></div>
+
+<!-- Imported data sheet -->
+<div class="config-sheet" id="sheet-imported">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">📥 Datos importados</div>
+  <hr class="sheet-divider">
+  <div class="sheet-body" id="body-imported"></div>
+</div>
+
+<!-- Patient config sheet -->
+<div class="config-sheet" id="sheet-patient">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">🧑‍⚕️ Datos del paciente</div>
+  <hr class="sheet-divider">
+  <div class="sheet-body">
+    <div class="grid-2">
+      <div class="field"><label>Nombre del paciente</label><input type="text" id="patient-name" placeholder="Ej: Juan García" oninput="checkReady()"></div>
+      <div class="field"><label>Fecha de sesión</label><input type="text" id="session-date" placeholder="Ej: 02/05/2026"></div>
+      <div class="field"><label>Diagnóstico / Motivo</label><input type="text" id="diagnosis" placeholder="Ej: Lumbalgia crónica"></div>
     </div>
-    <div class="card-body" id="body-clinic">
+  </div>
+</div>
+
+<!-- Clinic config sheet -->
+<div class="config-sheet" id="sheet-clinic">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">⚙️ Configuración de clínica y estilo</div>
+  <hr class="sheet-divider">
+  <div class="sheet-body" id="body-clinic">
 
       <div class="subsection">🏥 Datos de la clínica</div>
       <div class="grid-2" style="margin-bottom:10px;">
@@ -315,132 +473,50 @@
         <button class="btn-secondary" onclick="importConfig()">⬆️<span class="btn-label"> Importar</span></button>
       </div>
       <div class="saved-ok" id="saved-ok">✓ Configuración guardada</div>
-    </div>
   </div>
+</div>
 
-  <!-- Patient -->
-  <div class="card">
-    <div class="card-header" onclick="toggleCard('patient')">
-      <div class="section-title">🧑‍⚕️ Datos del paciente</div>
-      <span class="chevron" id="chevron-patient">▼</span>
-    </div>
-    <div class="card-body" id="body-patient">
-      <div class="grid-2">
-        <div class="field"><label>Nombre del paciente</label><input type="text" id="patient-name" placeholder="Ej: Juan García" oninput="checkReady()"></div>
-        <div class="field"><label>Fecha de sesión</label><input type="text" id="session-date" placeholder="Ej: 02/05/2026"></div>
-        <div class="field"><label>Diagnóstico / Motivo</label><input type="text" id="diagnosis" placeholder="Ej: Lumbalgia crónica"></div>
+<!-- Template config sheet -->
+<div class="config-sheet" id="sheet-template">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">📐 Plantilla del informe</div>
+  <hr class="sheet-divider">
+  <div class="sheet-body" id="body-template">
+    <div class="template-cards">
+      <div class="template-card" id="tpl-brief" onclick="selectTemplate('brief')">
+        <div class="tname">🩺 CIF-AFTA Breve</div>
+        <div class="tdesc">Secciones cortas tipo ficha de sesión. Ideal para informes rápidos de seguimiento.</div>
+      </div>
+      <div class="template-card selected" id="tpl-narrative" onclick="selectTemplate('narrative')">
+        <div class="tname">📋 Narrativo Institucional</div>
+        <div class="tdesc">Prosa clínica completa con tablas, escalas y formato de informe formal.</div>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- Template selector -->
-  <div class="card">
-    <div class="card-header" onclick="toggleCard('template')">
-      <div class="section-title">📐 Plantilla del informe</div>
-      <span class="chevron" id="chevron-template">▼</span>
+<!-- Options sheet (token slider) -->
+<div class="config-sheet" id="sheet-options">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">📝 Opciones del informe</div>
+  <hr class="sheet-divider">
+  <div class="sheet-body" id="body-tokens">
+    <input type="range" id="token-slider" min="1000" max="7000" step="600" value="4000"
+      oninput="updateSliderLabel()"
+      style="width:100%;accent-color:var(--accent);cursor:pointer;margin-bottom:10px;">
+    <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);margin-bottom:10px;">
+      <span>Muy breve</span><span>Estándar</span><span>Detallado</span><span>Ultra completo</span>
     </div>
-    <div class="card-body" id="body-template">
-      <div class="template-cards">
-        <div class="template-card" id="tpl-brief" onclick="selectTemplate('brief')">
-          <div class="tname">🩺 CIF-AFTA Breve</div>
-          <div class="tdesc">Secciones cortas tipo ficha de sesión. Ideal para informes rápidos de seguimiento.</div>
-        </div>
-        <div class="template-card selected" id="tpl-narrative" onclick="selectTemplate('narrative')">
-          <div class="tname">📋 Narrativo Institucional</div>
-          <div class="tdesc">Prosa clínica completa con tablas, escalas y formato de informe formal.</div>
-        </div>
-      </div>
+    <div id="slider-label" style="text-align:center;font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
+      ~1700 palabras · Completo · coste estimado ~$0.07
     </div>
-  </div>
-
-  <!-- Token slider -->
-  <div class="card">
-    <div class="card-header" onclick="toggleCard('tokens')">
-      <div class="section-title">📝 Longitud del informe</div>
-      <span class="chevron" id="chevron-tokens">▼</span>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:8px;text-align:center;font-family:'DM Mono',monospace;">
+      Para narrativo institucional se recomienda "Detallado" o superior
     </div>
-    <div class="card-body" id="body-tokens">
-      <input type="range" id="token-slider" min="1000" max="7000" step="600" value="4000"
-        oninput="updateSliderLabel()"
-        style="width:100%;accent-color:var(--accent);cursor:pointer;margin-bottom:10px;">
-      <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);margin-bottom:10px;">
-        <span>Muy breve</span><span>Estándar</span><span>Detallado</span><span>Ultra completo</span>
-      </div>
-      <div id="slider-label" style="text-align:center;font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
-        ~1700 palabras · Completo · coste estimado ~$0.07
-      </div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;text-align:center;font-family:'DM Mono',monospace;">
-        Para narrativo institucional se recomienda "Detallado" o superior
-      </div>
-    </div>
-  </div>
-
-  <!-- Audio -->
-  <div class="upload-zone" id="audio-zone">
-    <input type="file" id="audio-file" accept="audio/*,.mp3,.wav,.m4a,.ogg,.webm">
-    <button id="audio-clear-btn" onclick="event.stopPropagation();clearAudio()">✕</button>
-    <div class="upload-icon">🎙️</div>
-    <div class="upload-title">Sube el audio de la sesión</div>
-    <div class="upload-sub">MP3, WAV, M4A, OGG · máx. 25MB</div>
-    <div class="file-selected" id="file-name"></div>
-  </div>
-  <div id="session-rec-hint">
-    <button onclick="_useSessionRecording()">🎙 Grabación de sesión disponible (<span id="session-rec-duration"></span>) — <span id="session-rec-action">Usar</span></button>
-  </div>
-
-  <!-- Region selector – only shown without PhysiQ-Assessment payload -->
-  <div id="region-selector" style="display:none;">
-    <button class="region-trigger" onclick="openRegionSheet()">
-      <span class="region-trigger-label">Región anatómica</span>
-      <span class="region-trigger-value"><span id="region-trigger-text">Genérica</span> ▾</span>
-    </button>
-  </div>
-
-  <div class="error-box" id="error-box"></div>
-
-  <div id="turnstile-wrap">
-    <p style="text-align:center;font-size:12px;color:var(--text-muted);margin-bottom:8px;">Verifica que eres humano para poder generar el informe</p>
-    <div id="cf-turnstile-container"></div>
-  </div>
-
-  <button class="btn-primary" id="generate-btn" onclick="generateReport()" disabled style="display:none">
-    Generar Informe CIF-AFTA
-  </button>
-
-
-  <!-- Result -->
-  <div class="result-section" id="result-section">
-    <div class="result-header">
-      <div class="result-header-top" onclick="toggleResultBody()">
-        <div class="result-title">📋 Informe CIF-AFTA</div>
-        <span class="chevron" id="chevron-result">▼</span>
-      </div>
-      <div class="result-actions">
-        <button class="btn-secondary" onclick="copyReport()">📋<span class="btn-label"> Copiar</span></button>
-        <button class="btn-word" onclick="downloadWord()"><svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;margin-right:5px;"><rect width="24" height="24" rx="3" fill="#2b579a"/><text x="12" y="17" font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">W</text></svg><span class="btn-label">Word</span></button>
-        <button class="btn-secondary" id="btn-share" onclick="shareReport()" style="display:none;">🔗<span class="btn-label"> Compartir</span></button>
-        <button class="btn-seguimiento" id="btn-seguimiento" onclick="openSeguimiento()" style="display:none;">📅<span class="btn-label"> Crear seguimiento</span></button>
-      </div>
-    </div>
-    <div class="result-chips" id="result-chips"></div>
-    <div class="result-body collapsed" id="result-body"></div>
-  </div>
-
-</main>
-
-
-<!-- Processing modal -->
-<div id="processing-overlay">
-  <div id="processing-dialog">
-    <div class="section-title" style="margin-bottom:12px;">Procesando sesión...</div>
-    <div class="progress-step" id="step-1"><div class="step-dot"></div>Transcribiendo audio con Whisper...</div>
-    <div class="progress-step" id="step-2"><div class="step-dot"></div>Analizando con Claude (CIF-AFTA)...</div>
-    <div class="progress-step" id="step-3"><div class="step-dot"></div>Estructurando informe final...</div>
   </div>
 </div>
 
 <!-- Region bottom sheet -->
-<div class="sheet-overlay" id="sheet-overlay" onclick="closeRegionSheet()"></div>
 <div class="region-sheet" id="region-sheet">
   <div class="sheet-handle"></div>
   <div class="sheet-title">Región anatómica <span style="opacity:0.55;font-size:9px;text-transform:none;letter-spacing:0;">(opcional · mejora la transcripción)</span></div>
