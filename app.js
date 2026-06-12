@@ -1599,6 +1599,70 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
 
+// ========= SWIPE-TO-DISMISS BOTTOM SHEETS =========
+(function () {
+  function initSwipe(sheet) {
+    let startY = 0, startTime = 0, dragging = false, delta = 0, snapTimer = null;
+    const EASE = 'transform 0.3s cubic-bezier(0.32,0.72,0,1)';
+
+    function isHeaderTouch(target) {
+      return ['.sheet-handle', '.sheet-title', '.sheet-divider']
+        .map(s => sheet.querySelector(s))
+        .some(el => el && el.contains(target));
+    }
+
+    sheet.addEventListener('touchstart', e => {
+      if (window.innerWidth >= 640) return;
+      if (!isHeaderTouch(e.target)) return;
+      startY = e.touches[0].clientY;
+      startTime = Date.now();
+      delta = 0;
+      dragging = true;
+      clearTimeout(snapTimer);
+      sheet.style.transition = 'none';
+    }, { passive: true });
+
+    sheet.addEventListener('touchmove', e => {
+      if (!dragging) return;
+      delta = Math.max(0, e.touches[0].clientY - startY);
+      sheet.style.transform = delta > 0 ? `translateY(${delta}px)` : 'translateY(0)';
+    }, { passive: true });
+
+    function onRelease() {
+      if (!dragging) return;
+      dragging = false;
+      const velocity = delta / (Date.now() - startTime);
+      if (delta > 80 || velocity > 0.3) {
+        sheet.style.transition = EASE;
+        sheet.style.transform = 'translateY(110%)';
+        setTimeout(() => {
+          sheet.style.transition = 'none';
+          closeActiveSheet();
+          sheet.style.transform = '';
+          sheet.style.transition = '';
+        }, 300);
+      } else {
+        sheet.style.transition = EASE;
+        sheet.style.transform = 'translateY(0)';
+        snapTimer = setTimeout(() => {
+          sheet.style.transform = '';
+          sheet.style.transition = '';
+        }, 310);
+      }
+    }
+
+    sheet.addEventListener('touchend', onRelease, { passive: true });
+    sheet.addEventListener('touchcancel', () => {
+      if (!dragging) return;
+      dragging = false;
+      sheet.style.transform = '';
+      sheet.style.transition = '';
+    }, { passive: true });
+  }
+
+  document.querySelectorAll('.config-sheet, .region-sheet').forEach(initSwipe);
+}());
+
 // ─── TRANSLATE BANNER ────────────────────────────────────
 let _translateTimer = null;
 function handleTranslateClick() {
