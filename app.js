@@ -1605,15 +1605,9 @@ if ('serviceWorker' in navigator) {
     let startY = 0, startTime = 0, dragging = false, delta = 0, snapTimer = null;
     const EASE = 'transform 0.3s cubic-bezier(0.32,0.72,0,1)';
 
-    function isHeaderTouch(target) {
-      return ['.sheet-handle', '.sheet-title', '.sheet-divider']
-        .map(s => sheet.querySelector(s))
-        .some(el => el && el.contains(target));
-    }
-
     sheet.addEventListener('touchstart', e => {
       if (window.innerWidth >= 640) return;
-      if (!isHeaderTouch(e.target)) return;
+      if (e.touches[0].clientY - sheet.getBoundingClientRect().top > 72) return;
       startY = e.touches[0].clientY;
       startTime = Date.now();
       delta = 0;
