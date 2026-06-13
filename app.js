@@ -1106,30 +1106,34 @@ async function _buildAndDownloadWord() {
 async function _buildAndShareWord() {
   const { blob, filename, patientName } = await _buildWordBlob();
   const file = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-  const title = `Informe de Fisioterapia — ${patientName}`;
-  // Try file sharing first (requires canShare to confirm MIME support at runtime)
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title });
+      await navigator.share({ files: [file], title: `Informe de Fisioterapia — ${patientName}` });
       return;
     } catch (err) {
       if (err.name === 'AbortError') return;
     }
+  } else {
+    _showShareFallbackToast();
   }
-  // File sharing unavailable or failed — try text-only share (universally supported)
-  if (navigator.share && lastReportText) {
-    try {
-      await navigator.share({ title, text: lastReportText });
-      return;
-    } catch (err) {
-      if (err.name === 'AbortError') return;
-    }
-  }
-  // Last resort: download
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
+}
+
+function _showShareFallbackToast() {
+  let t = document.getElementById('_share-toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = '_share-toast';
+    t.style.cssText = 'position:fixed;bottom:calc(80px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-family:\'DM Mono\',monospace;font-size:12px;color:var(--text2);white-space:nowrap;z-index:9999;transition:opacity .3s;';
+    document.body.appendChild(t);
+  }
+  t.textContent = 'Tu dispositivo no admite compartir .docx — se descargará';
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; }, 3500);
 }
 
 // Build TextRun array (and ExternalHyperlink) from a line that may contain links
