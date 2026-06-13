@@ -206,6 +206,12 @@
     .sheet-handle{display:none;}
   }
   .sheet-body{overflow-y:auto;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));flex:1;min-height:0;overscroll-behavior:contain;}
+  /* ── Custom scrollbars (desktop Chromium/Safari) ── */
+  .sheet-body::-webkit-scrollbar,.sheet-options::-webkit-scrollbar,.raw-transcript::-webkit-scrollbar{width:4px;}
+  .sheet-body::-webkit-scrollbar-track,.sheet-options::-webkit-scrollbar-track,.raw-transcript::-webkit-scrollbar-track{background:transparent;}
+  .sheet-body::-webkit-scrollbar-thumb,.sheet-options::-webkit-scrollbar-thumb,.raw-transcript::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+  .sheet-body::-webkit-scrollbar-thumb:hover,.sheet-options::-webkit-scrollbar-thumb:hover,.raw-transcript::-webkit-scrollbar-thumb:hover{background:var(--text3);}
+  .sheet-body,.sheet-options{scrollbar-width:thin;scrollbar-color:var(--border2) transparent;}
   /* ── Step config wrapper ── */
   #step-config{display:flex;flex-direction:column;gap:12px;}
   /* ── Nueva sesión ── */

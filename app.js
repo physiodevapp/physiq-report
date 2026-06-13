@@ -1106,15 +1106,26 @@ async function _buildAndDownloadWord() {
 async function _buildAndShareWord() {
   const { blob, filename, patientName } = await _buildWordBlob();
   const file = new File([blob], filename, { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+  const title = `Informe de Fisioterapia — ${patientName}`;
+  // Try file sharing first (requires canShare to confirm MIME support at runtime)
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: `Informe de Fisioterapia — ${patientName}` });
+      await navigator.share({ files: [file], title });
       return;
     } catch (err) {
       if (err.name === 'AbortError') return;
-      // share failed (e.g. MIME not supported at runtime) — fall through to download
     }
   }
+  // File sharing unavailable or failed — try text-only share (universally supported)
+  if (navigator.share && lastReportText) {
+    try {
+      await navigator.share({ title, text: lastReportText });
+      return;
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+    }
+  }
+  // Last resort: download
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = filename; a.click();
