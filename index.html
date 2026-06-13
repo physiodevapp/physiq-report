@@ -122,7 +122,7 @@
   .result-actions{display:flex;gap:8px;flex-wrap:wrap;}
   .result-actions button{flex:1;justify-content:center;white-space:nowrap;padding-left:8px;padding-right:8px;}
   @media(max-width:540px){.config-actions button{flex:1;white-space:nowrap;padding-left:8px;padding-right:8px;}}
-  @media(max-width:320px){.result-actions button .btn-label,.config-actions button .btn-label{display:none;} .result-actions button,.config-actions button{font-size:18px;padding-left:0;padding-right:0;} .btn-word svg{width:20px;height:20px;}}
+  @media(max-width:320px){.result-actions button .btn-label,.config-actions button .btn-label{display:none;} .result-actions button,.config-actions button{font-size:18px;padding-left:0;padding-right:0;}}
   .result-chips{padding:10px 16px 12px;}
   .result-body{padding:16px;border-top:1px solid var(--border);}
   .result-body.collapsed{display:none;}
@@ -316,9 +316,9 @@
         <span class="chevron" id="chevron-result">▼</span>
       </div>
       <div class="result-actions">
-        <button class="btn-secondary" onclick="copyReport()">📋<span class="btn-label"> Copiar</span></button>
-        <button class="btn-word" onclick="downloadWord()"><svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="vertical-align:middle;margin-right:5px;"><rect width="24" height="24" rx="3" fill="#2b579a"/><text x="12" y="17" font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">W</text></svg><span class="btn-label">Word</span></button>
-        <button class="btn-secondary" id="btn-share" onclick="shareReport()" style="display:none;">🔗<span class="btn-label"> Compartir</span></button>
+        <button class="btn-secondary" onclick="copyReport()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/></svg><span class="btn-label">Copiar</span></button>
+        <button class="btn-word" onclick="downloadWord()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8.5 14.5l1.5 4 1.5-4 1.5 4 1.5-4"/></svg><span class="btn-label">Word</span></button>
+        <button class="btn-secondary" id="btn-share" onclick="shareReport()" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg><span class="btn-label">Compartir</span></button>
         <button class="btn-seguimiento" id="btn-seguimiento" onclick="openSeguimiento()" style="display:none;">📅<span class="btn-label"> Crear seguimiento</span></button>
       </div>
     </div>
@@ -468,9 +468,9 @@
       </div>
 
       <div class="config-actions" style="display:flex;gap:8px;align-items:center;">
-        <button class="btn-save" style="margin-top:0;" onclick="saveConfig()">⚙️<span class="btn-label"> Guardar</span></button>
-        <button class="btn-secondary" onclick="exportConfig()">⬇️<span class="btn-label"> Exportar</span></button>
-        <button class="btn-secondary" onclick="importConfig()">⬆️<span class="btn-label"> Importar</span></button>
+        <button class="btn-save" style="margin-top:0;" onclick="saveConfig()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span class="btn-label">Guardar</span></button>
+        <button class="btn-secondary" onclick="exportConfig()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span class="btn-label">Exportar</span></button>
+        <button class="btn-secondary" onclick="importConfig()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span class="btn-label">Importar</span></button>
       </div>
       <div class="saved-ok" id="saved-ok">✓ Configuración guardada</div>
   </div>
