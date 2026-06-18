@@ -108,6 +108,10 @@ git commit -m "short imperative title" -m "description when necessary"
 - Never use `git commit` without flags or interactive editors
 - Never add co-authorship (`Co-Authored-By`) under any circumstances
 
+## Pull request format
+
+- PR body: plain description only — no `🤖 Generated with Claude Code` line, no session URLs, no co-authorship footers
+
 ---
 
 ## Integration: IDB shared session
