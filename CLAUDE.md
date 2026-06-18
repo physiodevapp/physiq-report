@@ -31,7 +31,7 @@ There is no framework, no bundler, no modules.
 **Client-side persistence:**
 - `localStorage` key `physiq_config` (JSON) — all UI/clinic settings
 - `localStorage` key `physiq_logo` (base64) + `physiq_logo_mime` — uploaded logo
-- IDB DB `'physiq'` v3, store `'session'`, key `'active'` — shared session written by satellite apps (physiq-motion, physiq-assessment); physiq-report is read-only on this store
+- IDB DB `'physiq'` v3, store `'session'`, key `'active'` — shared session; physiq-report writes `patient`, `date`, `diagnosis`, `manualRegion` via `updateSession` (never creates a session, only updates an existing one)
 - IDB DB `'physiq'` v3, store `'audio'`, key `'pending'` — audio blob written by the hub recorder; physiq-report reads and optionally consumes it
 
 **Key global variables in `app.js`:**
@@ -112,7 +112,7 @@ git commit -m "short imperative title" -m "description when necessary"
 
 ## Integration: IDB shared session
 
-physiq-report is **read-only** on the shared IDB session (DB `'physiq'` v3). On startup it calls `readSession()` and applies data in this priority order:
+physiq-report reads the shared IDB session on startup and writes only a limited set of fields (`patient`, `date`, `diagnosis`, `manualRegion`) via `updateSession` — which is a no-op if no session exists. It never calls `writeSession` (which would create a session from scratch). On startup it calls `readSession()` and applies data in this priority order:
 
 ```js
 readSession().then(session => {
@@ -164,7 +164,9 @@ physiq-report listens on `BroadcastChannel('physiq-session')` for real-time upda
 | `SESSION_ASSESSMENT_PARTIAL` | physiq-assessment (every phase) | calls `_showAssessmentIncompleteBadge(data.phase)` + `setManualRegion()` from `data.region` |
 | `SESSION_CLEAR` | any satellite | resets app, removes all badges |
 
-physiq-report also writes `writeSession({ patient })` when the `#patient-name` input changes.
+**Ghost-write protection** — `_sessionGen` (integer, incremented on clear) and `_sessionCleared` (boolean, set on clear) prevent stale async writes from recreating a deleted session. The `patient-name` input handler captures the gen before calling `writeSession`; if `_sessionGen !== gen` at resolve time, it calls `clearSession()` to undo the write. `_sessionCleared` blocks new writes from starting until the user types a patient name.
+
+physiq-report writes to IDB only via `writeSession` (patient-name input, creates session if absent) and `updateSession` (diagnosis, manualRegion — no-op if session doesn't exist). `SESSION_PATIENT` BC messages do **not** trigger any IDB write.
 
 ## Hub audio handoff
 
