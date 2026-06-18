@@ -1434,6 +1434,7 @@ _sessionCh.onmessage = ({ data }) => {
     return;
   }
   if (data.type === 'SESSION_CLEAR') {
+    clearSession();
     resetApp();
     window._physiqROMContext = null;
     window._physiqAssessmentContext = null;
