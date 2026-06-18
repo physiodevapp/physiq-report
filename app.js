@@ -358,16 +358,20 @@ az.addEventListener('drop', e => {
 document.getElementById('patient-name').addEventListener('input', () => {
   checkReady();
   const patient = document.getElementById('patient-name').value.trim();
+  if (!patient) return;
+  if (_sessionCleared) _sessionCleared = false;
   const date = document.getElementById('session-date').value.trim() || new Date().toLocaleDateString('es-ES');
+  const gen = _sessionGen;
   writeSession({ patient, date }).then(session => {
+    if (_sessionGen !== gen) { clearSession(); return; }
     if (session) updateSessionChip(session);
-    if (patient) _sessionCh.postMessage({ type: 'SESSION_PATIENT', patient });
+    _sessionCh.postMessage({ type: 'SESSION_PATIENT', patient });
   });
 });
 document.getElementById('session-date').addEventListener('input', () => { checkReady(); });
 document.getElementById('diagnosis').addEventListener('input', () => {
   checkReady();
-  writeSession({ diagnosis: document.getElementById('diagnosis').value.trim() });
+  updateSession({ diagnosis: document.getElementById('diagnosis').value.trim() });
 });
 
 function checkReady() {
@@ -518,7 +522,7 @@ function getWhisperPrompt(region) {
 
 function setManualRegion(key, label) {
   manualRegion = key || null;
-  writeSession({ manualRegion: key || null });
+  updateSession({ manualRegion: key || null });
   const triggerText = document.getElementById('region-trigger-text');
   if (triggerText) triggerText.textContent = label;
   document.querySelectorAll('.sheet-option').forEach(opt => {
@@ -1391,13 +1395,13 @@ function _useSessionRecording() {
 
 const _recCh = new BroadcastChannel('physiq-recorder');
 const _sessionCh = new BroadcastChannel('physiq-session');
+let _sessionGen     = 0;
+let _sessionCleared = false;
 _sessionCh.onmessage = ({ data }) => {
   if (data.type === 'SESSION_PATIENT') {
     const el = document.getElementById('patient-name');
     if (!el || document.activeElement === el) return;
     el.value = data.patient || '';
-    if (!data.patient) return;
-    updateSession({ patient: data.patient }).then(session => { if (session) updateSessionChip(session); });
     checkReady();
     return;
   }
@@ -1434,6 +1438,8 @@ _sessionCh.onmessage = ({ data }) => {
     return;
   }
   if (data.type === 'SESSION_CLEAR') {
+    _sessionGen++;
+    _sessionCleared = true;
     clearSession();
     resetApp();
     window._physiqROMContext = null;
@@ -1500,6 +1506,8 @@ function promptClearSession() {
     `${_sessionLabel}<br>¿Borrar? Se perderán los datos importados.`,
     'Borrar sesión',
     () => {
+      _sessionGen++;
+      _sessionCleared = true;
       resetApp();
       window._physiqROMContext = null;
       window._physiqAssessmentContext = null;
