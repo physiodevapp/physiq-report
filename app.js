@@ -1592,7 +1592,7 @@ if ('serviceWorker' in navigator) {
 // ========= SWIPE-TO-DISMISS BOTTOM SHEETS =========
 (function () {
   function initSwipe(sheet) {
-    let startY = 0, startTime = 0, dragging = false, delta = 0, snapTimer = null;
+    let startY = 0, startTime = 0, dragging = false, delta = 0, snapTimer = null, dismissTimer = null;
     const EASE = 'transform 0.3s cubic-bezier(0.32,0.72,0,1)';
 
     sheet.addEventListener('touchstart', e => {
@@ -1603,6 +1603,7 @@ if ('serviceWorker' in navigator) {
       delta = 0;
       dragging = true;
       clearTimeout(snapTimer);
+      clearTimeout(dismissTimer);
       sheet.style.transition = 'none';
     }, { passive: true });
 
@@ -1619,10 +1620,12 @@ if ('serviceWorker' in navigator) {
       if (delta > 80 || velocity > 0.3) {
         sheet.style.transition = EASE;
         sheet.style.transform = 'translateY(110%)';
-        setTimeout(() => {
+        dismissTimer = setTimeout(() => {
+          dismissTimer = null;
           sheet.style.transition = 'none';
-          closeActiveSheet();
+          if (sheet.classList.contains('open')) closeActiveSheet();
           sheet.style.transform = '';
+          void sheet.offsetHeight;
           sheet.style.transition = '';
         }, 300);
       } else {
@@ -1639,6 +1642,7 @@ if ('serviceWorker' in navigator) {
     sheet.addEventListener('touchcancel', () => {
       if (!dragging) return;
       dragging = false;
+      clearTimeout(dismissTimer);
       sheet.style.transform = '';
       sheet.style.transition = '';
     }, { passive: true });
