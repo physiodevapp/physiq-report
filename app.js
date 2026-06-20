@@ -1599,7 +1599,7 @@ if ('serviceWorker' in navigator) {
       if (window.innerWidth >= 640) return;
       if (e.touches[0].clientY - sheet.getBoundingClientRect().top > 72) return;
       startY = e.touches[0].clientY;
-      startTime = Date.now();
+      startTime = 0;
       delta = 0;
       dragging = true;
       clearTimeout(snapTimer);
@@ -1610,13 +1610,14 @@ if ('serviceWorker' in navigator) {
     sheet.addEventListener('touchmove', e => {
       if (!dragging) return;
       delta = Math.max(0, e.touches[0].clientY - startY);
+      if (startTime === 0 && delta > 0) startTime = Date.now();
       sheet.style.transform = delta > 0 ? `translateY(${delta}px)` : 'translateY(0)';
     }, { passive: true });
 
     function onRelease() {
       if (!dragging) return;
       dragging = false;
-      const velocity = delta / (Date.now() - startTime);
+      const velocity = startTime > 0 ? delta / (Date.now() - startTime) : 0;
       if (delta > 80 || velocity > 0.3) {
         sheet.style.transition = EASE;
         sheet.style.transform = 'translateY(110%)';
