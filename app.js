@@ -2,6 +2,7 @@
 let selectedFile = null, transcriptText = '', logoBase64 = null, logoMime = 'image/png';
 let selectedTemplate = 'narrative';
 let lastReportText = '';
+let lastReportInfo = null;
 let manualRegion = null;
 let _activeSheet = null;
 
@@ -405,6 +406,7 @@ function saveConfig(silent) {
     headerStyle: document.querySelector('.hstyle-btn.active')?.dataset.value || 'line',
     headerColor:    document.getElementById('style-header-color').value,
     seguimientoUrl: document.getElementById('clinic-seguimiento-url').value.trim(),
+    reportEmail:    document.getElementById('clinic-report-email').value.trim(),
     tokens:         document.getElementById('token-slider').value,
     template:       selectedTemplate,
   };
@@ -435,6 +437,7 @@ function loadConfig() {
   if (c.headerStyle) { const b = document.querySelector(`.hstyle-btn[data-value="${c.headerStyle}"]`); if (b) setHstyle(b); }
   if (c.headerColor)    document.getElementById('style-header-color').value    = c.headerColor;
   if (c.seguimientoUrl) document.getElementById('clinic-seguimiento-url').value = c.seguimientoUrl;
+  if (c.reportEmail)    document.getElementById('clinic-report-email').value    = c.reportEmail;
   if (c.tokens) { document.getElementById('token-slider').value = c.tokens; }
   if (c.template) selectTemplate(c.template);
   updateSliderLabel();
@@ -766,6 +769,7 @@ function toggleResultBody() {
 
 function renderReport(reportText, transcript, info) {
   lastReportText = reportText;
+  lastReportInfo = info;
   document.getElementById('result-chips').innerHTML = `<div style="display:flex;gap:6px;flex-wrap:wrap;">
     <span class="badge">👤 ${info.name}</span>
     ${info.date?`<span class="badge">📅 ${info.date}</span>`:''}
@@ -1651,6 +1655,141 @@ if ('serviceWorker' in navigator) {
 
   document.querySelectorAll('.config-sheet, .region-sheet').forEach(initSwipe);
 }());
+
+// ========= EMAIL =========
+function sendReportByEmail() {
+  if (!lastReportText) return;
+  const cfg = JSON.parse(localStorage.getItem('physiq_config') || '{}');
+  document.getElementById('email-to').value = cfg.reportEmail || '';
+  document.getElementById('email-status').style.display = 'none';
+  const btn = document.getElementById('email-send-btn');
+  btn.disabled = false;
+  btn.innerHTML = 'Enviar';
+  openConfigSheet('email');
+}
+
+async function _doSendEmail() {
+  const to = document.getElementById('email-to').value.trim();
+  const status = document.getElementById('email-status');
+  if (!to || !to.includes('@')) {
+    status.textContent = 'Introduce un email válido';
+    status.style.cssText = 'display:block;color:var(--danger);font-size:13px;margin-top:10px;';
+    return;
+  }
+
+  const cfg = JSON.parse(localStorage.getItem('physiq_config') || '{}');
+  cfg.reportEmail = to;
+  localStorage.setItem('physiq_config', JSON.stringify(cfg));
+  document.getElementById('clinic-report-email').value = to;
+
+  const btn = document.getElementById('email-send-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;margin-right:6px;"></div> Enviando...';
+  status.style.display = 'none';
+
+  try {
+    const token = await getTurnstileToken();
+    const info = lastReportInfo || {};
+    const bodyHtml = _markdownToEmailHtml(lastReportText);
+    const html = _buildEmailHtml(bodyHtml, info);
+    const parts = ['Informe CIF-AFTA', info.name, info.date].filter(Boolean);
+    const subject = parts.join(' — ');
+
+    const res = await fetch(ORCHESTRATOR_URL + '/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'cf-turnstile-response': token },
+      body: JSON.stringify({ to, subject, html }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al enviar');
+
+    status.textContent = '✓ Enviado a ' + to;
+    status.style.cssText = 'display:block;color:var(--accent);font-size:13px;margin-top:10px;';
+    btn.innerHTML = '✓ Enviado';
+    setTimeout(() => closeActiveSheet(), 2000);
+  } catch (err) {
+    status.textContent = '⚠️ ' + err.message;
+    status.style.cssText = 'display:block;color:var(--danger);font-size:13px;margin-top:10px;';
+    btn.disabled = false;
+    btn.innerHTML = 'Enviar';
+  }
+}
+
+function _escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function _inlineFmt(text) {
+  return _escHtml(text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>');
+}
+
+function _markdownToEmailHtml(md) {
+  const lines = md.split('\n');
+  let out = '', inList = false, inTable = false;
+
+  for (const line of lines) {
+    if (line.startsWith('#### ')) {
+      if (inList)  { out += '</ul>'; inList = false; }
+      if (inTable) { out += '</tbody></table>'; inTable = false; }
+      out += `<h4 style="color:#1a3a6b;font-size:13px;margin:10px 0 3px;">${_escHtml(line.slice(5))}</h4>`;
+    } else if (line.startsWith('### ')) {
+      if (inList)  { out += '</ul>'; inList = false; }
+      if (inTable) { out += '</tbody></table>'; inTable = false; }
+      out += `<h3 style="color:#1a3a6b;font-size:15px;margin:14px 0 5px;padding-bottom:3px;border-bottom:1px solid #dde3f0;">${_escHtml(line.slice(4))}</h3>`;
+    } else if (line.startsWith('## ')) {
+      if (inList)  { out += '</ul>'; inList = false; }
+      if (inTable) { out += '</tbody></table>'; inTable = false; }
+      out += `<h2 style="color:#1a3a6b;font-size:17px;margin:18px 0 8px;background:#f0f4ff;padding:7px 12px;border-radius:4px;">${_escHtml(line.slice(3))}</h2>`;
+    } else if (line.startsWith('|')) {
+      if (inList) { out += '</ul>'; inList = false; }
+      if (line.match(/^\|[\s\-:|]+\|$/)) continue;
+      const cells = line.split('|').slice(1, -1).map(c => `<td style="border:1px solid #dde3f0;padding:5px 9px;font-size:12px;">${_inlineFmt(c.trim())}</td>`).join('');
+      if (!inTable) { out += '<table style="width:100%;border-collapse:collapse;margin:8px 0;"><tbody>'; inTable = true; }
+      out += `<tr>${cells}</tr>`;
+    } else if (line.match(/^[-*]\s/)) {
+      if (inTable) { out += '</tbody></table>'; inTable = false; }
+      if (!inList) { out += '<ul style="margin:6px 0;padding-left:20px;">'; inList = true; }
+      out += `<li style="margin:2px 0;font-size:13px;">${_inlineFmt(line.slice(2))}</li>`;
+    } else {
+      if (inList)  { out += '</ul>'; inList = false; }
+      if (inTable) { out += '</tbody></table>'; inTable = false; }
+      if (!line.trim()) { out += '<div style="height:6px;"></div>'; }
+      else out += `<p style="margin:3px 0;font-size:13px;line-height:1.65;">${_inlineFmt(line)}</p>`;
+    }
+  }
+  if (inList)  out += '</ul>';
+  if (inTable) out += '</tbody></table>';
+  return out;
+}
+
+function _buildEmailHtml(bodyHtml, info) {
+  const patient   = _escHtml(info.name      || '');
+  const date      = _escHtml(info.date      || '');
+  const diagnosis = _escHtml(info.diagnosis || '');
+  const chips = [
+    patient   ? `<span style="background:#e8f5f0;color:#1a6b4b;padding:3px 10px;border-radius:12px;font-size:12px;">👤 ${patient}</span>`   : '',
+    date      ? `<span style="background:#e8f0ff;color:#1a3a6b;padding:3px 10px;border-radius:12px;font-size:12px;">📅 ${date}</span>`      : '',
+    diagnosis ? `<span style="background:#fff3e0;color:#6b3a1a;padding:3px 10px;border-radius:12px;font-size:12px;">🏥 ${diagnosis}</span>` : '',
+  ].filter(Boolean).join(' ');
+
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:20px;background:#f0f2f5;font-family:Georgia,'Times New Roman',serif;color:#1a1a2e;">
+<div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+  <div style="background:#0e1117;padding:18px 24px;display:flex;align-items:baseline;gap:6px;">
+    <span style="font-family:Georgia,serif;font-size:22px;color:#e8edf5;">Physi</span><span style="font-family:Georgia,serif;font-size:22px;background:linear-gradient(135deg,#4f9cf9,#38d9a9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Q</span>
+    <span style="font-family:Georgia,serif;font-size:22px;color:#38d9a9;">Report</span>
+    <span style="margin-left:8px;font-size:11px;color:#6b7a99;font-family:sans-serif;">Informe Clínico CIF-AFTA</span>
+  </div>
+  ${chips ? `<div style="background:#f8f9fc;padding:12px 24px;border-bottom:1px solid #e8ecf4;display:flex;gap:8px;flex-wrap:wrap;">${chips}</div>` : ''}
+  <div style="padding:20px 24px;">${bodyHtml}</div>
+  <div style="background:#f8f9fc;padding:10px 24px;border-top:1px solid #e8ecf4;font-size:11px;color:#999;font-family:sans-serif;text-align:center;">
+    Generado con PhysiQ-Report
+  </div>
+</div>
+</body></html>`;
+}
 
 // ─── TRANSLATE BANNER ────────────────────────────────────
 let _translateTimer = null;

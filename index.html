@@ -325,6 +325,7 @@
       <div class="result-actions">
         <button class="btn-secondary" onclick="copyReport()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2"/></svg><span class="btn-label">Copiar</span></button>
         <button class="btn-word" onclick="downloadWord()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8.5 14.5l1.5 4 1.5-4 1.5 4 1.5-4"/></svg><span class="btn-label">Word</span></button>
+        <button class="btn-secondary" onclick="sendReportByEmail()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg><span class="btn-label">Email</span></button>
         <button class="btn-seguimiento" id="btn-seguimiento" onclick="openSeguimiento()" style="display:none;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="btn-label">Crear seguimiento</span></button>
       </div>
     </div>
@@ -388,6 +389,10 @@
       <div class="grid-2" style="margin-bottom:10px;">
         <div class="field"><label>Nombre de unidad / servicio</label><input type="text" id="clinic-unit" placeholder="Ej: Unidad de Fisioterapia Musculoesquelética"></div>
         <div class="field"><label>Ciudad (cabecera)</label><input type="text" id="clinic-city" placeholder="Ej: Madrid"></div>
+      </div>
+      <div class="field" style="margin-bottom:10px;">
+        <label>Email para recibir informes <span style="font-size:11px;color:var(--text-muted);font-weight:400;">(opcional · activa el botón «Email» tras generar el informe)</span></label>
+        <input type="email" id="clinic-report-email" placeholder="tu@email.com">
       </div>
       <div class="field" style="margin-bottom:10px;">
         <label>URL del kiosco de seguimientos <span style="font-size:11px;color:var(--text-muted);font-weight:400;">(opcional · activa el botón «Crear seguimiento» tras generar el informe)</span></label>
@@ -519,6 +524,21 @@
     <div style="font-size:11px;color:var(--text-muted);margin-top:8px;text-align:center;font-family:'DM Mono',monospace;">
       Para narrativo institucional se recomienda "Detallado" o superior
     </div>
+  </div>
+</div>
+
+<!-- Email bottom sheet -->
+<div class="config-sheet" id="sheet-email">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">✉️ Enviar informe por email</div>
+  <hr class="sheet-divider">
+  <div class="sheet-body">
+    <div class="field" style="margin-bottom:14px;">
+      <label>Destinatario</label>
+      <input type="email" id="email-to" placeholder="tu@email.com" style="width:100%;">
+    </div>
+    <button class="btn-save" id="email-send-btn" onclick="_doSendEmail()" style="width:100%;justify-content:center;">Enviar</button>
+    <div id="email-status" style="display:none;"></div>
   </div>
 </div>
 
