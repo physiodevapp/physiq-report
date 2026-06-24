@@ -1702,20 +1702,33 @@ async function _doSendEmail() {
 
   try {
     const info = lastReportInfo || {};
-    const bodyHtml = _markdownToEmailHtml(lastReportText);
-    const html = _buildEmailHtml(bodyHtml, info);
     const parts = ['Informe CIF-AFTA', info.name, info.date].filter(Boolean);
     const subject = parts.join(' — ');
+
+    let attachments, html;
+    try {
+      const { blob, filename } = await new Promise((resolve, reject) => {
+        loadDocx(async () => { try { resolve(await _buildWordBlob()); } catch (e) { reject(e); } });
+      });
+      const ab = await blob.arrayBuffer();
+      const bytes = new Uint8Array(ab);
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192));
+      attachments = [{ filename, content: btoa(bin) }];
+      html = _buildNotificationHtml(info);
+    } catch {
+      html = _buildEmailHtml(_markdownToEmailHtml(lastReportText), info);
+    }
 
     const res = await fetch(ORCHESTRATOR_URL + '/email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'cf-turnstile-response': token },
-      body: JSON.stringify({ to, subject, html }),
+      body: JSON.stringify({ to, subject, html, attachments }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error al enviar');
 
-    status.textContent = '✓ Enviado a ' + to;
+    status.textContent = attachments ? '✓ Enviado con Word adjunto a ' + to : '✓ Enviado a ' + to;
     status.style.cssText = 'display:block;color:var(--accent);font-size:13px;margin-top:10px;';
     btn.innerHTML = '✓ Enviado';
     setTimeout(() => closeActiveSheet(), 2000);
@@ -1723,6 +1736,7 @@ async function _doSendEmail() {
     status.textContent = '⚠️ ' + err.message;
     status.style.cssText = 'display:block;color:var(--danger);font-size:13px;margin-top:10px;';
     btn.innerHTML = 'Enviar';
+    btn.disabled = false;
   }
 }
 
@@ -1773,6 +1787,33 @@ function _markdownToEmailHtml(md) {
   if (inList)  out += '</ul>';
   if (inTable) out += '</tbody></table>';
   return out;
+}
+
+function _buildNotificationHtml(info) {
+  const patient   = _escHtml(info.name      || '');
+  const date      = _escHtml(info.date      || '');
+  const diagnosis = _escHtml(info.diagnosis || '');
+  const chips = [
+    patient   ? `<span style="background:#e8f5f0;color:#1a6b4b;padding:3px 10px;border-radius:12px;font-size:12px;">👤 ${patient}</span>`   : '',
+    date      ? `<span style="background:#e8f0ff;color:#1a3a6b;padding:3px 10px;border-radius:12px;font-size:12px;">📅 ${date}</span>`      : '',
+    diagnosis ? `<span style="background:#fff3e0;color:#6b3a1a;padding:3px 10px;border-radius:12px;font-size:12px;">🏥 ${diagnosis}</span>` : '',
+  ].filter(Boolean).join(' ');
+  const body = `<p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#1a1a2e;">Adjuntamos el informe CIF-AFTA en formato Word (.docx). Puede abrirlo con Microsoft Word, LibreOffice o Google Docs.</p>`;
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:20px;background:#f0f2f5;font-family:Georgia,'Times New Roman',serif;color:#1a1a2e;">
+<div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+  <div style="background:#0e1117;padding:18px 24px;display:flex;align-items:baseline;gap:6px;">
+    <span style="font-family:Georgia,serif;font-size:22px;color:#e8edf5;">Physi</span><span style="font-family:Georgia,serif;font-size:22px;background:linear-gradient(135deg,#4f9cf9,#38d9a9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Q</span>
+    <span style="font-family:Georgia,serif;font-size:22px;color:#38d9a9;">Report</span>
+    <span style="margin-left:8px;font-size:11px;color:#6b7a99;font-family:sans-serif;">Informe Clínico CIF-AFTA</span>
+  </div>
+  ${chips ? `<div style="background:#f8f9fc;padding:12px 24px;border-bottom:1px solid #e8ecf4;display:flex;gap:8px;flex-wrap:wrap;">${chips}</div>` : ''}
+  <div style="padding:20px 24px;">${body}</div>
+  <div style="background:#f8f9fc;padding:10px 24px;border-top:1px solid #e8ecf4;font-size:11px;color:#999;font-family:sans-serif;text-align:center;">
+    Generado con PhysiQ-Report
+  </div>
+</div>
+</body></html>`;
 }
 
 function _buildEmailHtml(bodyHtml, info) {
