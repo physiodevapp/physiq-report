@@ -1707,15 +1707,27 @@ async function _doSendEmail() {
     const parts = ['Informe CIF-AFTA', info.name, info.date].filter(Boolean);
     const subject = parts.join(' — ');
 
+    let attachments;
+    try {
+      const { blob, filename } = await new Promise((resolve, reject) => {
+        loadDocx(async () => { try { resolve(await _buildWordBlob()); } catch (e) { reject(e); } });
+      });
+      const ab = await blob.arrayBuffer();
+      const bytes = new Uint8Array(ab);
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192));
+      attachments = [{ filename, content: btoa(bin) }];
+    } catch { /* send without attachment if docx unavailable */ }
+
     const res = await fetch(ORCHESTRATOR_URL + '/email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'cf-turnstile-response': token },
-      body: JSON.stringify({ to, subject, html }),
+      body: JSON.stringify({ to, subject, html, attachments }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error al enviar');
 
-    status.textContent = '✓ Enviado a ' + to;
+    status.textContent = attachments ? '✓ Enviado con Word adjunto a ' + to : '✓ Enviado a ' + to;
     status.style.cssText = 'display:block;color:var(--accent);font-size:13px;margin-top:10px;';
     btn.innerHTML = '✓ Enviado';
     setTimeout(() => closeActiveSheet(), 2000);
@@ -1723,6 +1735,7 @@ async function _doSendEmail() {
     status.textContent = '⚠️ ' + err.message;
     status.style.cssText = 'display:block;color:var(--danger);font-size:13px;margin-top:10px;';
     btn.innerHTML = 'Enviar';
+    btn.disabled = false;
   }
 }
 
