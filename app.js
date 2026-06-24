@@ -54,6 +54,19 @@ function _closeProcessingOverlay() {
   document.body.style.overflow = '';
 }
 
+function _showEmailSendBtn() {
+  document.getElementById('cf-turnstile-email-wrap').style.display = 'none';
+  const btn = document.getElementById('email-send-btn');
+  btn.style.display = '';
+  btn.disabled = false;
+  btn.innerHTML = 'Enviar';
+}
+
+function _showEmailTurnstile() {
+  document.getElementById('cf-turnstile-email-wrap').style.display = '';
+  document.getElementById('email-send-btn').style.display = 'none';
+}
+
 function _showTurnstile() {
   if (_isProcessing) return;
   if (_turnstileToken) { _showGenerateBtn(); return; }
@@ -81,8 +94,7 @@ function initTurnstile() {
     appearance: 'always',
     callback: (token) => {
       _emailTurnstileToken = token;
-      const btn = document.getElementById('email-send-btn');
-      if (btn) btn.disabled = false;
+      _showEmailSendBtn();
     },
   });
 }
@@ -1672,9 +1684,7 @@ function sendReportByEmail() {
   const cfg = JSON.parse(localStorage.getItem('physiq_config') || '{}');
   document.getElementById('email-to').value = cfg.reportEmail || '';
   document.getElementById('email-status').style.display = 'none';
-  const btn = document.getElementById('email-send-btn');
-  btn.disabled = false;
-  btn.innerHTML = 'Enviar';
+  _showEmailTurnstile();
   openConfigSheet('email');
 }
 
@@ -1735,8 +1745,7 @@ async function _doSendEmail() {
   } catch (err) {
     status.textContent = '⚠️ ' + err.message;
     status.style.cssText = 'display:block;color:var(--danger);font-size:13px;margin-top:10px;';
-    btn.innerHTML = 'Enviar';
-    btn.disabled = false;
+    _showEmailTurnstile();
   }
 }
 
