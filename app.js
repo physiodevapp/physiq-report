@@ -1688,7 +1688,6 @@ async function _doSendEmail() {
   status.style.display = 'none';
 
   try {
-    const token = await getTurnstileToken();
     const info = lastReportInfo || {};
     const bodyHtml = _markdownToEmailHtml(lastReportText);
     const html = _buildEmailHtml(bodyHtml, info);
@@ -1697,7 +1696,7 @@ async function _doSendEmail() {
 
     const res = await fetch(ORCHESTRATOR_URL + '/email', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'cf-turnstile-response': token },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ to, subject, html }),
     });
     const data = await res.json();
