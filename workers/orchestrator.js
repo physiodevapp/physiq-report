@@ -34,13 +34,7 @@ export default {
       return new Response('Method not allowed', { status: 405 });
     }
 
-    // /email route — protected by RESEND_API_KEY server-side, no Turnstile needed
-    const url = new URL(request.url);
-    if (url.pathname === '/email') {
-      return handleEmail(request, env, corsHeaders);
-    }
-
-    // Turnstile validation — only for the SSE report generation route
+    // Turnstile validation — all routes require it
     const turnstileToken = request.headers.get('cf-turnstile-response');
     if (!turnstileToken) {
       return new Response(JSON.stringify({ error: { message: 'Verificación requerida' } }), {
@@ -63,6 +57,11 @@ export default {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
+    }
+
+    const url = new URL(request.url);
+    if (url.pathname === '/email') {
+      return handleEmail(request, env, corsHeaders);
     }
 
     // ── SSE report generation ──────────────────────────────────────────────
