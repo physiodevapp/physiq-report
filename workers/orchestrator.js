@@ -1,20 +1,21 @@
-// physiq-orchestrator — single worker: Turnstile + Whisper + Claude (SSE streaming)
+// physiq-orchestrator — single worker: Turnstile + Whisper + Claude (SSE streaming) + Resend email
 // Deploy to Cloudflare Workers. Required env vars:
 //   TURNSTILE_SECRET   — Cloudflare Turnstile secret key
 //   OPENAI_API_KEY     — OpenAI API key (Whisper)
 //   ANTHROPIC_API_KEY  — Anthropic API key (Claude)
+//   RESEND_API_KEY     — Resend API key (email delivery)
 //
-// Expected request: multipart/form-data POST with:
-//   file (optional)   — audio blob
-//   whisperHint       — transcription hint string
-//   prompt            — Claude prompt with {{TRANSCRIPT}} placeholder
-//   maxTokens         — Claude max_tokens (number as string)
+// Routes:
+//   POST /        — multipart/form-data → SSE stream (transcript + report)
+//   POST /email   — application/json { to, subject, html } → JSON { ok: true }
 //
-// Response: text/event-stream SSE
+// SSE events (/ route):
 //   event: transcript   data: { text: string }
 //   event: report_chunk data: { text: string }
 //   event: done         data: { success: true }
 //   event: error        data: { message: string }
+
+const FROM_ADDRESS = 'PhysiQ Informes <informes@dataphysiq.com>';
 
 export default {
   async fetch(request, env, ctx) {
@@ -33,7 +34,7 @@ export default {
       return new Response('Method not allowed', { status: 405 });
     }
 
-    // Turnstile validation — fast fail before opening the stream
+    // Shared Turnstile validation
     const turnstileToken = request.headers.get('cf-turnstile-response');
     if (!turnstileToken) {
       return new Response(JSON.stringify({ error: { message: 'Verificación requerida' } }), {
@@ -58,7 +59,14 @@ export default {
       });
     }
 
-    // Open the SSE channel and return immediately — work runs via ctx.waitUntil
+    const url = new URL(request.url);
+
+    if (url.pathname === '/email') {
+      return handleEmail(request, env, corsHeaders);
+    }
+
+    // ── SSE report generation ──────────────────────────────────────────────
+
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
     const encoder = new TextEncoder();
@@ -98,7 +106,6 @@ export default {
           transcript = '(No disponible — informe basado exclusivamente en los datos de la valoración estructurada)';
         }
 
-        // Signal Whisper done — client advances step 1 → step 2
         sendSSE('transcript', { text: transcript });
 
         // Step 2: Claude (streaming)
@@ -122,7 +129,6 @@ export default {
           throw new Error('Claude: ' + (e.error?.message || claudeRes.status));
         }
 
-        // Forward Anthropic SSE chunks as report_chunk events
         const reader = claudeRes.body.getReader();
         const decoder = new TextDecoder();
         let buf = '';
@@ -167,3 +173,46 @@ export default {
     });
   }
 };
+
+// ── Email handler ──────────────────────────────────────────────────────────
+
+async function handleEmail(request, env, corsHeaders) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'JSON inválido' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const { to, subject, html } = body;
+  if (!to || !subject || !html) {
+    return new Response(JSON.stringify({ error: 'Faltan campos: to, subject, html' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const resendRes = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ from: FROM_ADDRESS, to: [to], subject, html }),
+  });
+
+  if (!resendRes.ok) {
+    const e = await resendRes.json().catch(() => ({}));
+    return new Response(JSON.stringify({ error: e.message || `Resend ${resendRes.status}` }), {
+      status: 502,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  return new Response(JSON.stringify({ ok: true }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
