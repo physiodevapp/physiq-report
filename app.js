@@ -1429,14 +1429,17 @@ _sessionCh.onmessage = ({ data }) => {
     if (!el || document.activeElement === el) return;
     el.value = data.patient || '';
     checkReady();
+    readSession().then(s => { if (s) updateSessionChip(s); });
     return;
   }
   if (data.type === 'SESSION_ROM') {
     if (data.rom && Object.keys(data.rom.regions || {}).length > 0) {
       applyROMContext(data.rom);
+      readSession().then(s => { if (s) updateSessionChip(s); });
     } else {
       document.getElementById('romBadge')?.remove();
       window._physiqROMContext = null;
+      _syncImportedCard();
     }
     checkReady();
     return;
@@ -1451,11 +1454,13 @@ _sessionCh.onmessage = ({ data }) => {
       const label = data.region.charAt(0).toUpperCase() + data.region.slice(1);
       setManualRegion(data.region, label);
     }
+    readSession().then(s => { if (s) updateSessionChip(s); });
     return;
   }
   if (data.type === 'SESSION_FORCE') {
     if (data.force && (!Array.isArray(data.force) || data.force.length)) {
       applyForceContext(data.force);
+      readSession().then(s => { if (s) updateSessionChip(s); });
     } else {
       window._physiqForceContext = null;
       document.getElementById('forceBadge')?.remove();
