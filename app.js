@@ -1466,6 +1466,7 @@ _sessionCh.onmessage = ({ data }) => {
       document.getElementById('forceBadge')?.remove();
       _syncImportedCard();
     }
+    checkReady();
     return;
   }
   if (data.type === 'SESSION_CLEAR') {
