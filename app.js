@@ -239,6 +239,7 @@ function updateSliderLabel() {
   document.getElementById('slider-label').textContent =
     `~${meta.words} palabras · ${meta.label} · coste estimado ${meta.cost} por informe`;
   _updateConfigBtns();
+  saveConfig(true);
 }
 
 function getTokens() { return parseInt(document.getElementById('token-slider').value) || 4000; }
@@ -454,7 +455,7 @@ function saveConfig(silent) {
   localStorage.setItem('physiq_config', JSON.stringify(cfg));
   if (logoBase64) { localStorage.setItem('physiq_logo', logoBase64); localStorage.setItem('physiq_logo_mime', logoMime); }
   if (!_applyingConfig) {
-    _sessionCh.postMessage({ type: 'CONFIG_SYNC', physiq_config: cfg, physiq_logo: logoBase64 || null, physiq_logo_mime: logoMime });
+    _sessionCh.postMessage({ type: 'CONFIG_SYNC', physiq_config: cfg });
   }
   if (!silent) {
     const ok = document.getElementById('saved-ok');
@@ -1516,11 +1517,11 @@ _sessionCh.onmessage = ({ data }) => {
     if (dateEl && document.activeElement !== dateEl && data.date != null) dateEl.value = data.date;
     const diagEl = document.getElementById('diagnosis');
     if (diagEl && document.activeElement !== diagEl && data.diagnosis != null) diagEl.value = data.diagnosis;
-    if (data.manualRegion != null && !window._physiqAssessmentContext) {
+    if ('manualRegion' in data && !window._physiqAssessmentContext) {
       const label = data.manualRegion
         ? data.manualRegion.charAt(0).toUpperCase() + data.manualRegion.slice(1)
         : 'Genérica';
-      setManualRegion(data.manualRegion, label, true);
+      setManualRegion(data.manualRegion || '', label, true);
     }
     checkReady();
     readSession().then(s => { if (s) updateSessionChip(s); });
@@ -1529,10 +1530,6 @@ _sessionCh.onmessage = ({ data }) => {
   if (data.type === 'CONFIG_SYNC') {
     _applyingConfig = true;
     if (data.physiq_config) localStorage.setItem('physiq_config', JSON.stringify(data.physiq_config));
-    if (data.physiq_logo) {
-      localStorage.setItem('physiq_logo', data.physiq_logo);
-      localStorage.setItem('physiq_logo_mime', data.physiq_logo_mime || 'image/png');
-    }
     loadConfig();
     _applyingConfig = false;
     return;
