@@ -5,6 +5,7 @@ let lastReportText = '';
 let lastReportInfo = null;
 let manualRegion = null;
 let _activeSheet = null;
+let _applyingConfig = false;
 
 // ========= SHEET MANAGEMENT =========
 function openConfigSheet(type) {
@@ -378,6 +379,17 @@ az.addEventListener('drop', e => {
   const f = e.dataTransfer.files[0];
   if (f) _setAudioFile(f);
 });
+let _reportSyncTimer = null;
+function _scheduleReportSync() {
+  clearTimeout(_reportSyncTimer);
+  _reportSyncTimer = setTimeout(() => {
+    const patient    = document.getElementById('patient-name')?.value.trim()  || '';
+    const date       = document.getElementById('session-date')?.value.trim()  || '';
+    const diagnosis  = document.getElementById('diagnosis')?.value.trim()     || '';
+    _sessionCh.postMessage({ type: 'SESSION_REPORT_FIELDS', patient, date, diagnosis, manualRegion: manualRegion || null });
+  }, 400);
+}
+
 document.getElementById('patient-name').addEventListener('input', () => {
   checkReady();
   const patient = document.getElementById('patient-name').value.trim();
@@ -389,12 +401,19 @@ document.getElementById('patient-name').addEventListener('input', () => {
     if (_sessionGen !== gen) { clearSession(); return; }
     if (session) updateSessionChip(session);
     _sessionCh.postMessage({ type: 'SESSION_PATIENT', patient });
+    _scheduleReportSync();
   });
 });
-document.getElementById('session-date').addEventListener('input', () => { checkReady(); });
+document.getElementById('session-date').addEventListener('input', () => {
+  checkReady();
+  const date = document.getElementById('session-date').value.trim();
+  if (date) updateSession({ date });
+  _scheduleReportSync();
+});
 document.getElementById('diagnosis').addEventListener('input', () => {
   checkReady();
   updateSession({ diagnosis: document.getElementById('diagnosis').value.trim() });
+  _scheduleReportSync();
 });
 
 function checkReady() {
@@ -434,6 +453,9 @@ function saveConfig(silent) {
   };
   localStorage.setItem('physiq_config', JSON.stringify(cfg));
   if (logoBase64) { localStorage.setItem('physiq_logo', logoBase64); localStorage.setItem('physiq_logo_mime', logoMime); }
+  if (!_applyingConfig) {
+    _sessionCh.postMessage({ type: 'CONFIG_SYNC', physiq_config: cfg, physiq_logo: logoBase64 || null, physiq_logo_mime: logoMime });
+  }
   if (!silent) {
     const ok = document.getElementById('saved-ok');
     ok.style.display = 'block'; setTimeout(() => ok.style.display = 'none', 2500);
@@ -474,7 +496,9 @@ function loadConfig() {
 
 // ========= CONFIG EXPORT / IMPORT =========
 function exportConfig() {
+  _applyingConfig = true;
   saveConfig(true); // flush current form state before reading localStorage
+  _applyingConfig = false;
   const cfg = localStorage.getItem('physiq_config') || '{}';
   const logo = localStorage.getItem('physiq_logo') || null;
   const logoMimeStored = localStorage.getItem('physiq_logo_mime') || null;
@@ -545,7 +569,7 @@ function getWhisperPrompt(region) {
   return WHISPER_PROMPTS.default;
 }
 
-function setManualRegion(key, label) {
+function setManualRegion(key, label, silent = false) {
   manualRegion = key || null;
   updateSession({ manualRegion: key || null });
   const triggerText = document.getElementById('region-trigger-text');
@@ -557,6 +581,7 @@ function setManualRegion(key, label) {
     if (check) check.textContent = selected ? '✓' : '';
   });
   closeRegionSheet();
+  if (!silent) _scheduleReportSync();
 }
 
 function openRegionSheet() {
@@ -1365,7 +1390,7 @@ function applyPhysiQAssessmentContext(data) {
   window._physiqAssessmentContext = data;
   if (data.r) {
     const label = data.r.charAt(0).toUpperCase() + data.r.slice(1);
-    setManualRegion(data.r, label);
+    setManualRegion(data.r, label, true);
   }
   if (data.rom) applyROMContext(data.rom);
   showImportedBadge(data);
@@ -1452,7 +1477,7 @@ _sessionCh.onmessage = ({ data }) => {
     _showAssessmentIncompleteBadge(data.phase);
     if (data.region && !window._physiqAssessmentContext) {
       const label = data.region.charAt(0).toUpperCase() + data.region.slice(1);
-      setManualRegion(data.region, label);
+      setManualRegion(data.region, label, true);
     }
     readSession().then(s => { if (s) updateSessionChip(s); });
     return;
@@ -1477,11 +1502,39 @@ _sessionCh.onmessage = ({ data }) => {
     window._physiqROMContext = null;
     window._physiqAssessmentContext = null;
     window._physiqForceContext = null;
-    setManualRegion('', 'Genérica');
+    setManualRegion('', 'Genérica', true);
     updateRegionSelector();
     ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
     _syncImportedCard();
     updateSessionChip(null);
+    return;
+  }
+  if (data.type === 'SESSION_REPORT_FIELDS') {
+    const nameEl = document.getElementById('patient-name');
+    if (nameEl && document.activeElement !== nameEl && data.patient != null) nameEl.value = data.patient;
+    const dateEl = document.getElementById('session-date');
+    if (dateEl && document.activeElement !== dateEl && data.date != null) dateEl.value = data.date;
+    const diagEl = document.getElementById('diagnosis');
+    if (diagEl && document.activeElement !== diagEl && data.diagnosis != null) diagEl.value = data.diagnosis;
+    if (data.manualRegion != null && !window._physiqAssessmentContext) {
+      const label = data.manualRegion
+        ? data.manualRegion.charAt(0).toUpperCase() + data.manualRegion.slice(1)
+        : 'Genérica';
+      setManualRegion(data.manualRegion, label, true);
+    }
+    checkReady();
+    readSession().then(s => { if (s) updateSessionChip(s); });
+    return;
+  }
+  if (data.type === 'CONFIG_SYNC') {
+    _applyingConfig = true;
+    if (data.physiq_config) localStorage.setItem('physiq_config', JSON.stringify(data.physiq_config));
+    if (data.physiq_logo) {
+      localStorage.setItem('physiq_logo', data.physiq_logo);
+      localStorage.setItem('physiq_logo_mime', data.physiq_logo_mime || 'image/png');
+    }
+    loadConfig();
+    _applyingConfig = false;
     return;
   }
 };
@@ -1544,7 +1597,7 @@ function promptClearSession() {
       window._physiqROMContext = null;
       window._physiqAssessmentContext = null;
       window._physiqForceContext = null;
-      setManualRegion('', 'Genérica');
+      setManualRegion('', 'Genérica', true);
       updateRegionSelector();
       ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
       _syncImportedCard();
@@ -1578,7 +1631,9 @@ function _applyImportedAudio(entry) {
   checkReady();
 }
 
+_applyingConfig = true;
 loadConfig();
+_applyingConfig = false;
 _updateConfigBtns();
 _updateImportBadges();
 document.getElementById('session-date').value = new Date().toLocaleDateString('es-ES');
@@ -1598,7 +1653,7 @@ readSession().then(session => {
     }
     if (session.assessmentState.region) {
       const label = session.assessmentState.region.charAt(0).toUpperCase() + session.assessmentState.region.slice(1);
-      setManualRegion(session.assessmentState.region, label);
+      setManualRegion(session.assessmentState.region, label, true);
     }
   }
   const nameEl = document.getElementById('patient-name');
@@ -1610,7 +1665,7 @@ readSession().then(session => {
     if (session.diagnosis && diagEl) diagEl.value = session.diagnosis;
     if (session.manualRegion && !manualRegion) {
       const label = session.manualRegion.charAt(0).toUpperCase() + session.manualRegion.slice(1);
-      setManualRegion(session.manualRegion, label);
+      setManualRegion(session.manualRegion, label, true);
     }
   }
   checkReady();
