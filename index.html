@@ -571,7 +571,11 @@
 if (window.self !== window.top) {
   document.body.classList.add('in-hub');
   document.querySelector('.logo-main').addEventListener('click', () => {
+    closeActiveSheet();
     window.parent.postMessage({ type: 'PHYSIQ_GO_HOME' }, '*');
+  });
+  window.addEventListener('message', (e) => {
+    if (e.data?.type === 'PHYSIQ_SAT_VISIBLE') closeActiveSheet();
   });
 }
 </script>
