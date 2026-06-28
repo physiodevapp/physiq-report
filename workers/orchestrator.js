@@ -186,7 +186,7 @@ async function handleEmail(request, env, corsHeaders) {
     });
   }
 
-  const { to, subject, html } = body;
+  const { to, subject, html, attachments } = body;
   if (!to || !subject || !html) {
     return new Response(JSON.stringify({ error: 'Faltan campos: to, subject, html' }), {
       status: 400,
@@ -194,13 +194,16 @@ async function handleEmail(request, env, corsHeaders) {
     });
   }
 
+  const emailPayload = { from: FROM_ADDRESS, to: [to], subject, html };
+  if (Array.isArray(attachments) && attachments.length) emailPayload.attachments = attachments;
+
   const resendRes = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${env.RESEND_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ from: FROM_ADDRESS, to: [to], subject, html }),
+    body: JSON.stringify(emailPayload),
   });
 
   if (!resendRes.ok) {
