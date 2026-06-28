@@ -130,8 +130,8 @@ readSession().then(session => {
 ```
 
 - `session.assessment` — written by physiq-assessment on `finalizarValoracion()`; pre-fills patient/date/region/diagnosis fields and injects structured clinical context into the Claude prompt via `buildClinicalContext()`. Also calls `setManualRegion()` with the assessment region.
-- `session.assessmentState` — continuous draft written by physiq-assessment on every interaction; used to show the incomplete badge and apply the region even before finalization.
-- `session.rom` — written by physiq-motion on export; shows `romBadge`, injects ROM summary into the Claude prompt.
+- `session.assessmentState` — continuous draft written by physiq-assessment on every interaction **only when a patient name is set**; used to show the incomplete badge and apply the region even before finalization. Without a patient name, phases still emit `SESSION_ASSESSMENT_PARTIAL` via BroadcastChannel (real-time only, not persisted).
+- `session.rom` — written by physiq-motion on every measurement save **only when a patient name is set**; shows `romBadge`, injects ROM summary into the Claude prompt. Without a patient name, `SESSION_ROM` is still broadcast in real time but not written to IDB.
 
 Both payloads persist across page reloads (TTL 24h). URL params (`?v=`, `?rom=`) are kept for backward compatibility.
 
