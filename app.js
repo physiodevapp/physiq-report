@@ -1553,10 +1553,8 @@ let _sessionLabel = '';
 function updateSessionChip(session) {
   const btn = document.getElementById('sessionBtn');
   if (!btn) return;
-  if (!session) { _sessionLabel = ''; btn.classList.remove('active'); return; }
-  _sessionLabel = session.patient
-    ? `${session.patient} · ${session.date || '—'}`
-    : `Sesión · ${session.date || '—'}`;
+  if (!session || !session.patient) { _sessionLabel = ''; btn.classList.remove('active'); return; }
+  _sessionLabel = `${session.patient} · ${session.date || '—'}`;
   btn.classList.add('active');
 }
 
