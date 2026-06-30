@@ -91,7 +91,7 @@
   @media(max-width:768px){.hstyle-group{display:flex;width:100%;} .hstyle-group .hstyle-btn{flex:1;}}
   .sep{border:none;border-top:1px solid var(--border);margin:14px 0;}
   .subsection{font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin:12px 0 8px;}
-  .btn-save{background:var(--accent);color:#0e1117;border:none;border-radius:8px;padding:9px 18px;font-family:'DM Sans',sans-serif;font-weight:500;font-size:13px;cursor:pointer;margin-top:12px;transition:all 0.2s;}
+  .btn-save{background:var(--accent);color:#0e1117;border:none;border-radius:8px;padding:9px 18px;font-family:'DM Sans',sans-serif;font-weight:500;font-size:13px;cursor:pointer;margin-top:12px;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;}
   .btn-save:hover{background:#2ab89a;}
   .btn-primary{background:var(--accent);color:#0e1117;border:none;border-radius:10px;padding:14px 24px;font-family:'DM Sans',sans-serif;font-weight:500;font-size:15px;cursor:pointer;width:100%;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;}
   .btn-primary:hover:not(:disabled){background:#2ab89a;transform:translateY(-1px);}
@@ -541,9 +541,9 @@
       <input type="email" id="email-to" placeholder="tu@email.com" style="width:100%;">
     </div>
     <div id="cf-turnstile-email-wrap" style="margin-bottom:12px;">
-      <div id="cf-turnstile-email-container"></div>
+      <div id="cf-turnstile-email-container" style="display:flex;justify-content:center;align-items:center;min-height:65px;"></div>
     </div>
-    <button class="btn-save" id="email-send-btn" onclick="_doSendEmail()" style="width:100%;justify-content:center;display:none;">Enviar</button>
+    <button class="btn-save" id="email-send-btn" onclick="_doSendEmail()" style="width:100%;display:none;">Enviar</button>
     <div id="email-status" style="display:none;"></div>
   </div>
 </div>
