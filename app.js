@@ -1763,7 +1763,7 @@ async function _doSendEmail() {
   _emailTurnstileToken = null;
   turnstile.reset(_emailTurnstileWidgetId);
   btn.disabled = true;
-  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;margin-right:6px;"></div> Enviando...';
+  btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div> Enviando...';
   status.style.display = 'none';
 
   try {
