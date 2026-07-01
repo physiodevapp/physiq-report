@@ -575,6 +575,11 @@ if (window.self !== window.top) {
     window.parent.postMessage({ type: 'PHYSIQ_GO_HOME' }, '*');
   });
   window.addEventListener('message', (e) => {
+    // The hub only toggles the `hidden` attribute on satellite iframes — it
+    // never navigates away — so document.visibilitychange (tab-level) never
+    // fires here. The hub tells us explicitly when it's about to hide us so
+    // any open dialog (delete session, patient data…) doesn't linger.
+    if (e.data?.type === 'PHYSIQ_SAT_HIDDEN') { _closeAllOverlays(); return; }
     if (e.data?.type === 'PHYSIQ_SAT_VISIBLE') closeActiveSheet();
   });
 }
