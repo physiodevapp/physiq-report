@@ -1580,7 +1580,7 @@ function updateSessionChip(session) {
   }
   _sessionLabel = `${session.patient} · ${session.date || '—'}`;
   btn.classList.add('active');
-  if (clearBtn) clearBtn.style.display = '';
+  if (clearBtn) clearBtn.style.display = 'flex';
 }
 
 function showConfirmBanner(title, text, actionLabel, onConfirm) {
