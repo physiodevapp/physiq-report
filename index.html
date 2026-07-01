@@ -32,8 +32,8 @@
   @media(max-width:480px){header{height:48px;}.logo-main,.logo-sub{font-size:1.1rem;}main{padding-top:calc(48px + 16px);}}
   @media(max-height:500px) and (max-width:900px){header{height:44px;}main{padding-top:calc(44px + 16px);}}
   @media(max-width:360px){.logo-sub-word{display:none;}.logo-sub-initial{display:inline;}}
-  .session-btn{display:none;background:none;border:none;cursor:pointer;color:var(--accent);padding:6px;flex-shrink:0;}
-  .session-btn.active{display:flex;align-items:center;justify-content:center;}
+  .session-btn{display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;color:var(--text-muted);padding:6px;flex-shrink:0;transition:color 0.2s;}
+  .session-btn.active{color:var(--accent);}
   .header-right{display:flex;align-items:center;gap:0.75rem;}
   .btn-translate{position:relative;background:transparent;border:none;color:var(--text3);font-size:1rem;cursor:pointer;padding:4px 8px;border-radius:6px;transition:color 0.2s;line-height:1;}
   .btn-translate:hover{color:var(--text2);}
