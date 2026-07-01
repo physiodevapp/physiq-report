@@ -1571,9 +1571,16 @@ let _sessionLabel = '';
 function updateSessionChip(session) {
   const btn = document.getElementById('sessionBtn');
   if (!btn) return;
-  if (!session || !session.patient) { _sessionLabel = ''; btn.classList.remove('active'); return; }
+  const clearBtn = document.getElementById('sheet-patient-clear');
+  if (!session || !session.patient) {
+    _sessionLabel = '';
+    btn.classList.remove('active');
+    if (clearBtn) clearBtn.style.display = 'none';
+    return;
+  }
   _sessionLabel = `${session.patient} · ${session.date || '—'}`;
   btn.classList.add('active');
+  if (clearBtn) clearBtn.style.display = '';
 }
 
 function showConfirmBanner(title, text, actionLabel, onConfirm) {
