@@ -1604,11 +1604,44 @@ function showConfirmBanner(title, text, actionLabel, onConfirm) {
 // showing when the user returns, and when the app is backgrounded standalone.
 function _closeAllOverlays() {
   closeActiveSheet();
-  const banner = document.getElementById('confirmBanner');
-  if (banner) {
-    banner.remove();
-    unlockBodyScroll();
-    window.parent.postMessage({ type: 'PHYSIQ_WIDGET_SHOW' }, '*');
+  ['confirmBanner', 'sessionInfoBanner'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.remove(); unlockBodyScroll(); window.parent.postMessage({ type: 'PHYSIQ_WIDGET_SHOW' }, '*'); }
+  });
+}
+
+function _showSessionInfoBanner() {
+  const existing = document.getElementById('sessionInfoBanner');
+  if (existing) { existing.remove(); }
+  const label = _sessionLabel;
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-banner';
+  overlay.id = 'sessionInfoBanner';
+  const _ic = (d) => `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
+  overlay.innerHTML = `
+    <div class="confirm-box">
+      <div class="confirm-box-title">Sesión en curso</div>
+      <div class="confirm-box-text">${label}</div>
+      <div class="confirm-box-btns" style="justify-content:stretch;gap:0.5rem;">
+        <button class="btn-secondary" id="sib-cancel" style="flex:1;font-size:0.8rem;padding:9px 6px;display:flex;align-items:center;justify-content:center;gap:5px;border-color:transparent;color:var(--text-muted);">${_ic('M2 2l9 9M11 2L2 11')} Cancelar</button>
+        <button class="btn-primary" id="sib-edit" style="flex:1;font-size:0.8rem;padding:9px 6px;display:flex;align-items:center;justify-content:center;gap:5px;">${_ic('M8.5 2.5l2 2-6 6H3v-2.5l6-6z')} Editar</button>
+        <button class="btn-secondary" id="sib-delete" style="flex:1;font-size:0.8rem;padding:9px 6px;display:flex;align-items:center;justify-content:center;gap:5px;color:var(--danger);border-color:var(--danger);">${_ic('M2 4h9M5 4V2h3v2M3.5 4l.5 7h5l.5-7')} Borrar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  lockBodyScroll();
+  window.parent.postMessage({ type: 'PHYSIQ_WIDGET_HIDE' }, '*');
+  const dismiss = () => { overlay.remove(); unlockBodyScroll(); window.parent.postMessage({ type: 'PHYSIQ_WIDGET_SHOW' }, '*'); };
+  document.getElementById('sib-cancel').onclick = dismiss;
+  document.getElementById('sib-edit').onclick = () => { dismiss(); openConfigSheet('patient'); };
+  document.getElementById('sib-delete').onclick = () => { dismiss(); promptClearSession(); };
+}
+
+function toggleSessionPanel() {
+  if (_sessionLabel) {
+    _showSessionInfoBanner();
+  } else {
+    openConfigSheet('patient');
   }
 }
 
