@@ -7,15 +7,32 @@ let manualRegion = null;
 let _activeSheet = null;
 let _applyingConfig = false;
 
+// ─── SCROLL LOCK (dialogs / bottom sheets) ───────────────────
+// Reference-counted: several overlays (confirm-banner, config sheet,
+// processing overlay) can be stacked or opened in sequence. Each must
+// release its own lock without unlocking scroll while another overlay
+// is still open.
+let _scrollLockCount = 0;
+function lockBodyScroll() {
+  _scrollLockCount++;
+  document.body.style.overflow = 'hidden';
+}
+function unlockBodyScroll() {
+  _scrollLockCount = Math.max(0, _scrollLockCount - 1);
+  if (_scrollLockCount === 0) document.body.style.overflow = '';
+}
+
 // ========= SHEET MANAGEMENT =========
 function openConfigSheet(type) {
   if (_activeSheet) {
     document.getElementById(_activeSheet === '_region' ? 'region-sheet' : 'sheet-' + _activeSheet)?.classList.remove('open');
+  } else {
+    lockBodyScroll();
   }
   _activeSheet = type;
   document.getElementById('sheet-overlay').classList.add('open');
   document.getElementById('sheet-' + type).classList.add('open');
-  document.body.style.overflow = 'hidden';
+  if (type === 'patient') setTimeout(() => document.getElementById('patient-name')?.focus(), 60);
 }
 
 function openImportSheet() { openConfigSheet('imported'); }
@@ -26,9 +43,9 @@ function closeActiveSheet() {
   } else if (_activeSheet) {
     document.getElementById('sheet-' + _activeSheet)?.classList.remove('open');
   }
+  if (_activeSheet) unlockBodyScroll();
   _activeSheet = null;
   document.getElementById('sheet-overlay').classList.remove('open');
-  document.body.style.overflow = '';
   _updateConfigBtns();
 }
 
@@ -47,12 +64,12 @@ let _isProcessing = false;
 
 function _openProcessingOverlay() {
   document.getElementById('processing-overlay').classList.add('open');
-  document.body.style.overflow = 'hidden';
+  lockBodyScroll();
 }
 
 function _closeProcessingOverlay() {
   document.getElementById('processing-overlay').classList.remove('open');
-  document.body.style.overflow = '';
+  unlockBodyScroll();
 }
 
 function _showEmailSendBtn() {
@@ -588,11 +605,12 @@ function setManualRegion(key, label, silent = false) {
 function openRegionSheet() {
   if (_activeSheet) {
     document.getElementById(_activeSheet === '_region' ? 'region-sheet' : 'sheet-' + _activeSheet)?.classList.remove('open');
+  } else {
+    lockBodyScroll();
   }
   _activeSheet = '_region';
   document.getElementById('sheet-overlay').classList.add('open');
   document.getElementById('region-sheet').classList.add('open');
-  document.body.style.overflow = 'hidden';
 }
 
 function closeRegionSheet() { closeActiveSheet(); }
@@ -1560,7 +1578,7 @@ function updateSessionChip(session) {
 
 function showConfirmBanner(title, text, actionLabel, onConfirm) {
   const existing = document.getElementById('confirmBanner');
-  if (existing) existing.remove();
+  if (existing) { existing.remove(); unlockBodyScroll(); }
   const overlay = document.createElement('div');
   overlay.className = 'confirm-banner';
   overlay.id = 'confirmBanner';
@@ -1574,10 +1592,24 @@ function showConfirmBanner(title, text, actionLabel, onConfirm) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  lockBodyScroll();
   window.parent.postMessage({ type: 'PHYSIQ_WIDGET_HIDE' }, '*');
-  const dismiss = () => { overlay.remove(); window.parent.postMessage({ type: 'PHYSIQ_WIDGET_SHOW' }, '*'); };
+  const dismiss = () => { overlay.remove(); unlockBodyScroll(); window.parent.postMessage({ type: 'PHYSIQ_WIDGET_SHOW' }, '*'); };
   document.getElementById('confirmCancel').onclick = dismiss;
   document.getElementById('confirmAction').onclick = () => { dismiss(); onConfirm(); };
+}
+
+// Closes every open sheet/dialog. Called when the hub hides this satellite
+// (e.g. navigating back to hub home) so a stale open dialog isn't still
+// showing when the user returns, and when the app is backgrounded standalone.
+function _closeAllOverlays() {
+  closeActiveSheet();
+  const banner = document.getElementById('confirmBanner');
+  if (banner) {
+    banner.remove();
+    unlockBodyScroll();
+    window.parent.postMessage({ type: 'PHYSIQ_WIDGET_SHOW' }, '*');
+  }
 }
 
 function promptClearSession() {
@@ -1670,6 +1702,11 @@ readSession().then(session => {
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
+
+// Close stray open dialogs when the app is backgrounded (covers swipe-away on Android PWA)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') _closeAllOverlays();
+});
 
 // ========= SWIPE-TO-DISMISS BOTTOM SHEETS =========
 (function () {
