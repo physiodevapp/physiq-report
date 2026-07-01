@@ -1646,6 +1646,7 @@ function toggleSessionPanel() {
 }
 
 function promptClearSession() {
+  closeActiveSheet();
   showConfirmBanner(
     'Nueva sesión',
     `${_sessionLabel}<br>¿Borrar? Se perderán los datos importados.`,
@@ -1746,12 +1747,25 @@ document.addEventListener('visibilitychange', () => {
   function initSwipe(sheet) {
     let startY = 0, startTime = 0, dragging = false, delta = 0, snapTimer = null, dismissTimer = null;
     const EASE = 'transform 0.3s cubic-bezier(0.32,0.72,0,1)';
+    let vvHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+
+    // Closing the keyboard mid-drag resizes the visual viewport, shifting the
+    // sheet's on-screen position by the same amount. Compensating startY keeps
+    // the drag delta accurate so the sheet follows the finger correctly.
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => {
+        const newHeight = window.visualViewport.height;
+        if (dragging) startY += newHeight - vvHeight;
+        vvHeight = newHeight;
+      });
+    }
 
     sheet.addEventListener('touchstart', e => {
       if (window.innerWidth >= 640) return;
       if (e.touches[0].clientY - sheet.getBoundingClientRect().top > 72) return;
+      if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
       startY = e.touches[0].clientY;
-      startTime = 0;
+      startTime = Date.now();
       delta = 0;
       dragging = true;
       clearTimeout(snapTimer);
@@ -1762,14 +1776,13 @@ document.addEventListener('visibilitychange', () => {
     sheet.addEventListener('touchmove', e => {
       if (!dragging) return;
       delta = Math.max(0, e.touches[0].clientY - startY);
-      if (startTime === 0 && delta > 0) startTime = Date.now();
       sheet.style.transform = delta > 0 ? `translateY(${delta}px)` : 'translateY(0)';
     }, { passive: true });
 
     function onRelease() {
       if (!dragging) return;
       dragging = false;
-      const velocity = startTime > 0 ? delta / (Date.now() - startTime) : 0;
+      const velocity = delta / (Date.now() - startTime);
       if (delta > 80 || velocity > 0.3) {
         sheet.style.transition = EASE;
         sheet.style.transform = 'translateY(110%)';
