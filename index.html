@@ -234,8 +234,8 @@
   .session-panel-clear:hover{opacity:0.7;}
   .session-panel.has-session .session-panel-clear{display:flex;}
   @media(max-width:640px){
-    #sessionPanel{position:fixed;left:0;right:0;bottom:0;max-width:100%;width:100%;border-radius:16px 16px 0 0;border:none;border-top:1px solid var(--border);padding:12px 1.4rem 32px;transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);z-index:1000;}
-    .session-panel-overlay.open #sessionPanel{transform:translateY(0);}
+    .session-panel-overlay{align-items:flex-end;}
+    .session-panel{max-width:100%;width:100%;border-radius:16px 16px 0 0;border:none;border-top:1px solid var(--border);padding:12px 1.4rem 32px;transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);}
     .session-panel-handle{display:block;}
   }
 </style>
