@@ -1863,8 +1863,70 @@ document.addEventListener('visibilitychange', () => {
   }
 
   document.querySelectorAll('.config-sheet, .region-sheet').forEach(el => initSwipe(el));
-  const _sessionPanel = document.getElementById('sessionPanel');
-  if (_sessionPanel) initSwipe(_sessionPanel, closeSessionPanel, Infinity);
+}());
+
+// ── Session panel swipe-to-dismiss (handle-anchored) ──────────────────────────
+(function () {
+  const overlay = document.getElementById('sessionPanelOverlay');
+  const panel   = document.getElementById('sessionPanel');
+  const handle  = panel && panel.querySelector('.session-panel-handle');
+  if (!overlay || !panel || !handle) return;
+
+  let startY = 0, startTime = 0, active = false, delta = 0;
+  let snapTimer = null, dismissTimer = null;
+  const EASE = 'transform 0.3s cubic-bezier(0.32,0.72,0,1)';
+
+  handle.addEventListener('touchstart', e => {
+    if (window.innerWidth >= 640) return;
+    clearTimeout(snapTimer);
+    clearTimeout(dismissTimer);
+    startY    = e.touches[0].clientY;
+    startTime = Date.now();
+    delta     = 0;
+    active    = true;
+    panel.style.transition = 'none';
+  }, { passive: true });
+
+  document.addEventListener('touchmove', e => {
+    if (!active) return;
+    delta = Math.max(0, e.touches[0].clientY - startY);
+    panel.style.transform = `translateY(${delta}px)`;
+  }, { passive: true });
+
+  function release() {
+    if (!active) return;
+    active = false;
+    const elapsed  = Math.max(1, Date.now() - startTime);
+    const velocity = delta / elapsed;
+    if (delta > 60 || velocity > 0.25) {
+      panel.style.transition = EASE;
+      panel.style.transform  = 'translateY(110%)';
+      dismissTimer = setTimeout(() => {
+        dismissTimer = null;
+        panel.style.transition = 'none';
+        closeSessionPanel();
+        panel.style.transform = '';
+        void panel.offsetHeight;
+        panel.style.transition = '';
+      }, 300);
+    } else {
+      panel.style.transition = EASE;
+      panel.style.transform  = 'translateY(0)';
+      snapTimer = setTimeout(() => {
+        panel.style.transform  = '';
+        panel.style.transition = '';
+      }, 310);
+    }
+  }
+
+  document.addEventListener('touchend',    release, { passive: true });
+  document.addEventListener('touchcancel', () => {
+    if (!active) return;
+    active = false;
+    clearTimeout(dismissTimer);
+    panel.style.transform  = '';
+    panel.style.transition = '';
+  }, { passive: true });
 }());
 
 // ========= EMAIL =========
