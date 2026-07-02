@@ -24,6 +24,7 @@ function unlockBodyScroll() {
 
 // ========= SHEET MANAGEMENT =========
 function openConfigSheet(type) {
+  if (type === 'patient') { closeActiveSheet(); toggleSessionPanel(); return; }
   if (_activeSheet) {
     document.getElementById(_activeSheet === '_region' ? 'region-sheet' : 'sheet-' + _activeSheet)?.classList.remove('open');
   } else {
@@ -32,7 +33,6 @@ function openConfigSheet(type) {
   _activeSheet = type;
   document.getElementById('sheet-overlay').classList.add('open');
   document.getElementById('sheet-' + type).classList.add('open');
-  if (type === 'patient') setTimeout(() => document.getElementById('patient-name')?.focus(), 60);
 }
 
 function openImportSheet() { openConfigSheet('imported'); }
@@ -408,9 +408,13 @@ function _scheduleReportSync() {
   }, 400);
 }
 
+document.getElementById('patient-name').addEventListener('keydown', e => { if (e.key === 'Enter') closeSessionPanel(); });
 document.getElementById('patient-name').addEventListener('input', () => {
   checkReady();
   const patient = document.getElementById('patient-name').value.trim();
+  const panel = document.getElementById('sessionPanel');
+  panel?.classList.toggle('has-session', !!patient);
+  _updateSessionPanelTitle();
   if (!patient) return;
   if (_sessionCleared) _sessionCleared = false;
   const date = document.getElementById('session-date').value.trim() || new Date().toLocaleDateString('es-ES');
@@ -424,6 +428,7 @@ document.getElementById('patient-name').addEventListener('input', () => {
 });
 document.getElementById('session-date').addEventListener('input', () => {
   checkReady();
+  _updateSessionPanelTitle();
   const date = document.getElementById('session-date').value.trim();
   if (date) updateSession({ date });
   _scheduleReportSync();
@@ -1571,16 +1576,26 @@ let _sessionLabel = '';
 function updateSessionChip(session) {
   const btn = document.getElementById('sessionBtn');
   if (!btn) return;
-  const clearBtn = document.getElementById('sheet-patient-clear');
+  const panel = document.getElementById('sessionPanel');
   if (!session || !session.patient) {
     _sessionLabel = '';
     btn.classList.remove('active');
-    if (clearBtn) clearBtn.style.display = 'none';
+    panel?.classList.remove('has-session');
+    _updateSessionPanelTitle();
     return;
   }
   _sessionLabel = `${session.patient} · ${session.date || '—'}`;
   btn.classList.add('active');
-  if (clearBtn) clearBtn.style.display = 'flex';
+  panel?.classList.add('has-session');
+  _updateSessionPanelTitle();
+}
+
+function _updateSessionPanelTitle() {
+  const titleEl = document.getElementById('sessionPanelTitle');
+  if (!titleEl) return;
+  const name = document.getElementById('patient-name')?.value.trim() || '';
+  const date = document.getElementById('session-date')?.value.trim() || '';
+  titleEl.textContent = name ? (date ? `${name} · ${date}` : name) : 'Sin sesión activa';
 }
 
 function showConfirmBanner(title, text, actionLabel, onConfirm) {
@@ -1611,70 +1626,74 @@ function showConfirmBanner(title, text, actionLabel, onConfirm) {
 // showing when the user returns, and when the app is backgrounded standalone.
 function _closeAllOverlays() {
   closeActiveSheet();
-  ['confirmBanner', 'sessionInfoBanner'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) { el.remove(); unlockBodyScroll(); window.parent.postMessage({ type: 'PHYSIQ_WIDGET_SHOW' }, '*'); }
-  });
-}
-
-function _showSessionInfoBanner() {
-  const existing = document.getElementById('sessionInfoBanner');
-  if (existing) { existing.remove(); }
-  const label = _sessionLabel;
-  const overlay = document.createElement('div');
-  overlay.className = 'confirm-banner';
-  overlay.id = 'sessionInfoBanner';
-  const _ic = (d) => `<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
-  overlay.innerHTML = `
-    <div class="confirm-box">
-      <div class="confirm-box-title">Sesión en curso</div>
-      <div class="confirm-box-text">${label}</div>
-      <div class="confirm-box-btns" style="justify-content:stretch;gap:0.5rem;">
-        <button class="btn-secondary" id="sib-cancel" style="flex:1;font-size:0.8rem;padding:9px 6px;display:flex;align-items:center;justify-content:center;gap:5px;border-color:transparent;color:var(--text-muted);">${_ic('M2 2l9 9M11 2L2 11')} Cancelar</button>
-        <button class="btn-primary" id="sib-edit" style="flex:1;font-size:0.8rem;padding:9px 6px;display:flex;align-items:center;justify-content:center;gap:5px;">${_ic('M8.5 2.5l2 2-6 6H3v-2.5l6-6z')} Editar</button>
-        <button class="btn-secondary" id="sib-delete" style="flex:1;font-size:0.8rem;padding:9px 6px;display:flex;align-items:center;justify-content:center;gap:5px;color:var(--danger);border-color:var(--danger);">${_ic('M2 4h9M5 4V2h3v2M3.5 4l.5 7h5l.5-7')} Borrar</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  lockBodyScroll();
-  window.parent.postMessage({ type: 'PHYSIQ_WIDGET_HIDE' }, '*');
-  const dismiss = () => { overlay.remove(); unlockBodyScroll(); window.parent.postMessage({ type: 'PHYSIQ_WIDGET_SHOW' }, '*'); };
-  document.getElementById('sib-cancel').onclick = dismiss;
-  document.getElementById('sib-edit').onclick = () => { dismiss(); openConfigSheet('patient'); };
-  document.getElementById('sib-delete').onclick = () => { dismiss(); promptClearSession(); };
+  closeSessionPanel();
+  const cb = document.getElementById('confirmBanner');
+  if (cb) { cb.remove(); unlockBodyScroll(); window.parent.postMessage({ type: 'PHYSIQ_WIDGET_SHOW' }, '*'); }
 }
 
 function toggleSessionPanel() {
-  if (_sessionLabel) {
-    _showSessionInfoBanner();
-  } else {
-    openConfigSheet('patient');
+  const overlay = document.getElementById('sessionPanelOverlay');
+  if (!overlay) return;
+  if (overlay.classList.contains('open')) { closeSessionPanel(); return; }
+  _showSessionState('edit');
+  overlay.classList.add('open');
+  lockBodyScroll();
+  window.parent.postMessage({ type: 'PHYSIQ_WIDGET_HIDE' }, '*');
+}
+
+function closeSessionPanel() {
+  const overlay = document.getElementById('sessionPanelOverlay');
+  if (!overlay?.classList.contains('open')) return;
+  overlay.classList.remove('open');
+  unlockBodyScroll();
+  window.parent.postMessage({ type: 'PHYSIQ_WIDGET_SHOW' }, '*');
+}
+
+function _showSessionState(state) {
+  const panel = document.getElementById('sessionPanel');
+  if (!panel) return;
+  const editView   = document.getElementById('sessionPanelEdit');
+  const deleteView = document.getElementById('sessionPanelDelete');
+  if (state === 'edit') {
+    if (editView)   editView.style.display   = '';
+    if (deleteView) deleteView.style.display = 'none';
+    setTimeout(() => document.getElementById('patient-name')?.focus(), 60);
+  } else if (state === 'delete') {
+    if (editView)   editView.style.display   = 'none';
+    if (deleteView) deleteView.style.display = '';
+    document.getElementById('sessionPanelConfirmCancel').onclick = () => _showSessionState('edit');
+    document.getElementById('sessionPanelConfirmAction').onclick = () => {
+      closeSessionPanel();
+      _executeClearSession();
+    };
   }
 }
 
 function promptClearSession() {
-  closeActiveSheet();
-  showConfirmBanner(
-    'Nueva sesión',
-    `${_sessionLabel}<br>¿Borrar? Se perderán los datos importados.`,
-    'Borrar sesión',
-    () => {
-      _sessionGen++;
-      _sessionCleared = true;
-      resetApp();
-      window._physiqROMContext = null;
-      window._physiqAssessmentContext = null;
-      window._physiqForceContext = null;
-      setManualRegion('', 'Genérica', true);
-      updateRegionSelector();
-      ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
-      _syncImportedCard();
-      clearSession().then(() => {
-        updateSessionChip(null);
-        _sessionCh.postMessage({ type: 'SESSION_CLEAR' });
-      });
-    }
-  );
+  const overlay = document.getElementById('sessionPanelOverlay');
+  if (overlay && !overlay.classList.contains('open')) {
+    overlay.classList.add('open');
+    lockBodyScroll();
+    window.parent.postMessage({ type: 'PHYSIQ_WIDGET_HIDE' }, '*');
+  }
+  _showSessionState('delete');
+}
+
+function _executeClearSession() {
+  _sessionGen++;
+  _sessionCleared = true;
+  resetApp();
+  window._physiqROMContext = null;
+  window._physiqAssessmentContext = null;
+  window._physiqForceContext = null;
+  setManualRegion('', 'Genérica', true);
+  updateRegionSelector();
+  ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
+  _syncImportedCard();
+  clearSession().then(() => {
+    updateSessionChip(null);
+    _sessionCh.postMessage({ type: 'SESSION_CLEAR' });
+  });
 }
 
 function _applyImportedAudio(entry) {
@@ -1703,6 +1722,7 @@ _applyingConfig = true;
 loadConfig();
 _applyingConfig = false;
 _updateConfigBtns();
+document.getElementById('sessionPanelClear').onclick = () => _showSessionState('delete');
 _updateImportBadges();
 document.getElementById('session-date').value = new Date().toLocaleDateString('es-ES');
 applyPhysiQAssessmentContext(loadFromPhysiQAssessment());
