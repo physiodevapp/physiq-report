@@ -1771,7 +1771,7 @@ document.addEventListener('visibilitychange', () => {
 
 // ========= SWIPE-TO-DISMISS BOTTOM SHEETS =========
 (function () {
-  function initSwipe(sheet) {
+  function initSwipe(sheet, closeFn) {
     let startY = 0, startTime = 0, dragging = false, delta = 0, snapTimer = null, dismissTimer = null;
     const EASE = 'transform 0.3s cubic-bezier(0.32,0.72,0,1)';
     let vvHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
@@ -1816,7 +1816,8 @@ document.addEventListener('visibilitychange', () => {
         dismissTimer = setTimeout(() => {
           dismissTimer = null;
           sheet.style.transition = 'none';
-          if (sheet.classList.contains('open')) closeActiveSheet();
+          if (closeFn) closeFn();
+          else if (sheet.classList.contains('open')) closeActiveSheet();
           sheet.style.transform = '';
           void sheet.offsetHeight;
           sheet.style.transition = '';
@@ -1841,7 +1842,9 @@ document.addEventListener('visibilitychange', () => {
     }, { passive: true });
   }
 
-  document.querySelectorAll('.config-sheet, .region-sheet').forEach(initSwipe);
+  document.querySelectorAll('.config-sheet, .region-sheet').forEach(el => initSwipe(el));
+  const _sessionPanel = document.getElementById('sessionPanel');
+  if (_sessionPanel) initSwipe(_sessionPanel, closeSessionPanel);
 }());
 
 // ========= EMAIL =========
