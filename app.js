@@ -1864,7 +1864,7 @@ document.addEventListener('visibilitychange', () => {
 
   document.querySelectorAll('.config-sheet, .region-sheet').forEach(el => initSwipe(el));
   const _sessionPanel = document.getElementById('sessionPanel');
-  if (_sessionPanel) initSwipe(_sessionPanel, closeSessionPanel, Infinity);
+  if (_sessionPanel) initSwipe(_sessionPanel, closeSessionPanel);
 }());
 
 // ========= EMAIL =========
