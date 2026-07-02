@@ -224,7 +224,7 @@
   .session-panel-overlay{display:none;position:fixed;inset:0;z-index:999;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);}
   .session-panel-overlay.open{display:flex;animation:fadeUp 0.2s ease;}
   .session-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.8rem;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.5);}
-  .session-panel-handle{display:none;width:28px;height:2px;background:var(--border);border-radius:2px;margin:0 auto 14px;touch-action:none;}
+  .session-panel-handle{display:none;width:28px;height:2px;background:var(--border);background-clip:content-box;border-radius:2px;margin:0 auto 14px;touch-action:none;}
   .session-panel-title{font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .session-panel.has-session .session-panel-title{color:var(--accent);}
   .session-panel-fields{display:flex;flex-direction:column;gap:10px;}
