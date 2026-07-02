@@ -293,42 +293,17 @@ function _updateImportBadges() {
   const hasForce = !!window._physiqForceContext;
   const hasAudio = !!document.getElementById('audioBadge');
 
-  const set = (btnId, textId, active, label) => {
-    document.getElementById(btnId)?.classList.toggle('has-data', active);
-    const el = document.getElementById(textId);
-    if (el) el.textContent = label;
-  };
+  const count = [hasROM, hasAssessment, hasForce, hasAudio].filter(Boolean).length;
 
-  let romLabel = 'ROM';
-  if (hasROM) {
-    const rd = window._physiqROMContext;
-    if (rd.regions) {
-      const n = Object.values(rd.regions).filter(r => r.rom && Object.keys(r.rom).length).length;
-      romLabel = n ? `ROM · ${n}` : 'ROM ✓';
-    } else {
-      const n = Object.keys(rd.rom || {}).length;
-      romLabel = n ? `ROM · ${n}` : 'ROM ✓';
-    }
+  const chip = document.getElementById('importChip');
+  const chipText = document.getElementById('importChipText');
+  if (chip) {
+    chip.classList.toggle('has-data', count > 0);
+    chip.style.display = count > 0 ? 'flex' : 'none';
   }
-  set('badge-rom', 'badge-rom-text', hasROM, romLabel);
-
-  let assessLabel = 'Assessment';
-  if (window._physiqAssessmentContext) assessLabel = 'Assessment ✓';
-  else if (document.getElementById('assessmentIncompleteBadge')) assessLabel = 'Assessment ~';
-  set('badge-assessment', 'badge-assessment-text', hasAssessment, assessLabel);
-
-  let forceLabel = 'Force';
-  if (hasForce) {
-    const n = Array.isArray(window._physiqForceContext) ? window._physiqForceContext.length : 1;
-    forceLabel = `Force · ${n}`;
+  if (chipText) {
+    chipText.textContent = `${count} fuente${count === 1 ? '' : 's'} importada${count === 1 ? '' : 's'}`;
   }
-  set('badge-force', 'badge-force-text', hasForce, forceLabel);
-
-  set('badge-audio', 'badge-audio-text', hasAudio, hasAudio ? 'Audio ✓' : 'Audio');
-
-  const hasAny = hasROM || hasAssessment || hasForce || hasAudio;
-  const row = document.querySelector('.import-badges');
-  if (row) row.style.display = hasAny ? 'flex' : 'none';
 }
 
 function _updateConfigBtns() {
