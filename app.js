@@ -1639,6 +1639,16 @@ function toggleSessionPanel() {
   overlay.classList.add('open');
   lockBodyScroll();
   window.parent.postMessage({ type: 'PHYSIQ_WIDGET_HIDE' }, '*');
+  if (window.innerWidth < 640) {
+    const panel = document.getElementById('sessionPanel');
+    if (panel) {
+      panel.style.transition = 'none';
+      panel.style.transform = 'translateY(100%)';
+      void panel.offsetHeight;
+      panel.style.transition = '';
+      panel.style.transform = '';
+    }
+  }
 }
 
 function closeSessionPanel() {
@@ -1675,6 +1685,16 @@ function promptClearSession() {
     overlay.classList.add('open');
     lockBodyScroll();
     window.parent.postMessage({ type: 'PHYSIQ_WIDGET_HIDE' }, '*');
+    if (window.innerWidth < 640) {
+      const panel = document.getElementById('sessionPanel');
+      if (panel) {
+        panel.style.transition = 'none';
+        panel.style.transform = 'translateY(100%)';
+        void panel.offsetHeight;
+        panel.style.transition = '';
+        panel.style.transform = '';
+      }
+    }
   }
   _showSessionState('delete');
 }
@@ -1771,7 +1791,7 @@ document.addEventListener('visibilitychange', () => {
 
 // ========= SWIPE-TO-DISMISS BOTTOM SHEETS =========
 (function () {
-  function initSwipe(sheet, closeFn) {
+  function initSwipe(sheet, closeFn, handleZone = 72) {
     let startY = 0, startTime = 0, dragging = false, delta = 0, snapTimer = null, dismissTimer = null;
     const EASE = 'transform 0.3s cubic-bezier(0.32,0.72,0,1)';
     let vvHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
@@ -1789,7 +1809,7 @@ document.addEventListener('visibilitychange', () => {
 
     sheet.addEventListener('touchstart', e => {
       if (window.innerWidth >= 640) return;
-      if (e.touches[0].clientY - sheet.getBoundingClientRect().top > 72) return;
+      if (e.touches[0].clientY - sheet.getBoundingClientRect().top > handleZone) return;
       if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
       startY = e.touches[0].clientY;
       startTime = Date.now();
@@ -1844,7 +1864,7 @@ document.addEventListener('visibilitychange', () => {
 
   document.querySelectorAll('.config-sheet, .region-sheet').forEach(el => initSwipe(el));
   const _sessionPanel = document.getElementById('sessionPanel');
-  if (_sessionPanel) initSwipe(_sessionPanel, closeSessionPanel);
+  if (_sessionPanel) initSwipe(_sessionPanel, closeSessionPanel, Infinity);
 }());
 
 // ========= EMAIL =========
