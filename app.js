@@ -2065,7 +2065,8 @@ function _buildNotificationHtml(info) {
 <body style="margin:0;padding:20px;background:#f0f2f5;font-family:Georgia,'Times New Roman',serif;color:#1a1a2e;">
 <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
   <div style="background:#0e1117;padding:18px 24px;display:flex;align-items:baseline;gap:6px;">
-    <span style="font-family:Georgia,serif;font-size:22px;color:#e8edf5;">Physi</span><span style="font-family:Georgia,serif;font-size:22px;background:linear-gradient(135deg,#4f9cf9,#38d9a9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Q</span>
+    <span style="font-family:Georgia,serif;font-size:22px;color:#e8edf5;">Physi</span><span style="font-family:Georgia,serif;font-size:22px;color:#4f9cf9;">Q</span>
+    <span style="font-family:Georgia,serif;font-size:20px;color:#4a5568;">—</span>
     <span style="font-family:Georgia,serif;font-size:22px;color:#38d9a9;">Report</span>
     <span style="margin-left:8px;font-size:11px;color:#6b7a99;font-family:sans-serif;">Informe Clínico CIF-AFTA</span>
   </div>
@@ -2092,7 +2093,8 @@ function _buildEmailHtml(bodyHtml, info) {
 <body style="margin:0;padding:20px;background:#f0f2f5;font-family:Georgia,'Times New Roman',serif;color:#1a1a2e;">
 <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
   <div style="background:#0e1117;padding:18px 24px;display:flex;align-items:baseline;gap:6px;">
-    <span style="font-family:Georgia,serif;font-size:22px;color:#e8edf5;">Physi</span><span style="font-family:Georgia,serif;font-size:22px;background:linear-gradient(135deg,#4f9cf9,#38d9a9);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Q</span>
+    <span style="font-family:Georgia,serif;font-size:22px;color:#e8edf5;">Physi</span><span style="font-family:Georgia,serif;font-size:22px;color:#4f9cf9;">Q</span>
+    <span style="font-family:Georgia,serif;font-size:20px;color:#4a5568;">—</span>
     <span style="font-family:Georgia,serif;font-size:22px;color:#38d9a9;">Report</span>
     <span style="margin-left:8px;font-size:11px;color:#6b7a99;font-family:sans-serif;">Informe Clínico CIF-AFTA</span>
   </div>
