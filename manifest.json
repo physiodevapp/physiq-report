@@ -1,7 +1,7 @@
 {
   "name": "PhysiQ Report",
   "short_name": "PhysiQ-R",
-  "description": "Informes CIF-AFTA para fisioterapeutas",
+  "description": "Informes CIF-APTA para fisioterapeutas",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

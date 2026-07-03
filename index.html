@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PhysiQ-Report — Informes CIF-AFTA</title>
+<title>PhysiQ-Report — Informes CIF-APTA</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#38d9a9">
@@ -353,7 +353,7 @@
     </div>
 
     <button class="btn-primary" id="generate-btn" onclick="generateReport()" disabled style="display:none">
-      Generar Informe CIF-AFTA
+      Generar Informe CIF-APTA
     </button>
 
   </div><!-- /step-config -->
@@ -362,7 +362,7 @@
   <div class="result-section" id="result-section">
     <div class="result-header">
       <div class="result-header-top" onclick="toggleResultBody()">
-        <div class="result-title">📋 Informe CIF-AFTA</div>
+        <div class="result-title">📋 Informe CIF-APTA</div>
         <span class="chevron" id="chevron-result">▼</span>
       </div>
       <div class="result-actions">
@@ -387,7 +387,7 @@
   <div id="processing-dialog">
     <div class="section-title" style="margin-bottom:12px;">Procesando sesión...</div>
     <div class="progress-step" id="step-1"><div class="step-dot"></div>Transcribiendo audio con Whisper...</div>
-    <div class="progress-step" id="step-2"><div class="step-dot"></div>Analizando con Claude (CIF-AFTA)...</div>
+    <div class="progress-step" id="step-2"><div class="step-dot"></div>Analizando con Claude (CIF-APTA)...</div>
     <div class="progress-step" id="step-3"><div class="step-dot"></div>Estructurando informe final...</div>
   </div>
 </div>
@@ -526,7 +526,7 @@
   <div class="sheet-body" id="body-template">
     <div class="template-cards">
       <div class="template-card" id="tpl-brief" onclick="selectTemplate('brief')">
-        <div class="tname">🩺 CIF-AFTA Breve</div>
+        <div class="tname">🩺 CIF-APTA Breve</div>
         <div class="tdesc">Secciones cortas tipo ficha de sesión. Ideal para informes rápidos de seguimiento.</div>
       </div>
       <div class="template-card selected" id="tpl-narrative" onclick="selectTemplate('narrative')">

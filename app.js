@@ -543,7 +543,7 @@ function showError(msg) {
   document.getElementById('error-box').style.display = 'block';
   _closeProcessingOverlay();
   document.getElementById('generate-btn').disabled = false;
-  document.getElementById('generate-btn').innerHTML = 'Generar Informe CIF-AFTA';
+  document.getElementById('generate-btn').innerHTML = 'Generar Informe CIF-APTA';
 }
 
 // ========= WHISPER REGION PROMPTS =========
@@ -1227,7 +1227,7 @@ function appendContentToWord(children, text, ctx) {
 
 // ========= COPY / RESET =========
 function copyReport() {
-  let text = 'INFORME CIF-AFTA — PhysiQ\n'+'='.repeat(40)+'\n\n';
+  let text = 'INFORME CIF-APTA — PhysiQ\n'+'='.repeat(40)+'\n\n';
   document.querySelectorAll('.cif-section').forEach(s => {
     text += '## '+s.querySelector('.cif-section-title').textContent+'\n'+s.querySelector('.cif-content').textContent+'\n\n';
   });
@@ -1251,7 +1251,7 @@ function resetApp() {
   _closeProcessingOverlay();
   document.getElementById('error-box').style.display = 'none';
   document.getElementById('generate-btn').disabled = true;
-  document.getElementById('generate-btn').innerHTML = 'Generar Informe CIF-AFTA';
+  document.getElementById('generate-btn').innerHTML = 'Generar Informe CIF-APTA';
   [1,2,3].forEach(i=>setStep(i,''));
 }
 
@@ -2058,7 +2058,7 @@ async function _doSendEmail() {
 
   try {
     const info = lastReportInfo || {};
-    const parts = ['Informe CIF-AFTA', info.name, info.date].filter(Boolean);
+    const parts = ['Informe CIF-APTA', info.name, info.date].filter(Boolean);
     const subject = parts.join(' — ');
 
     let attachments, html;
@@ -2153,7 +2153,7 @@ function _buildNotificationHtml(info) {
     date      ? `<span style="background:#e8f0ff;color:#1a3a6b;padding:3px 10px;border-radius:12px;font-size:12px;">📅 ${date}</span>`      : '',
     diagnosis ? `<span style="background:#fff3e0;color:#6b3a1a;padding:3px 10px;border-radius:12px;font-size:12px;">🏥 ${diagnosis}</span>` : '',
   ].filter(Boolean).join(' ');
-  const body = `<p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#1a1a2e;">Adjuntamos el informe CIF-AFTA en formato Word (.docx). Puede abrirlo con Microsoft Word, LibreOffice o Google Docs.</p>`;
+  const body = `<p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#1a1a2e;">Adjuntamos el informe CIF-APTA en formato Word (.docx). Puede abrirlo con Microsoft Word, LibreOffice o Google Docs.</p>`;
   return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:20px;background:#f0f2f5;font-family:Georgia,'Times New Roman',serif;color:#1a1a2e;">
 <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
@@ -2161,7 +2161,7 @@ function _buildNotificationHtml(info) {
     <span style="font-family:Georgia,serif;font-size:22px;color:#e8edf5;">Physi</span><span style="font-family:Georgia,serif;font-size:22px;color:#4f9cf9;">Q</span>
     <span style="font-family:Georgia,serif;font-size:20px;color:#4a5568;">—</span>
     <span style="font-family:Georgia,serif;font-size:22px;color:#38d9a9;">Report</span>
-    <span style="margin-left:8px;font-size:11px;color:#6b7a99;font-family:sans-serif;">Informe Clínico CIF-AFTA</span>
+    <span style="margin-left:8px;font-size:11px;color:#6b7a99;font-family:sans-serif;">Informe Clínico CIF-APTA</span>
   </div>
   ${chips ? `<div style="background:#f8f9fc;padding:12px 24px;border-bottom:1px solid #e8ecf4;display:flex;gap:8px;flex-wrap:wrap;">${chips}</div>` : ''}
   <div style="padding:20px 24px;">${body}</div>
@@ -2189,7 +2189,7 @@ function _buildEmailHtml(bodyHtml, info) {
     <span style="font-family:Georgia,serif;font-size:22px;color:#e8edf5;">Physi</span><span style="font-family:Georgia,serif;font-size:22px;color:#4f9cf9;">Q</span>
     <span style="font-family:Georgia,serif;font-size:20px;color:#4a5568;">—</span>
     <span style="font-family:Georgia,serif;font-size:22px;color:#38d9a9;">Report</span>
-    <span style="margin-left:8px;font-size:11px;color:#6b7a99;font-family:sans-serif;">Informe Clínico CIF-AFTA</span>
+    <span style="margin-left:8px;font-size:11px;color:#6b7a99;font-family:sans-serif;">Informe Clínico CIF-APTA</span>
   </div>
   ${chips ? `<div style="background:#f8f9fc;padding:12px 24px;border-bottom:1px solid #e8ecf4;display:flex;gap:8px;flex-wrap:wrap;">${chips}</div>` : ''}
   <div style="padding:20px 24px;">${bodyHtml}</div>
