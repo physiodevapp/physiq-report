@@ -291,9 +291,11 @@ function _updateImportBadges() {
   const hasROM = !!window._physiqROMContext;
   const hasAssessment = !!window._physiqAssessmentContext || !!document.getElementById('assessmentIncompleteBadge');
   const hasForce = !!window._physiqForceContext;
+  const hasJump = !!window._physiqJumpContext;
+  const hasBalance = !!window._physiqBalanceContext;
   const hasAudio = !!document.getElementById('audioBadge');
 
-  const count = [hasROM, hasAssessment, hasForce, hasAudio].filter(Boolean).length;
+  const count = [hasROM, hasAssessment, hasForce, hasJump, hasBalance, hasAudio].filter(Boolean).length;
 
   const chip = document.getElementById('importChip');
   const chipText = document.getElementById('importChipText');
@@ -417,7 +419,7 @@ document.getElementById('diagnosis').addEventListener('input', () => {
 function checkReady() {
   _updateConfigBtns();
   const hasName = !!document.getElementById('patient-name').value.trim();
-  const ok = hasName && (selectedFile || window._physiqAssessmentContext || window._physiqROMContext || window._physiqForceContext);
+  const ok = hasName && (selectedFile || window._physiqAssessmentContext || window._physiqROMContext || window._physiqForceContext || window._physiqJumpContext || window._physiqBalanceContext);
   document.getElementById('generate-btn').disabled = !ok;
 }
 
@@ -663,12 +665,14 @@ async function callOrchestrator(file, region, info, token, onTranscript) {
 
 // ========= PROMPTS =========
 // ========= CLINICAL CONTEXT BUILDER =========
-// buildClinicalContext() / buildROMContext() / buildForceContext() live in lib/payload.js
+// buildClinicalContext() / buildROMContext() / buildForceContext() / buildJumpContext() / buildBalanceContext() live in lib/payload.js
 
 function buildPrompt(transcript, info, template) {
   const clinicalCtx = buildClinicalContext(window._physiqAssessmentContext);
   const romCtx      = buildROMContext(window._physiqROMContext);
   const forceCtx    = buildForceContext(window._physiqForceContext);
+  const jumpCtx     = buildJumpContext(window._physiqJumpContext);
+  const balanceCtx  = buildBalanceContext(window._physiqBalanceContext);
   const hasHypotheses = (window._physiqAssessmentContext?.h || []).length > 0;
 
   if (template === 'brief') {
@@ -677,7 +681,7 @@ Genera un informe clínico breve en español a partir de la transcripción de se
 
 PACIENTE: ${info.name} | Fecha: ${info.date} | Diagnóstico: ${info.diagnosis}
 
-${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}TRANSCRIPCIÓN:
+${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}${jumpCtx ? jumpCtx + '\n\n' : ''}${balanceCtx ? balanceCtx + '\n\n' : ''}TRANSCRIPCIÓN:
 ${transcript}
 
 INSTRUCCIONES:
@@ -696,7 +700,7 @@ INSTRUCCIONES:
 
 PACIENTE: ${info.name} | Fecha: ${info.date} | Diagnóstico médico: ${info.diagnosis}
 
-${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}TRANSCRIPCIÓN DE LA SESIÓN:
+${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}${jumpCtx ? jumpCtx + '\n\n' : ''}${balanceCtx ? balanceCtx + '\n\n' : ''}TRANSCRIPCIÓN DE LA SESIÓN:
 ${transcript}
 
 INSTRUCCIONES CRÍTICAS — LEE Y CUMPLE TODAS:
@@ -1340,6 +1344,90 @@ function applyForceContext(forceData) {
   checkReady();
 }
 
+function applyJumpContext(jumpData) {
+  if (!jumpData) return;
+  document.getElementById('jumpBadge')?.remove();
+
+  const measurements = Array.isArray(jumpData) ? jumpData : [jumpData];
+  if (!measurements.length) return;
+
+  window._physiqJumpContext = jumpData;
+
+  const lines = measurements.map(m => {
+    const label = m.label ?? m.testType ?? 'Salto';
+    if (m.laterality === 'comparison' && m.sides) {
+      const l = m.sides.left?.height;
+      const r = m.sides.right?.height;
+      const ai = (l != null && r != null && (l + r) > 0)
+        ? Math.abs(l - r) / ((l + r) / 2) * 100
+        : null;
+      const vals = [
+        l  != null ? `Izq ${l.toFixed(1)} cm`  : null,
+        r  != null ? `Der ${r.toFixed(1)} cm`   : null,
+        ai != null ? `AI ${ai.toFixed(1)}%`     : null,
+      ].filter(Boolean).join(' · ');
+      return `${label}: ${vals}`;
+    }
+    const parts = [];
+    if (m.height     != null) parts.push(`${m.height.toFixed(1)} cm`);
+    if (m.flightTime != null) parts.push(`vuelo ${m.flightTime} ms`);
+    if (m.rsi        != null) parts.push(`RSI ${m.rsi.toFixed(2)}`);
+    const sideLabel = m.side === 'left' ? ' (Izq)' : m.side === 'right' ? ' (Der)' : '';
+    return `${label}${sideLabel}: ${parts.join(' · ') || '—'}`;
+  });
+
+  const countLabel = measurements.length === 1 ? '1 medición' : `${measurements.length} mediciones`;
+  const badge = document.createElement('div');
+  badge.id = 'jumpBadge';
+  badge.style.cssText = `
+    background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25);
+    border-radius:8px; padding:10px 14px; font-size:12px;
+    color:#a855f7; font-family:'DM Mono',monospace; line-height:1.7;
+  `;
+  badge.innerHTML = `✓ Salto importado desde PhysiQ-Jump · ${countLabel}` +
+    `<br><span style="color:#8fa0bf">${lines.map(l => '· ' + l).join('<br>')}</span>`;
+  const body = document.getElementById('body-imported');
+  if (body) body.appendChild(badge);
+  _syncImportedCard();
+  checkReady();
+}
+
+function applyBalanceContext(balanceData) {
+  if (!balanceData) return;
+  document.getElementById('balanceBadge')?.remove();
+
+  const measurements = Array.isArray(balanceData) ? balanceData : [balanceData];
+  if (!measurements.length) return;
+
+  window._physiqBalanceContext = balanceData;
+
+  const lines = measurements.map(m => {
+    const label = m.label ?? m.testType ?? 'Equilibrio';
+    const parts = [];
+    if (m.eyes)          parts.push(m.eyes === 'open' ? 'ojos abiertos' : 'ojos cerrados');
+    if (m.surface)       parts.push(m.surface === 'foam' ? 'inestable' : 'firme');
+    if (m.stabilityIndex != null) parts.push(`IE ${m.stabilityIndex.toFixed(1)}%`);
+    if (m.swayVelocity   != null) parts.push(`osc. ${m.swayVelocity.toFixed(1)} mm/s`);
+    const sideLabel = m.side === 'left' ? ' (Izq)' : m.side === 'right' ? ' (Der)' : '';
+    return `${label}${sideLabel}: ${parts.join(' · ') || '—'}`;
+  });
+
+  const countLabel = measurements.length === 1 ? '1 medición' : `${measurements.length} mediciones`;
+  const badge = document.createElement('div');
+  badge.id = 'balanceBadge';
+  badge.style.cssText = `
+    background:rgba(6,182,212,0.08); border:1px solid rgba(6,182,212,0.25);
+    border-radius:8px; padding:10px 14px; font-size:12px;
+    color:#06b6d4; font-family:'DM Mono',monospace; line-height:1.7;
+  `;
+  badge.innerHTML = `✓ Equilibrio importado desde PhysiQ-Balance · ${countLabel}` +
+    `<br><span style="color:#8fa0bf">${lines.map(l => '· ' + l).join('<br>')}</span>`;
+  const body = document.getElementById('body-imported');
+  if (body) body.appendChild(badge);
+  _syncImportedCard();
+  checkReady();
+}
+
 function _showAssessmentIncompleteBadge(phase) {
   document.getElementById('assessmentBadge')?.remove();
   let badge = document.getElementById('assessmentIncompleteBadge');
@@ -1493,6 +1581,30 @@ _sessionCh.onmessage = ({ data }) => {
     checkReady();
     return;
   }
+  if (data.type === 'SESSION_JUMP') {
+    if (data.jump && (!Array.isArray(data.jump) || data.jump.length)) {
+      applyJumpContext(data.jump);
+      readSession().then(s => { if (s) updateSessionChip(s); });
+    } else {
+      window._physiqJumpContext = null;
+      document.getElementById('jumpBadge')?.remove();
+      _syncImportedCard();
+    }
+    checkReady();
+    return;
+  }
+  if (data.type === 'SESSION_BALANCE') {
+    if (data.balance && (!Array.isArray(data.balance) || data.balance.length)) {
+      applyBalanceContext(data.balance);
+      readSession().then(s => { if (s) updateSessionChip(s); });
+    } else {
+      window._physiqBalanceContext = null;
+      document.getElementById('balanceBadge')?.remove();
+      _syncImportedCard();
+    }
+    checkReady();
+    return;
+  }
   if (data.type === 'SESSION_CLEAR') {
     _sessionGen++;
     _sessionCleared = true;
@@ -1501,9 +1613,11 @@ _sessionCh.onmessage = ({ data }) => {
     window._physiqROMContext = null;
     window._physiqAssessmentContext = null;
     window._physiqForceContext = null;
+    window._physiqJumpContext = null;
+    window._physiqBalanceContext = null;
     setManualRegion('', 'Genérica', true);
     updateRegionSelector();
-    ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
+    ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'jumpBadge', 'balanceBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
     _syncImportedCard();
     updateSessionChip(null);
     return;
@@ -1681,9 +1795,11 @@ function _executeClearSession() {
   window._physiqROMContext = null;
   window._physiqAssessmentContext = null;
   window._physiqForceContext = null;
+  window._physiqJumpContext = null;
+  window._physiqBalanceContext = null;
   setManualRegion('', 'Genérica', true);
   updateRegionSelector();
-  ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
+  ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'jumpBadge', 'balanceBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
   _syncImportedCard();
   clearSession().then(() => {
     updateSessionChip(null);
@@ -1727,7 +1843,9 @@ readSession().then(session => {
   if (!session) return;
   if (session.assessment && !window._physiqAssessmentContext) applyPhysiQAssessmentContext(session.assessment);
   if (session.rom && !window._physiqROMContext) applyROMContext(session.rom);
-  if (session.force && (!Array.isArray(session.force) || session.force.length) && !document.getElementById('forceBadge')) applyForceContext(session.force);
+  if (session.force   && (!Array.isArray(session.force)   || session.force.length)   && !document.getElementById('forceBadge'))   applyForceContext(session.force);
+  if (session.jump    && (!Array.isArray(session.jump)    || session.jump.length)    && !document.getElementById('jumpBadge'))    applyJumpContext(session.jump);
+  if (session.balance && (!Array.isArray(session.balance) || session.balance.length) && !document.getElementById('balanceBadge')) applyBalanceContext(session.balance);
   if (session.assessmentState && !session.assessment && !window._physiqAssessmentContext) {
     const _phaseLabels = [1, 2, 3, 4, '4b', 5];
     const maxVisited = session.assessmentState.maxVisitedIdx || 0;
