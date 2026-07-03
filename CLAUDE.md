@@ -144,6 +144,9 @@ Clinical context badges live inside a collapsible card `#imported-card` (shown a
 | `romBadge` | blue | `applyROMContext()` | ROM data from physiq-motion |
 | `assessmentBadge` | green | `showImportedBadge()` | Complete assessment (finalized) |
 | `assessmentIncompleteBadge` | amber | `_showAssessmentIncompleteBadge()` | Assessment in progress |
+| `forceBadge` | orange | `applyForceContext()` | Force data from physiq-force |
+| `jumpBadge` | purple | `applyJumpContext()` | Jump data from physiq-jump |
+| `balanceBadge` | cyan | `applyBalanceContext()` | Balance data from physiq-balance |
 | `audioBadge` | green | `_applyImportedAudio()` | Audio from hub recorder loaded |
 
 `_syncImportedCard()` updates `#imported-card` visibility and summary text whenever badges change. It is called at the end of every function that adds or removes a badge.
@@ -152,9 +155,12 @@ Clinical context badges live inside a collapsible card `#imported-card` (shown a
 
 **Cleanup rules:**
 - `applyROMContext()` removes the old `romBadge` before creating a new one
+- `applyForceContext()` removes the old `forceBadge` before creating a new one
+- `applyJumpContext()` removes the old `jumpBadge` before creating a new one
+- `applyBalanceContext()` removes the old `balanceBadge` before creating a new one
 - `showImportedBadge()` removes `assessmentIncompleteBadge` before creating the complete badge
 - `_showAssessmentIncompleteBadge()` removes `assessmentBadge` before creating the incomplete badge
-- `promptClearSession()` removes all 4 badges, then calls `_syncImportedCard()`
+- `promptClearSession()` removes all 7 badges, then calls `_syncImportedCard()`
 
 ## BroadcastChannel protocol
 
@@ -166,6 +172,9 @@ physiq-report listens on `BroadcastChannel('physiq-session')` for real-time upda
 | `SESSION_ROM` | physiq-motion | calls `applyROMContext(data.rom)` or removes `romBadge` if null |
 | `SESSION_ASSESSMENT` | physiq-assessment (`finalizarValoracion`) | calls `applyPhysiQAssessmentContext(data.assessment)` → green badge |
 | `SESSION_ASSESSMENT_PARTIAL` | physiq-assessment (every phase) | calls `_showAssessmentIncompleteBadge(data.phase)` + `setManualRegion()` from `data.region` |
+| `SESSION_FORCE` | physiq-force | calls `applyForceContext(data.force)` or removes `forceBadge` if null |
+| `SESSION_JUMP` | physiq-jump | calls `applyJumpContext(data.jump)` or removes `jumpBadge` if null |
+| `SESSION_BALANCE` | physiq-balance | calls `applyBalanceContext(data.balance)` or removes `balanceBadge` if null |
 | `SESSION_CLEAR` | any satellite | resets app, removes all badges |
 
 **Ghost-write protection** — `_sessionGen` (integer, incremented on clear) and `_sessionCleared` (boolean, set on clear) prevent stale async writes from recreating a deleted session. The `patient-name` input handler captures the gen before calling `writeSession`; if `_sessionGen !== gen` at resolve time, it calls `clearSession()` to undo the write. `_sessionCleared` blocks new writes from starting until the user types a patient name.
