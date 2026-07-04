@@ -1677,8 +1677,8 @@ _sessionCh.onmessage = ({ data }) => {
     return;
   }
   if (data.type === 'SESSION_JUMP') {
-    if (data.jump && (!Array.isArray(data.jump) || data.jump.length)) {
-      applyJumpContext(data.jump);
+    if (data.jumps && (!Array.isArray(data.jumps) || data.jumps.length)) {
+      applyJumpContext(data.jumps);
       readSession().then(s => { if (s) updateSessionChip(s); });
     } else {
       window._physiqJumpContext = null;
