@@ -1434,11 +1434,9 @@ function applyKinematicsContext(kinematicsData) {
   if (!kinematicsData) return;
   document.getElementById('kinematicsBadge')?.remove();
 
-  const { joints, series, duration } = kinematicsData;
-  if (!joints || !joints.length || !series) return;
-
-  const jointSeries = joints.filter(j => series[j] && series[j].a && series[j].a.length);
-  if (!jointSeries.length) return;
+  const recordings = (Array.isArray(kinematicsData) ? kinematicsData : [kinematicsData])
+    .filter(r => r && r.joints && r.joints.length && r.series);
+  if (!recordings.length) return;
 
   window._physiqKinematicsContext = kinematicsData;
 
@@ -1456,54 +1454,77 @@ function applyKinematicsContext(kinematicsData) {
   };
   const FALLBACK = ['#5dadec','#f87171','#38d9a9','#facc15','#a78bfa','#fb923c'];
 
-  const durationMs  = duration || 1;
-  const durationSec = (durationMs / 1000).toFixed(1);
+  function _renderRecording(rec) {
+    const { joints, series, duration } = rec;
+    const jointSeries = joints.filter(j => series[j] && series[j].a && series[j].a.length);
+    if (!jointSeries.length) return null;
 
-  let globalMin = Infinity, globalMax = -Infinity;
-  jointSeries.forEach(j => {
-    globalMin = Math.min(globalMin, ...series[j].a);
-    globalMax = Math.max(globalMax, ...series[j].a);
-  });
-  const pad    = Math.max((globalMax - globalMin) * 0.1, 5);
-  const yMin   = globalMin - pad;
-  const yRange = Math.max(globalMax - globalMin + 2 * pad, 10);
+    const durationMs  = duration || 1;
+    const durationSec = (durationMs / 1000).toFixed(1);
 
-  const W = 300, H = 68, ml = 28, mr = 8, mt = 4, mb = 16;
-  const cw = W - ml - mr, ch = H - mt - mb;
-  const toX = t => (ml + (t / durationMs) * cw).toFixed(1);
-  const toY = a => (mt + ch - ((a - yMin) / yRange) * ch).toFixed(1);
+    let globalMin = Infinity, globalMax = -Infinity;
+    jointSeries.forEach(j => {
+      globalMin = Math.min(globalMin, ...series[j].a);
+      globalMax = Math.max(globalMax, ...series[j].a);
+    });
+    const pad    = Math.max((globalMax - globalMin) * 0.1, 5);
+    const yMin   = globalMin - pad;
+    const yRange = Math.max(globalMax - globalMin + 2 * pad, 10);
 
-  const polylines = jointSeries.map((j, i) => {
-    const color  = COLORS[j] || FALLBACK[i % FALLBACK.length];
-    const points = series[j].t.map((t, k) => `${toX(t)},${toY(series[j].a[k])}`).join(' ');
-    return `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/>`;
-  }).join('');
+    const W = 300, H = 68, ml = 28, mr = 8, mt = 4, mb = 16;
+    const cw = W - ml - mr, ch = H - mt - mb;
+    const toX = t => (ml + (t / durationMs) * cw).toFixed(1);
+    const toY = a => (mt + ch - ((a - yMin) / yRange) * ch).toFixed(1);
 
-  const tickMs = durationMs > 30000 ? 10000 : durationMs > 10000 ? 5000 : 2000;
-  let timeTicks = '';
-  for (let t = 0; t <= durationMs; t += tickMs) {
-    const x = toX(t);
-    timeTicks += `<line x1="${x}" y1="${mt + ch}" x2="${x}" y2="${mt + ch + 3}" stroke="#8fa0bf" stroke-width="0.8"/>`;
-    timeTicks += `<text x="${x}" y="${H - 2}" text-anchor="middle" font-size="6" fill="#8fa0bf">${(t / 1000).toFixed(0)}s</text>`;
+    const polylines = jointSeries.map((j, i) => {
+      const color  = COLORS[j] || FALLBACK[i % FALLBACK.length];
+      const points = series[j].t.map((t, k) => `${toX(t)},${toY(series[j].a[k])}`).join(' ');
+      return `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/>`;
+    }).join('');
+
+    const tickMs = durationMs > 30000 ? 10000 : durationMs > 10000 ? 5000 : 2000;
+    let timeTicks = '';
+    for (let t = 0; t <= durationMs; t += tickMs) {
+      const x = toX(t);
+      timeTicks += `<line x1="${x}" y1="${mt + ch}" x2="${x}" y2="${mt + ch + 3}" stroke="#8fa0bf" stroke-width="0.8"/>`;
+      timeTicks += `<text x="${x}" y="${H - 2}" text-anchor="middle" font-size="6" fill="#8fa0bf">${(t / 1000).toFixed(0)}s</text>`;
+    }
+    const yMid = Math.round((globalMin + globalMax) / 2);
+    const yLabels = [globalMin, yMid, globalMax].map(a => {
+      return `<text x="${ml - 2}" y="${toY(a)}" text-anchor="end" dominant-baseline="middle" font-size="6" fill="#8fa0bf">${Math.round(a)}°</text>`;
+    }).join('');
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 ${W} ${H}" style="display:block;margin-top:8px">
+      <rect x="${ml}" y="${mt}" width="${cw}" height="${ch}" fill="rgba(255,255,255,0.03)" rx="2"/>
+      <line x1="${ml}" y1="${mt}" x2="${ml}" y2="${mt + ch}" stroke="#8fa0bf" stroke-width="0.8" opacity="0.4"/>
+      <line x1="${ml}" y1="${mt + ch}" x2="${ml + cw}" y2="${mt + ch}" stroke="#8fa0bf" stroke-width="0.8" opacity="0.4"/>
+      ${timeTicks}${yLabels}${polylines}
+    </svg>`;
+
+    const legend = jointSeries.map((j, i) => {
+      const color = COLORS[j] || FALLBACK[i % FALLBACK.length];
+      const a = series[j].a;
+      const min = Math.min(...a), max = Math.max(...a);
+      return `<span style="white-space:nowrap"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:3px;vertical-align:middle"></span><span style="color:#8fa0bf">${_fmtJoint(j)}: ${min}°–${max}°</span></span>`;
+    }).join(' &nbsp;');
+
+    return { durationSec, jointCount: jointSeries.length, legend, svg };
   }
-  const yMid = Math.round((globalMin + globalMax) / 2);
-  const yLabels = [globalMin, yMid, globalMax].map(a => {
-    return `<text x="${ml - 2}" y="${toY(a)}" text-anchor="end" dominant-baseline="middle" font-size="6" fill="#8fa0bf">${Math.round(a)}°</text>`;
-  }).join('');
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 ${W} ${H}" style="display:block;margin-top:8px">
-    <rect x="${ml}" y="${mt}" width="${cw}" height="${ch}" fill="rgba(255,255,255,0.03)" rx="2"/>
-    <line x1="${ml}" y1="${mt}" x2="${ml}" y2="${mt + ch}" stroke="#8fa0bf" stroke-width="0.8" opacity="0.4"/>
-    <line x1="${ml}" y1="${mt + ch}" x2="${ml + cw}" y2="${mt + ch}" stroke="#8fa0bf" stroke-width="0.8" opacity="0.4"/>
-    ${timeTicks}${yLabels}${polylines}
-  </svg>`;
+  const rendered = recordings.map(_renderRecording).filter(Boolean);
+  if (!rendered.length) return;
 
-  const legend = jointSeries.map((j, i) => {
-    const color = COLORS[j] || FALLBACK[i % FALLBACK.length];
-    const a = series[j].a;
-    const min = Math.min(...a), max = Math.max(...a);
-    return `<span style="white-space:nowrap"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:3px;vertical-align:middle"></span><span style="color:#8fa0bf">${_fmtJoint(j)}: ${min}°–${max}°</span></span>`;
-  }).join(' &nbsp;');
+  const countLabel = rendered.length === 1
+    ? `${rendered[0].durationSec}s · ${rendered[0].jointCount} articulación${rendered[0].jointCount !== 1 ? 'es' : ''}`
+    : `${rendered.length} grabaciones`;
+
+  const sections = rendered.map((r, i) => `
+    <div style="${i > 0 ? 'margin-top:10px;border-top:1px solid rgba(93,173,236,0.15);padding-top:8px' : ''}">
+      ${rendered.length > 1 ? `<div style="color:#8fa0bf">Grabación ${i + 1} · ${r.durationSec}s · ${r.jointCount} articulación${r.jointCount !== 1 ? 'es' : ''}</div>` : ''}
+      <span style="font-size:11px;line-height:1.5">${r.legend}</span>
+      ${r.svg}
+    </div>
+  `).join('');
 
   const badge = document.createElement('div');
   badge.id = 'kinematicsBadge';
@@ -1513,9 +1534,8 @@ function applyKinematicsContext(kinematicsData) {
     color:#5dadec; font-family:'DM Mono',monospace; line-height:1.7;
   `;
   badge.innerHTML =
-    `✓ Cinemática importada desde PhysiQ-Kinematics · ${durationSec}s · ${jointSeries.length} articulación${jointSeries.length !== 1 ? 'es' : ''}` +
-    `<br><span style="font-size:11px;line-height:1.5">${legend}</span>` +
-    svg;
+    `✓ Cinemática importada desde PhysiQ-Kinematics · ${countLabel}` +
+    sections;
 
   const body = document.getElementById('body-imported');
   if (body) body.appendChild(badge);
@@ -1701,7 +1721,7 @@ _sessionCh.onmessage = ({ data }) => {
     return;
   }
   if (data.type === 'SESSION_KINEMATICS') {
-    if (data.kinematics) {
+    if (data.kinematics && (!Array.isArray(data.kinematics) || data.kinematics.length)) {
       applyKinematicsContext(data.kinematics);
       readSession().then(s => { if (s) updateSessionChip(s); });
     } else {
@@ -1955,7 +1975,7 @@ readSession().then(session => {
   if (session.force      && (!Array.isArray(session.force)      || session.force.length)      && !document.getElementById('forceBadge'))      applyForceContext(session.force);
   if (session.jump       && (!Array.isArray(session.jump)       || session.jump.length)       && !document.getElementById('jumpBadge'))       applyJumpContext(session.jump);
   if (session.balance    && (!Array.isArray(session.balance)    || session.balance.length)    && !document.getElementById('balanceBadge'))    applyBalanceContext(session.balance);
-  if (session.kinematics && !document.getElementById('kinematicsBadge')) applyKinematicsContext(session.kinematics);
+  if (session.kinematics && (!Array.isArray(session.kinematics) || session.kinematics.length) && !document.getElementById('kinematicsBadge')) applyKinematicsContext(session.kinematics);
   if (session.assessmentState && !session.assessment && !window._physiqAssessmentContext) {
     const _phaseLabels = [1, 2, 3, 4, '4b', 5];
     const maxVisited = session.assessmentState.maxVisitedIdx || 0;
