@@ -293,9 +293,10 @@ function _updateImportBadges() {
   const hasForce = !!window._physiqForceContext;
   const hasJump = !!window._physiqJumpContext;
   const hasBalance = !!window._physiqBalanceContext;
+  const hasKinematics = !!window._physiqKinematicsContext;
   const hasAudio = !!document.getElementById('audioBadge');
 
-  const count = [hasROM, hasAssessment, hasForce, hasJump, hasBalance, hasAudio].filter(Boolean).length;
+  const count = [hasROM, hasAssessment, hasForce, hasJump, hasBalance, hasKinematics, hasAudio].filter(Boolean).length;
 
   const chip = document.getElementById('importChip');
   const chipText = document.getElementById('importChipText');
@@ -419,7 +420,7 @@ document.getElementById('diagnosis').addEventListener('input', () => {
 function checkReady() {
   _updateConfigBtns();
   const hasName = !!document.getElementById('patient-name').value.trim();
-  const ok = hasName && (selectedFile || window._physiqAssessmentContext || window._physiqROMContext || window._physiqForceContext || window._physiqJumpContext || window._physiqBalanceContext);
+  const ok = hasName && (selectedFile || window._physiqAssessmentContext || window._physiqROMContext || window._physiqForceContext || window._physiqJumpContext || window._physiqBalanceContext || window._physiqKinematicsContext);
   document.getElementById('generate-btn').disabled = !ok;
 }
 
@@ -668,11 +669,12 @@ async function callOrchestrator(file, region, info, token, onTranscript) {
 // buildClinicalContext() / buildROMContext() / buildForceContext() / buildJumpContext() / buildBalanceContext() live in lib/payload.js
 
 function buildPrompt(transcript, info, template) {
-  const clinicalCtx = buildClinicalContext(window._physiqAssessmentContext);
-  const romCtx      = buildROMContext(window._physiqROMContext);
-  const forceCtx    = buildForceContext(window._physiqForceContext);
-  const jumpCtx     = buildJumpContext(window._physiqJumpContext);
-  const balanceCtx  = buildBalanceContext(window._physiqBalanceContext);
+  const clinicalCtx     = buildClinicalContext(window._physiqAssessmentContext);
+  const romCtx          = buildROMContext(window._physiqROMContext);
+  const forceCtx        = buildForceContext(window._physiqForceContext);
+  const jumpCtx         = buildJumpContext(window._physiqJumpContext);
+  const balanceCtx      = buildBalanceContext(window._physiqBalanceContext);
+  const kinematicsCtx   = buildKinematicsContext(window._physiqKinematicsContext);
   const hasHypotheses = (window._physiqAssessmentContext?.h || []).length > 0;
 
   if (template === 'brief') {
@@ -681,7 +683,7 @@ Genera un informe clínico breve en español a partir de la transcripción de se
 
 PACIENTE: ${info.name} | Fecha: ${info.date} | Diagnóstico: ${info.diagnosis}
 
-${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}${jumpCtx ? jumpCtx + '\n\n' : ''}${balanceCtx ? balanceCtx + '\n\n' : ''}TRANSCRIPCIÓN:
+${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}${jumpCtx ? jumpCtx + '\n\n' : ''}${balanceCtx ? balanceCtx + '\n\n' : ''}${kinematicsCtx ? kinematicsCtx + '\n\n' : ''}TRANSCRIPCIÓN:
 ${transcript}
 
 INSTRUCCIONES:
@@ -700,7 +702,7 @@ INSTRUCCIONES:
 
 PACIENTE: ${info.name} | Fecha: ${info.date} | Diagnóstico médico: ${info.diagnosis}
 
-${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}${jumpCtx ? jumpCtx + '\n\n' : ''}${balanceCtx ? balanceCtx + '\n\n' : ''}TRANSCRIPCIÓN DE LA SESIÓN:
+${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}${jumpCtx ? jumpCtx + '\n\n' : ''}${balanceCtx ? balanceCtx + '\n\n' : ''}${kinematicsCtx ? kinematicsCtx + '\n\n' : ''}TRANSCRIPCIÓN DE LA SESIÓN:
 ${transcript}
 
 INSTRUCCIONES CRÍTICAS — LEE Y CUMPLE TODAS:
@@ -1428,6 +1430,99 @@ function applyBalanceContext(balanceData) {
   checkReady();
 }
 
+function applyKinematicsContext(kinematicsData) {
+  if (!kinematicsData) return;
+  document.getElementById('kinematicsBadge')?.remove();
+
+  const { joints, series, duration } = kinematicsData;
+  if (!joints || !joints.length || !series) return;
+
+  const jointSeries = joints.filter(j => series[j] && series[j].a && series[j].a.length);
+  if (!jointSeries.length) return;
+
+  window._physiqKinematicsContext = kinematicsData;
+
+  function _fmtJoint(name) {
+    return name
+      .replace(/^left_/, 'L ').replace(/^right_/, 'R ')
+      .replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  const COLORS = {
+    left_shoulder: '#4f9cf9', right_shoulder: '#fb923c',
+    left_elbow: '#38d9a9',   right_elbow: '#facc15',
+    left_hip: '#f472b6',     right_hip: '#34d399',
+    left_knee: '#a78bfa',    right_knee: '#f87171',
+  };
+  const FALLBACK = ['#5dadec','#f87171','#38d9a9','#facc15','#a78bfa','#fb923c'];
+
+  const durationMs  = duration || 1;
+  const durationSec = (durationMs / 1000).toFixed(1);
+
+  let globalMin = Infinity, globalMax = -Infinity;
+  jointSeries.forEach(j => {
+    globalMin = Math.min(globalMin, ...series[j].a);
+    globalMax = Math.max(globalMax, ...series[j].a);
+  });
+  const pad    = Math.max((globalMax - globalMin) * 0.1, 5);
+  const yMin   = globalMin - pad;
+  const yRange = Math.max(globalMax - globalMin + 2 * pad, 10);
+
+  const W = 300, H = 68, ml = 28, mr = 8, mt = 4, mb = 16;
+  const cw = W - ml - mr, ch = H - mt - mb;
+  const toX = t => (ml + (t / durationMs) * cw).toFixed(1);
+  const toY = a => (mt + ch - ((a - yMin) / yRange) * ch).toFixed(1);
+
+  const polylines = jointSeries.map((j, i) => {
+    const color  = COLORS[j] || FALLBACK[i % FALLBACK.length];
+    const points = series[j].t.map((t, k) => `${toX(t)},${toY(series[j].a[k])}`).join(' ');
+    return `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/>`;
+  }).join('');
+
+  const tickMs = durationMs > 30000 ? 10000 : durationMs > 10000 ? 5000 : 2000;
+  let timeTicks = '';
+  for (let t = 0; t <= durationMs; t += tickMs) {
+    const x = toX(t);
+    timeTicks += `<line x1="${x}" y1="${mt + ch}" x2="${x}" y2="${mt + ch + 3}" stroke="#8fa0bf" stroke-width="0.8"/>`;
+    timeTicks += `<text x="${x}" y="${H - 2}" text-anchor="middle" font-size="6" fill="#8fa0bf">${(t / 1000).toFixed(0)}s</text>`;
+  }
+  const yMid = Math.round((globalMin + globalMax) / 2);
+  const yLabels = [globalMin, yMid, globalMax].map(a => {
+    return `<text x="${ml - 2}" y="${toY(a)}" text-anchor="end" dominant-baseline="middle" font-size="6" fill="#8fa0bf">${Math.round(a)}°</text>`;
+  }).join('');
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 ${W} ${H}" style="display:block;margin-top:8px">
+    <rect x="${ml}" y="${mt}" width="${cw}" height="${ch}" fill="rgba(255,255,255,0.03)" rx="2"/>
+    <line x1="${ml}" y1="${mt}" x2="${ml}" y2="${mt + ch}" stroke="#8fa0bf" stroke-width="0.8" opacity="0.4"/>
+    <line x1="${ml}" y1="${mt + ch}" x2="${ml + cw}" y2="${mt + ch}" stroke="#8fa0bf" stroke-width="0.8" opacity="0.4"/>
+    ${timeTicks}${yLabels}${polylines}
+  </svg>`;
+
+  const legend = jointSeries.map((j, i) => {
+    const color = COLORS[j] || FALLBACK[i % FALLBACK.length];
+    const a = series[j].a;
+    const min = Math.min(...a), max = Math.max(...a);
+    return `<span style="white-space:nowrap"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-right:3px;vertical-align:middle"></span><span style="color:#8fa0bf">${_fmtJoint(j)}: ${min}°–${max}°</span></span>`;
+  }).join(' &nbsp;');
+
+  const badge = document.createElement('div');
+  badge.id = 'kinematicsBadge';
+  badge.style.cssText = `
+    background:rgba(93,173,236,0.08); border:1px solid rgba(93,173,236,0.25);
+    border-radius:8px; padding:10px 14px; font-size:12px;
+    color:#5dadec; font-family:'DM Mono',monospace; line-height:1.7;
+  `;
+  badge.innerHTML =
+    `✓ Cinemática importada desde PhysiQ-Kinematics · ${durationSec}s · ${jointSeries.length} articulación${jointSeries.length !== 1 ? 'es' : ''}` +
+    `<br><span style="font-size:11px;line-height:1.5">${legend}</span>` +
+    svg;
+
+  const body = document.getElementById('body-imported');
+  if (body) body.appendChild(badge);
+  _syncImportedCard();
+  checkReady();
+}
+
 function _showAssessmentIncompleteBadge(phase) {
   document.getElementById('assessmentBadge')?.remove();
   let badge = document.getElementById('assessmentIncompleteBadge');
@@ -1605,6 +1700,18 @@ _sessionCh.onmessage = ({ data }) => {
     checkReady();
     return;
   }
+  if (data.type === 'SESSION_KINEMATICS') {
+    if (data.kinematics) {
+      applyKinematicsContext(data.kinematics);
+      readSession().then(s => { if (s) updateSessionChip(s); });
+    } else {
+      window._physiqKinematicsContext = null;
+      document.getElementById('kinematicsBadge')?.remove();
+      _syncImportedCard();
+    }
+    checkReady();
+    return;
+  }
   if (data.type === 'SESSION_CLEAR') {
     _sessionGen++;
     _sessionCleared = true;
@@ -1615,9 +1722,10 @@ _sessionCh.onmessage = ({ data }) => {
     window._physiqForceContext = null;
     window._physiqJumpContext = null;
     window._physiqBalanceContext = null;
+    window._physiqKinematicsContext = null;
     setManualRegion('', 'Genérica', true);
     updateRegionSelector();
-    ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'jumpBadge', 'balanceBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
+    ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'jumpBadge', 'balanceBadge', 'kinematicsBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
     _syncImportedCard();
     updateSessionChip(null);
     return;
@@ -1797,9 +1905,10 @@ function _executeClearSession() {
   window._physiqForceContext = null;
   window._physiqJumpContext = null;
   window._physiqBalanceContext = null;
+  window._physiqKinematicsContext = null;
   setManualRegion('', 'Genérica', true);
   updateRegionSelector();
-  ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'jumpBadge', 'balanceBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
+  ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'jumpBadge', 'balanceBadge', 'kinematicsBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
   _syncImportedCard();
   clearSession().then(() => {
     updateSessionChip(null);
@@ -1843,9 +1952,10 @@ readSession().then(session => {
   if (!session) return;
   if (session.assessment && !window._physiqAssessmentContext) applyPhysiQAssessmentContext(session.assessment);
   if (session.rom && !window._physiqROMContext) applyROMContext(session.rom);
-  if (session.force   && (!Array.isArray(session.force)   || session.force.length)   && !document.getElementById('forceBadge'))   applyForceContext(session.force);
-  if (session.jump    && (!Array.isArray(session.jump)    || session.jump.length)    && !document.getElementById('jumpBadge'))    applyJumpContext(session.jump);
-  if (session.balance && (!Array.isArray(session.balance) || session.balance.length) && !document.getElementById('balanceBadge')) applyBalanceContext(session.balance);
+  if (session.force      && (!Array.isArray(session.force)      || session.force.length)      && !document.getElementById('forceBadge'))      applyForceContext(session.force);
+  if (session.jump       && (!Array.isArray(session.jump)       || session.jump.length)       && !document.getElementById('jumpBadge'))       applyJumpContext(session.jump);
+  if (session.balance    && (!Array.isArray(session.balance)    || session.balance.length)    && !document.getElementById('balanceBadge'))    applyBalanceContext(session.balance);
+  if (session.kinematics && !document.getElementById('kinematicsBadge')) applyKinematicsContext(session.kinematics);
   if (session.assessmentState && !session.assessment && !window._physiqAssessmentContext) {
     const _phaseLabels = [1, 2, 3, 4, '4b', 5];
     const maxVisited = session.assessmentState.maxVisitedIdx || 0;
