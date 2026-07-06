@@ -1011,7 +1011,7 @@ async function _buildWordBlob() {
   }));
   _rightLines.push(new Paragraph({
     alignment: AlignmentType.RIGHT, spacing:{after:30},
-    children:[new TextRun({text: 'Paciente: ' + patientName, size:20, font, color:bodyColor})]
+    children:[new TextRun({text: 'Paciente: ' + patientName, size:20, font, color:titleColor})]
   }));
   const _physioLine = [clinicName.trim() || null, clinicCol ? `N. col. ${clinicCol}` : null].filter(Boolean).join(' | ');
   if (_physioLine) _rightLines.push(new Paragraph({
