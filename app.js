@@ -1518,13 +1518,18 @@ function applyKinematicsContext(kinematicsData) {
     ? `${rendered[0].durationSec}s · ${rendered[0].jointCount} articulación${rendered[0].jointCount !== 1 ? 'es' : ''}`
     : `${rendered.length} grabaciones`;
 
-  const sections = rendered.map((r, i) => `
-    <div style="${i > 0 ? 'margin-top:10px;border-top:1px solid rgba(93,173,236,0.15);padding-top:8px' : ''}">
-      ${rendered.length > 1 ? `<div style="color:#8fa0bf">Grabación ${i + 1} · ${r.durationSec}s · ${r.jointCount} articulación${r.jointCount !== 1 ? 'es' : ''}</div>` : ''}
-      <span style="font-size:11px;line-height:1.5">${r.legend}</span>
-      ${r.svg}
-    </div>
-  `).join('');
+  if (!document.getElementById('kinem-carousel-style')) {
+    const _ks = document.createElement('style');
+    _ks.id = 'kinem-carousel-style';
+    _ks.textContent = '.kinem-scroll{display:flex;overflow-x:auto;gap:10px;scroll-snap-type:x mandatory;margin-top:8px;padding-bottom:4px;-webkit-overflow-scrolling:touch}.kinem-scroll::-webkit-scrollbar{height:3px}.kinem-scroll::-webkit-scrollbar-thumb{background:rgba(93,173,236,0.3);border-radius:3px}.kinem-scroll::-webkit-scrollbar-track{background:transparent}.kinem-item{flex:0 0 100%;scroll-snap-align:start;min-width:0}@media(min-width:600px){.kinem-scroll.kinem-multi .kinem-item{flex:0 0 calc(50% - 5px)}}@media(min-width:900px){.kinem-scroll.kinem-multi .kinem-item{flex:0 0 calc(33.33% - 7px)}}';
+    document.head.appendChild(_ks);
+  }
+
+  const sections = `<div class="kinem-scroll${rendered.length > 1 ? ' kinem-multi' : ''}">` +
+    rendered.map((r, i) =>
+      `<div class="kinem-item">${rendered.length > 1 ? `<div style="font-size:10px;color:#8fa0bf;margin-bottom:2px">Grabación ${i + 1} · ${r.durationSec}s · ${r.jointCount} art.</div>` : ''}<span style="font-size:11px;line-height:1.5">${r.legend}</span>${r.svg}</div>`
+    ).join('') +
+    '</div>';
 
   const badge = document.createElement('div');
   badge.id = 'kinematicsBadge';
