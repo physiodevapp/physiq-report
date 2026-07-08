@@ -1338,8 +1338,16 @@ function applyForceContext(forceData) {
     border-radius:8px; padding:10px 14px; font-size:12px;
     color:#fb923c; font-family:'DM Mono',monospace; line-height:1.7;
   `;
+  if (!document.getElementById('kinem-carousel-style')) {
+    const _ks = document.createElement('style');
+    _ks.id = 'kinem-carousel-style';
+    _ks.textContent = '.kinem-scroll{display:flex;overflow-x:auto;gap:10px;scroll-snap-type:x mandatory;margin-top:8px;padding-bottom:4px;-webkit-overflow-scrolling:touch}.kinem-scroll::-webkit-scrollbar{height:3px}.kinem-scroll::-webkit-scrollbar-thumb{background:rgba(93,173,236,0.3);border-radius:3px}.kinem-scroll::-webkit-scrollbar-track{background:transparent}.kinem-item{flex:0 0 100%;scroll-snap-align:start;min-width:0}@media(min-width:600px){.kinem-scroll.kinem-multi .kinem-item{flex:0 0 calc(50% - 5px)}}@media(min-width:900px){.kinem-scroll.kinem-multi .kinem-item{flex:0 0 calc(33.33% - 7px)}}';
+    document.head.appendChild(_ks);
+  }
   badge.innerHTML = `✓ Fuerza importada desde PhysiQ-Force · ${countLabel}` +
-    `<br><span style="color:#8fa0bf">${lines.map(l => '· ' + l).join('<br>')}</span>`;
+    `<div class="kinem-scroll${measurements.length > 1 ? ' kinem-multi' : ''}">` +
+    lines.map(l => `<div class="kinem-item" style="border:1px solid rgba(251,146,60,0.2);border-radius:6px;padding:6px 8px"><span style="color:#8fa0bf;font-size:11px;line-height:1.6">${l}</span></div>`).join('') +
+    '</div>';
   const body = document.getElementById('body-imported');
   if (body) body.appendChild(badge);
   _syncImportedCard();
@@ -1386,8 +1394,16 @@ function applyJumpContext(jumpData) {
     border-radius:8px; padding:10px 14px; font-size:12px;
     color:#a855f7; font-family:'DM Mono',monospace; line-height:1.7;
   `;
+  if (!document.getElementById('kinem-carousel-style')) {
+    const _ks = document.createElement('style');
+    _ks.id = 'kinem-carousel-style';
+    _ks.textContent = '.kinem-scroll{display:flex;overflow-x:auto;gap:10px;scroll-snap-type:x mandatory;margin-top:8px;padding-bottom:4px;-webkit-overflow-scrolling:touch}.kinem-scroll::-webkit-scrollbar{height:3px}.kinem-scroll::-webkit-scrollbar-thumb{background:rgba(93,173,236,0.3);border-radius:3px}.kinem-scroll::-webkit-scrollbar-track{background:transparent}.kinem-item{flex:0 0 100%;scroll-snap-align:start;min-width:0}@media(min-width:600px){.kinem-scroll.kinem-multi .kinem-item{flex:0 0 calc(50% - 5px)}}@media(min-width:900px){.kinem-scroll.kinem-multi .kinem-item{flex:0 0 calc(33.33% - 7px)}}';
+    document.head.appendChild(_ks);
+  }
   badge.innerHTML = `✓ Salto importado desde PhysiQ-Jump · ${countLabel}` +
-    `<br><span style="color:#8fa0bf">${lines.map(l => '· ' + l).join('<br>')}</span>`;
+    `<div class="kinem-scroll${measurements.length > 1 ? ' kinem-multi' : ''}">` +
+    lines.map(l => `<div class="kinem-item" style="border:1px solid rgba(168,85,247,0.2);border-radius:6px;padding:6px 8px"><span style="color:#8fa0bf;font-size:11px;line-height:1.6">${l}</span></div>`).join('') +
+    '</div>';
   const body = document.getElementById('body-imported');
   if (body) body.appendChild(badge);
   _syncImportedCard();
@@ -1422,8 +1438,16 @@ function applyBalanceContext(balanceData) {
     border-radius:8px; padding:10px 14px; font-size:12px;
     color:#06b6d4; font-family:'DM Mono',monospace; line-height:1.7;
   `;
+  if (!document.getElementById('kinem-carousel-style')) {
+    const _ks = document.createElement('style');
+    _ks.id = 'kinem-carousel-style';
+    _ks.textContent = '.kinem-scroll{display:flex;overflow-x:auto;gap:10px;scroll-snap-type:x mandatory;margin-top:8px;padding-bottom:4px;-webkit-overflow-scrolling:touch}.kinem-scroll::-webkit-scrollbar{height:3px}.kinem-scroll::-webkit-scrollbar-thumb{background:rgba(93,173,236,0.3);border-radius:3px}.kinem-scroll::-webkit-scrollbar-track{background:transparent}.kinem-item{flex:0 0 100%;scroll-snap-align:start;min-width:0}@media(min-width:600px){.kinem-scroll.kinem-multi .kinem-item{flex:0 0 calc(50% - 5px)}}@media(min-width:900px){.kinem-scroll.kinem-multi .kinem-item{flex:0 0 calc(33.33% - 7px)}}';
+    document.head.appendChild(_ks);
+  }
   badge.innerHTML = `✓ Equilibrio importado desde PhysiQ-Balance · ${countLabel}` +
-    `<br><span style="color:#8fa0bf">${lines.map(l => '· ' + l).join('<br>')}</span>`;
+    `<div class="kinem-scroll${measurements.length > 1 ? ' kinem-multi' : ''}">` +
+    lines.map(l => `<div class="kinem-item" style="border:1px solid rgba(6,182,212,0.2);border-radius:6px;padding:6px 8px"><span style="color:#8fa0bf;font-size:11px;line-height:1.6">${l}</span></div>`).join('') +
+    '</div>';
   const body = document.getElementById('body-imported');
   if (body) body.appendChild(badge);
   _syncImportedCard();
