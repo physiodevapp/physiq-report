@@ -1276,27 +1276,68 @@ function applyROMContext(romData) {
   document.getElementById('romBadge')?.remove();
   window._physiqROMContext = romData;
 
-  let summary;
-  if (romData.regions) {
-    const parts = Object.entries(romData.regions)
-      .filter(([, r]) => r.rom && Object.keys(r.rom).length)
-      .map(([, r]) => `${r.label} (${Object.keys(r.rom).length})`);
-    summary = parts.join(' · ');
-  } else {
-    const region = romData.region
-      ? romData.region.charAt(0).toUpperCase() + romData.region.slice(1)
-      : '—';
-    summary = `${region} · ${Object.keys(romData.rom || {}).length} movimientos`;
+  function _abbr(label) {
+    const lc = label.toLowerCase();
+    const map = [
+      ['rotación interna', 'RI'], ['rotación externa', 'RE'],
+      ['rotación izquierda', 'Rot Izq'], ['rotación derecha', 'Rot Der'],
+      ['inclinación lateral izquierda', 'Incl Izq'], ['inclinación lateral derecha', 'Incl Der'],
+      ['inclinación lateral', 'Incl'], ['inclinación', 'Incl'],
+      ['flexión plantar', 'FP'], ['dorsiflexión', 'Dors'],
+      ['flexión', 'Flex'], ['extensión', 'Ext'],
+      ['abducción horizontal', 'Abd H'], ['abducción', 'Abd'],
+      ['aducción', 'Adu'], ['inversión', 'Inv'], ['eversión', 'Ev'],
+      ['rotación', 'Rot'],
+    ];
+    const match = map.find(([k]) => lc.startsWith(k));
+    return match ? match[1] : label.slice(0, 4);
   }
+
+  let regions;
+  if (romData.regions) {
+    regions = Object.values(romData.regions).filter(r => r.rom && Object.keys(r.rom).length);
+  } else if (romData.rom && Object.keys(romData.rom).length) {
+    const lbl = romData.region ? romData.region.charAt(0).toUpperCase() + romData.region.slice(1) : 'ROM';
+    regions = [{ label: lbl, rom: romData.rom }];
+  } else {
+    return;
+  }
+  if (!regions.length) return;
+
+  if (!document.getElementById('kinem-carousel-style')) {
+    const _ks = document.createElement('style');
+    _ks.id = 'kinem-carousel-style';
+    _ks.textContent = '.kinem-scroll{display:flex;overflow-x:auto;gap:10px;scroll-snap-type:x mandatory;margin-top:8px;padding-bottom:4px;-webkit-overflow-scrolling:touch}.kinem-scroll::-webkit-scrollbar{height:3px}.kinem-scroll::-webkit-scrollbar-thumb{background:rgba(93,173,236,0.3);border-radius:3px}.kinem-scroll::-webkit-scrollbar-track{background:transparent}.kinem-item{flex:0 0 100%;scroll-snap-align:start;min-width:0}@media(min-width:600px){.kinem-scroll.kinem-multi .kinem-item{flex:0 0 calc(50% - 5px)}}@media(min-width:900px){.kinem-scroll.kinem-multi .kinem-item{flex:0 0 calc(33.33% - 7px)}}';
+    document.head.appendChild(_ks);
+  }
+
+  const countLabel = regions.length === 1
+    ? `${Object.keys(regions[0].rom).length} mov.`
+    : `${regions.length} regiones`;
+
+  const sections = `<div class="kinem-scroll${regions.length > 1 ? ' kinem-multi' : ''}">` +
+    regions.map(r => {
+      const movs = Object.values(r.rom);
+      const abbrevHtml = movs.map(m =>
+        m.deficit
+          ? `<span style="color:#f87171">${_abbr(m.label)}</span>`
+          : `<span>${_abbr(m.label)}</span>`
+      ).join('<span style="color:#8fa0bf"> · </span>');
+      return `<div class="kinem-item" style="border:1px solid rgba(192,132,252,0.2);border-radius:6px;padding:6px 8px">` +
+        `<div style="font-size:11px;color:#c084fc;margin-bottom:3px">${r.label}</div>` +
+        `<div style="color:#8fa0bf;font-size:11px;line-height:1.6">${abbrevHtml}</div>` +
+        `</div>`;
+    }).join('') +
+    '</div>';
 
   const badge = document.createElement('div');
   badge.id = 'romBadge';
   badge.style.cssText = `
-    background:rgba(79,156,249,0.08); border:1px solid rgba(79,156,249,0.25);
+    background:rgba(192,132,252,0.08); border:1px solid rgba(192,132,252,0.25);
     border-radius:8px; padding:10px 14px; font-size:12px;
-    color:var(--accent); font-family:'DM Mono',monospace;
+    color:#c084fc; font-family:'DM Mono',monospace;
   `;
-  badge.innerHTML = `✓ Movilidad importada desde PhysiQ-Motion · ${summary}`;
+  badge.innerHTML = `✓ Movilidad importada desde PhysiQ-Motion · ${countLabel}` + sections;
   const body = document.getElementById('body-imported');
   if (body) body.prepend(badge);
   _syncImportedCard();
