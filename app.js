@@ -294,9 +294,10 @@ function _updateImportBadges() {
   const hasJump = !!window._physiqJumpContext;
   const hasBalance = !!window._physiqBalanceContext;
   const hasKinematics = !!window._physiqKinematicsContext;
+  const hasQuestionnaire = !!window._physiqQuestionnaireContext;
   const hasAudio = !!document.getElementById('audioBadge');
 
-  const count = [hasROM, hasAssessment, hasForce, hasJump, hasBalance, hasKinematics, hasAudio].filter(Boolean).length;
+  const count = [hasROM, hasAssessment, hasForce, hasJump, hasBalance, hasKinematics, hasQuestionnaire, hasAudio].filter(Boolean).length;
 
   const chip = document.getElementById('importChip');
   const chipText = document.getElementById('importChipText');
@@ -420,7 +421,7 @@ document.getElementById('diagnosis').addEventListener('input', () => {
 function checkReady() {
   _updateConfigBtns();
   const hasName = !!document.getElementById('patient-name').value.trim();
-  const ok = hasName && (selectedFile || window._physiqAssessmentContext || window._physiqROMContext || window._physiqForceContext || window._physiqJumpContext || window._physiqBalanceContext || window._physiqKinematicsContext);
+  const ok = hasName && (selectedFile || window._physiqAssessmentContext || window._physiqROMContext || window._physiqForceContext || window._physiqJumpContext || window._physiqBalanceContext || window._physiqKinematicsContext || window._physiqQuestionnaireContext);
   document.getElementById('generate-btn').disabled = !ok;
 }
 
@@ -666,15 +667,16 @@ async function callOrchestrator(file, region, info, token, onTranscript) {
 
 // ========= PROMPTS =========
 // ========= CLINICAL CONTEXT BUILDER =========
-// buildClinicalContext() / buildROMContext() / buildForceContext() / buildJumpContext() / buildBalanceContext() live in lib/payload.js
+// buildClinicalContext() / buildROMContext() / buildForceContext() / buildJumpContext() / buildBalanceContext() / buildKinematicsContext() / buildQuestionnaireContext() live in lib/payload.js
 
 function buildPrompt(transcript, info, template) {
-  const clinicalCtx     = buildClinicalContext(window._physiqAssessmentContext);
-  const romCtx          = buildROMContext(window._physiqROMContext);
-  const forceCtx        = buildForceContext(window._physiqForceContext);
-  const jumpCtx         = buildJumpContext(window._physiqJumpContext);
-  const balanceCtx      = buildBalanceContext(window._physiqBalanceContext);
-  const kinematicsCtx   = buildKinematicsContext(window._physiqKinematicsContext);
+  const clinicalCtx       = buildClinicalContext(window._physiqAssessmentContext);
+  const romCtx            = buildROMContext(window._physiqROMContext);
+  const forceCtx          = buildForceContext(window._physiqForceContext);
+  const jumpCtx           = buildJumpContext(window._physiqJumpContext);
+  const balanceCtx        = buildBalanceContext(window._physiqBalanceContext);
+  const kinematicsCtx     = buildKinematicsContext(window._physiqKinematicsContext);
+  const questionnaireCtx  = buildQuestionnaireContext(window._physiqQuestionnaireContext);
   const hasHypotheses = (window._physiqAssessmentContext?.h || []).length > 0;
 
   if (template === 'brief') {
@@ -683,7 +685,7 @@ Genera un informe clínico breve en español a partir de la transcripción de se
 
 PACIENTE: ${info.name} | Fecha: ${info.date} | Diagnóstico: ${info.diagnosis}
 
-${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}${jumpCtx ? jumpCtx + '\n\n' : ''}${balanceCtx ? balanceCtx + '\n\n' : ''}${kinematicsCtx ? kinematicsCtx + '\n\n' : ''}TRANSCRIPCIÓN:
+${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}${jumpCtx ? jumpCtx + '\n\n' : ''}${balanceCtx ? balanceCtx + '\n\n' : ''}${kinematicsCtx ? kinematicsCtx + '\n\n' : ''}${questionnaireCtx ? questionnaireCtx + '\n\n' : ''}TRANSCRIPCIÓN:
 ${transcript}
 
 INSTRUCCIONES:
@@ -702,7 +704,7 @@ INSTRUCCIONES:
 
 PACIENTE: ${info.name} | Fecha: ${info.date} | Diagnóstico médico: ${info.diagnosis}
 
-${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}${jumpCtx ? jumpCtx + '\n\n' : ''}${balanceCtx ? balanceCtx + '\n\n' : ''}${kinematicsCtx ? kinematicsCtx + '\n\n' : ''}TRANSCRIPCIÓN DE LA SESIÓN:
+${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}${jumpCtx ? jumpCtx + '\n\n' : ''}${balanceCtx ? balanceCtx + '\n\n' : ''}${kinematicsCtx ? kinematicsCtx + '\n\n' : ''}${questionnaireCtx ? questionnaireCtx + '\n\n' : ''}TRANSCRIPCIÓN DE LA SESIÓN:
 ${transcript}
 
 INSTRUCCIONES CRÍTICAS — LEE Y CUMPLE TODAS:
@@ -1613,6 +1615,47 @@ function applyKinematicsContext(kinematicsData) {
   checkReady();
 }
 
+function applyQuestionnaireContext(questionnairesData) {
+  if (!questionnairesData) return;
+  const items = Array.isArray(questionnairesData) ? questionnairesData : [questionnairesData];
+  if (!items.length) return;
+
+  document.getElementById('questionnaireBadge')?.remove();
+  window._physiqQuestionnaireContext = items;
+
+  if (!document.getElementById('kinem-carousel-style')) {
+    const _ks = document.createElement('style');
+    _ks.id = 'kinem-carousel-style';
+    _ks.textContent = '.kinem-scroll{display:flex;overflow-x:auto;gap:10px;scroll-snap-type:x mandatory;margin-top:8px;padding-bottom:4px;-webkit-overflow-scrolling:touch}.kinem-scroll::-webkit-scrollbar{height:3px}.kinem-scroll::-webkit-scrollbar-thumb{background:rgba(93,173,236,0.3);border-radius:3px}.kinem-scroll::-webkit-scrollbar-track{background:transparent}.kinem-item{flex:0 0 100%;scroll-snap-align:start;min-width:0}@media(min-width:600px){.kinem-scroll.kinem-multi .kinem-item{flex:0 0 calc(50% - 5px)}}@media(min-width:900px){.kinem-scroll.kinem-multi .kinem-item{flex:0 0 calc(33.33% - 7px)}}';
+    document.head.appendChild(_ks);
+  }
+
+  const countLabel = items.length === 1 ? '1 cuestionario' : `${items.length} cuestionarios`;
+
+  const sections = `<div class="kinem-scroll${items.length > 1 ? ' kinem-multi' : ''}">` +
+    items.map(q => {
+      const name = q.abbr || q.name || q.id || '?';
+      const scoreStr = q.score != null ? `${q.score}` : '—';
+      const labelStr = q.label || '';
+      const riskDot = q.risk ? '<span style="color:#f87171"> ●</span>' : '';
+      return `<div class="kinem-item" style="border:1px solid rgba(20,184,166,0.2);border-radius:6px;padding:6px 8px">` +
+        `<div style="font-size:11px;color:#14b8a6;margin-bottom:2px">${name}${riskDot}</div>` +
+        `<div style="color:#8fa0bf;font-size:11px;line-height:1.5">${scoreStr}${labelStr ? ` · ${labelStr}` : ''}</div>` +
+        `</div>`;
+    }).join('') +
+    '</div>';
+
+  const badge = document.createElement('div');
+  badge.id = 'questionnaireBadge';
+  badge.style.cssText = `background:rgba(20,184,166,0.08); border:1px solid rgba(20,184,166,0.25); border-radius:8px; padding:10px 14px; font-size:12px; color:#14b8a6; font-family:'DM Mono',monospace; line-height:1.7;`;
+  badge.innerHTML = `✓ Cuestionarios importados desde PhysiQ-Questionnaire · ${countLabel}` + sections;
+
+  const body = document.getElementById('body-imported');
+  if (body) body.appendChild(badge);
+  _syncImportedCard();
+  checkReady();
+}
+
 function _showAssessmentIncompleteBadge(phase) {
   document.getElementById('assessmentBadge')?.remove();
   let badge = document.getElementById('assessmentIncompleteBadge');
@@ -1802,6 +1845,18 @@ _sessionCh.onmessage = ({ data }) => {
     checkReady();
     return;
   }
+  if (data.type === 'SESSION_QUESTIONNAIRE') {
+    if (data.questionnaires && (!Array.isArray(data.questionnaires) || data.questionnaires.length)) {
+      applyQuestionnaireContext(data.questionnaires);
+      readSession().then(s => { if (s) updateSessionChip(s); });
+    } else {
+      window._physiqQuestionnaireContext = null;
+      document.getElementById('questionnaireBadge')?.remove();
+      _syncImportedCard();
+    }
+    checkReady();
+    return;
+  }
   if (data.type === 'SESSION_CLEAR') {
     _sessionGen++;
     _sessionCleared = true;
@@ -1813,9 +1868,10 @@ _sessionCh.onmessage = ({ data }) => {
     window._physiqJumpContext = null;
     window._physiqBalanceContext = null;
     window._physiqKinematicsContext = null;
+    window._physiqQuestionnaireContext = null;
     setManualRegion('', 'Genérica', true);
     updateRegionSelector();
-    ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'jumpBadge', 'balanceBadge', 'kinematicsBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
+    ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'jumpBadge', 'balanceBadge', 'kinematicsBadge', 'questionnaireBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
     _syncImportedCard();
     updateSessionChip(null);
     return;
@@ -1996,9 +2052,10 @@ function _executeClearSession() {
   window._physiqJumpContext = null;
   window._physiqBalanceContext = null;
   window._physiqKinematicsContext = null;
+  window._physiqQuestionnaireContext = null;
   setManualRegion('', 'Genérica', true);
   updateRegionSelector();
-  ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'jumpBadge', 'balanceBadge', 'kinematicsBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
+  ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'jumpBadge', 'balanceBadge', 'kinematicsBadge', 'questionnaireBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
   _syncImportedCard();
   clearSession().then(() => {
     updateSessionChip(null);
@@ -2046,6 +2103,7 @@ readSession().then(session => {
   if (session.jump       && (!Array.isArray(session.jump)       || session.jump.length)       && !document.getElementById('jumpBadge'))       applyJumpContext(session.jump);
   if (session.balance    && (!Array.isArray(session.balance)    || session.balance.length)    && !document.getElementById('balanceBadge'))    applyBalanceContext(session.balance);
   if (session.kinematics && (!Array.isArray(session.kinematics) || session.kinematics.length) && !document.getElementById('kinematicsBadge')) applyKinematicsContext(session.kinematics);
+  if (session.questionnaires && (!Array.isArray(session.questionnaires) || session.questionnaires.length) && !document.getElementById('questionnaireBadge')) applyQuestionnaireContext(session.questionnaires);
   if (session.assessmentState && !session.assessment && !window._physiqAssessmentContext) {
     const _phaseLabels = [1, 2, 3, 4, '4b', 5];
     const maxVisited = session.assessmentState.maxVisitedIdx || 0;
