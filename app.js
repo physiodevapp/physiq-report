@@ -1431,9 +1431,9 @@ function applyJumpContext(jumpData) {
   const badge = document.createElement('div');
   badge.id = 'jumpBadge';
   badge.style.cssText = `
-    background:rgba(168,85,247,0.08); border:1px solid rgba(168,85,247,0.25);
+    background:rgba(244,63,94,0.08); border:1px solid rgba(244,63,94,0.25);
     border-radius:8px; padding:10px 14px; font-size:12px;
-    color:#a855f7; font-family:'DM Mono',monospace; line-height:1.7;
+    color:#f43f5e; font-family:'DM Mono',monospace; line-height:1.7;
   `;
   if (!document.getElementById('kinem-carousel-style')) {
     const _ks = document.createElement('style');
@@ -1443,7 +1443,7 @@ function applyJumpContext(jumpData) {
   }
   badge.innerHTML = `✓ Salto importado desde PhysiQ-Jump · ${countLabel}` +
     `<div class="kinem-scroll${measurements.length > 1 ? ' kinem-multi' : ''}">` +
-    lines.map(l => `<div class="kinem-item" style="border:1px solid rgba(168,85,247,0.2);border-radius:6px;padding:6px 8px"><span style="color:#8fa0bf;font-size:11px;line-height:1.6">${l}</span></div>`).join('') +
+    lines.map(l => `<div class="kinem-item" style="border:1px solid rgba(244,63,94,0.2);border-radius:6px;padding:6px 8px"><span style="color:#8fa0bf;font-size:11px;line-height:1.6">${l}</span></div>`).join('') +
     '</div>';
   const body = document.getElementById('body-imported');
   if (body) body.appendChild(badge);
@@ -1475,9 +1475,9 @@ function applyBalanceContext(balanceData) {
   const badge = document.createElement('div');
   badge.id = 'balanceBadge';
   badge.style.cssText = `
-    background:rgba(6,182,212,0.08); border:1px solid rgba(6,182,212,0.25);
+    background:rgba(79,156,249,0.08); border:1px solid rgba(79,156,249,0.25);
     border-radius:8px; padding:10px 14px; font-size:12px;
-    color:#06b6d4; font-family:'DM Mono',monospace; line-height:1.7;
+    color:#4f9cf9; font-family:'DM Mono',monospace; line-height:1.7;
   `;
   if (!document.getElementById('kinem-carousel-style')) {
     const _ks = document.createElement('style');
@@ -1487,7 +1487,7 @@ function applyBalanceContext(balanceData) {
   }
   badge.innerHTML = `✓ Equilibrio importado desde PhysiQ-Balance · ${countLabel}` +
     `<div class="kinem-scroll${measurements.length > 1 ? ' kinem-multi' : ''}">` +
-    lines.map(l => `<div class="kinem-item" style="border:1px solid rgba(6,182,212,0.2);border-radius:6px;padding:6px 8px"><span style="color:#8fa0bf;font-size:11px;line-height:1.6">${l}</span></div>`).join('') +
+    lines.map(l => `<div class="kinem-item" style="border:1px solid rgba(79,156,249,0.2);border-radius:6px;padding:6px 8px"><span style="color:#8fa0bf;font-size:11px;line-height:1.6">${l}</span></div>`).join('') +
     '</div>';
   const body = document.getElementById('body-imported');
   if (body) body.appendChild(badge);
