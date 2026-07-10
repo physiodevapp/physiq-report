@@ -555,7 +555,7 @@ function updateDocSummaryLabel() {
   const docCost = (tokens * _COST_PER_TOKEN).toFixed(2);
   if (lbl) lbl.textContent = `~${meta.words} palabras · ${meta.label} · ~$${docCost} por resumen`;
   const subDoc = document.getElementById('sub-options-doc');
-  if (subDoc) subDoc.textContent = 'Doc: ' + label;
+  if (subDoc) subDoc.textContent = 'Doc: ' + meta.label;
   updateSliderLabel();
   saveConfig(true);
 }
@@ -781,7 +781,13 @@ function importConfig() {
         ok.textContent = '✓ Configuración importada';
         ok.style.display = 'block';
         setTimeout(() => { ok.style.display = 'none'; ok.textContent = '✓ Configuración guardada'; }, 2500);
-      } catch { alert('Archivo no válido'); }
+      } catch {
+        const ok = document.getElementById('saved-ok');
+        ok.textContent = '⚠ Archivo no válido';
+        ok.style.color = 'var(--danger)';
+        ok.style.display = 'block';
+        setTimeout(() => { ok.style.display = 'none'; ok.textContent = '✓ Configuración guardada'; ok.style.color = ''; }, 3000);
+      }
     };
     reader.readAsText(file);
   };
