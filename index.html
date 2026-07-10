@@ -79,13 +79,13 @@
   #session-rec-hint{display:none;margin-top:6px;text-align:center;}
   #cf-turnstile-container{display:flex;justify-content:center;align-items:center;min-height:65px;}
   /* ── Document attachment ── */
-  .doc-attach-btn{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--accent2);color:var(--accent2);border-radius:999px;padding:6px 14px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:background 0.15s;margin-top:8px;}
-  .doc-attach-btn:hover{background:rgba(79,156,249,0.1);}
+  .doc-attach-btn{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:6px 14px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:background 0.15s;margin-top:8px;}
+  .doc-attach-btn:hover{background:rgba(0,200,120,0.1);}
   .doc-attach-wrap{display:flex;flex-direction:column;align-items:flex-start;}
   .doc-chips-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
-  .doc-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(79,156,249,0.1);border:1px solid rgba(79,156,249,0.3);border-radius:999px;padding:4px 10px;font-family:'DM Mono',monospace;font-size:11px;color:var(--accent2);}
+  .doc-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(0,200,120,0.1);border:1px solid rgba(0,200,120,0.3);border-radius:999px;padding:4px 10px;font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);}
   .doc-chip-name{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .doc-chip-remove{background:none;border:none;color:var(--accent2);cursor:pointer;font-size:11px;padding:0;line-height:1;opacity:0.7;}
+  .doc-chip-remove{background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;padding:0;line-height:1;opacity:0.7;}
   .doc-chip-remove:hover{opacity:1;}
   #session-rec-hint button{background:rgba(79,195,161,0.08);border:1px solid rgba(79,195,161,0.25);border-radius:999px;padding:5px 14px;font-size:11px;color:var(--accent);cursor:pointer;font-family:'DM Mono',monospace;transition:background 0.15s;}
   #session-rec-hint button:hover{background:rgba(79,195,161,0.16);}
@@ -577,12 +577,12 @@
     <div class="subsection">📎 Resumen de documentos adjuntos</div>
     <input type="range" id="doc-summary-slider" min="200" max="1000" step="100" value="400"
       oninput="updateDocSummaryLabel()"
-      style="width:100%;accent-color:var(--accent2);cursor:pointer;margin-bottom:10px;">
+      style="width:100%;accent-color:var(--accent);cursor:pointer;margin-bottom:10px;">
     <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);margin-bottom:10px;">
       <span>Breve</span><span>Estándar</span><span>Detallado</span><span>Extenso</span>
     </div>
-    <div id="doc-summary-label" style="text-align:center;font-family:'DM Mono',monospace;font-size:12px;color:var(--accent2);padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
-      Estándar · 400 tokens
+    <div id="doc-summary-label" style="text-align:center;font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
+      ~150 palabras · Estándar · 400 tokens
     </div>
     <div style="font-size:11px;color:var(--text-muted);margin-top:8px;text-align:center;font-family:'DM Mono',monospace;">
       Longitud máxima del resumen de documentos adjuntos (PDF/Word)
