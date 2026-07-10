@@ -2442,28 +2442,25 @@ function initSwipe(sheet, closeFn, handleZone = 72) {
       });
     }
 
-    sheet.addEventListener('touchstart', e => {
-      if (window.innerWidth >= 640) return;
-      if (e.touches[0].clientY - sheet.getBoundingClientRect().top > handleZone) return;
-      if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
-      startY = e.touches[0].clientY;
-      startTime = Date.now();
-      delta = 0;
-      dragging = true;
-      clearTimeout(snapTimer);
-      clearTimeout(dismissTimer);
-      sheet.style.transition = 'none';
-    }, { passive: true });
-
-    sheet.addEventListener('touchmove', e => {
+    function onMove(e) {
       if (!dragging) return;
+      // Prevent the sheet-body (or any inner scrollable) from scrolling while
+      // the drag-to-dismiss gesture is active.
+      e.preventDefault();
       delta = Math.max(0, e.touches[0].clientY - startY);
       sheet.style.transform = delta > 0 ? `translateY(${delta}px)` : 'translateY(0)';
-    }, { passive: true });
+    }
+
+    function detachDocListeners() {
+      document.removeEventListener('touchmove',   onMove);
+      document.removeEventListener('touchend',    onRelease);
+      document.removeEventListener('touchcancel', onCancel);
+    }
 
     function onRelease() {
       if (!dragging) return;
       dragging = false;
+      detachDocListeners();
       const velocity = delta / (Date.now() - startTime);
       if (delta > 80 || velocity > 0.3) {
         sheet.style.transition = EASE;
@@ -2487,13 +2484,31 @@ function initSwipe(sheet, closeFn, handleZone = 72) {
       }
     }
 
-    sheet.addEventListener('touchend', onRelease, { passive: true });
-    sheet.addEventListener('touchcancel', () => {
+    function onCancel() {
       if (!dragging) return;
       dragging = false;
+      detachDocListeners();
       clearTimeout(dismissTimer);
       sheet.style.transform = '';
       sheet.style.transition = '';
+    }
+
+    sheet.addEventListener('touchstart', e => {
+      if (window.innerWidth >= 640) return;
+      if (e.touches[0].clientY - sheet.getBoundingClientRect().top > handleZone) return;
+      if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+      startY = e.touches[0].clientY;
+      startTime = Date.now();
+      delta = 0;
+      dragging = true;
+      clearTimeout(snapTimer);
+      clearTimeout(dismissTimer);
+      sheet.style.transition = 'none';
+      // Track move/end on the document so the gesture is never lost to inner
+      // scroll containers. passive:false on touchmove lets us call preventDefault.
+      document.addEventListener('touchmove',   onMove,    { passive: false });
+      document.addEventListener('touchend',    onRelease, { passive: true  });
+      document.addEventListener('touchcancel', onCancel,  { passive: true  });
     }, { passive: true });
   }
 
