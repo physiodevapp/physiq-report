@@ -239,26 +239,17 @@ function parseTablesInText(text) {
 
 // ========= SLIDER =========
 const docSummaryMeta = [
-  {tokens: 800,  words: 530,  label: 'Breve'},
-  {tokens: 1600, words: 1065, label: 'Estándar'},
-  {tokens: 2400, words: 1600, label: 'Detallado'},
-  {tokens: 3200, words: 2130, label: 'Exhaustivo'},
-  {tokens: 4000, words: 2665, label: 'Muy completo'},
-  {tokens: 4800, words: 3200, label: 'Ultra completo'},
+  {tokens:1000, words:530,  label:'Breve'},
+  {tokens:3000, words:1600, label:'Estándar'},
+  {tokens:5000, words:2665, label:'Detallado'},
+  {tokens:7000, words:3730, label:'Máximo'},
 ];
 
 const sliderMeta = [
-  {tokens:1000, words:400,  label:'Muy breve',       costNum:0.02},
-  {tokens:1600, words:700,  label:'Breve',            costNum:0.03},
-  {tokens:2200, words:950,  label:'Estándar',         costNum:0.04},
-  {tokens:2800, words:1200, label:'Medio',            costNum:0.05},
-  {tokens:3400, words:1450, label:'Detallado',        costNum:0.06},
-  {tokens:4000, words:1700, label:'Completo',         costNum:0.07},
-  {tokens:4600, words:2000, label:'Exhaustivo',       costNum:0.08},
-  {tokens:5200, words:2250, label:'Muy exhaustivo',   costNum:0.09},
-  {tokens:5800, words:2500, label:'Máximo',           costNum:0.10},
-  {tokens:6400, words:2750, label:'Clínico completo', costNum:0.11},
-  {tokens:7000, words:3000, label:'Ultra completo',   costNum:0.12},
+  {tokens:1000, words:400,  label:'Breve',         costNum:0.02},
+  {tokens:3000, words:1200, label:'Estándar',       costNum:0.05},
+  {tokens:5000, words:2000, label:'Detallado',      costNum:0.08},
+  {tokens:7000, words:2750, label:'Máximo', costNum:0.12},
 ];
 
 // cost rate derived from sliderMeta: $0.01 per 600 output tokens
@@ -266,7 +257,7 @@ const _COST_PER_TOKEN = 0.01 / 600;
 
 function updateSliderLabel() {
   const val = parseInt(document.getElementById('token-slider').value);
-  const meta = sliderMeta.find(m => m.tokens === val) || sliderMeta[5];
+  const meta = sliderMeta.find(m => m.tokens === val) || sliderMeta[1];
   document.getElementById('slider-label').textContent =
     `~${meta.words} palabras · ${meta.label} · coste estimado ~$${meta.costNum.toFixed(2)} por informe`;
   _updateConfigBtns();
@@ -345,7 +336,7 @@ function _updateConfigBtns() {
 
   // Opciones
   const val  = parseInt(document.getElementById('token-slider')?.value) || 4000;
-  const meta = sliderMeta.find(m => m.tokens === val) || sliderMeta[5];
+  const meta = sliderMeta.find(m => m.tokens === val) || sliderMeta[1];
   const subOpt = document.getElementById('sub-options');
   if (subOpt) subOpt.textContent = meta.label;
   const docTokens = parseInt(document.getElementById('doc-summary-slider')?.value) || 400;
@@ -508,14 +499,14 @@ function getDocSummaryTokens() {
 }
 
 function _docSummaryLabelFor(tokens) {
-  return (docSummaryMeta.find(m => m.tokens === tokens) || docSummaryMeta[2]).label;
+  return (docSummaryMeta.find(m => m.tokens === tokens) || docSummaryMeta[1]).label;
 }
 
 function updateDocSummaryLabel() {
   const sl = document.getElementById('doc-summary-slider');
   if (!sl) return;
   const tokens = parseInt(sl.value);
-  const meta = docSummaryMeta.find(m => m.tokens === tokens) || docSummaryMeta[2];
+  const meta = docSummaryMeta.find(m => m.tokens === tokens) || docSummaryMeta[1];
   const lbl = document.getElementById('doc-summary-label');
   if (lbl) lbl.textContent = `~${meta.words} palabras por doc · ${meta.label}`;
   const subDoc = document.getElementById('sub-options-doc');

@@ -341,7 +341,7 @@
       <button class="config-btn" onclick="openConfigSheet('options')">
         <span class="cfg-btn-icon">📝</span>
         <span class="cfg-btn-label">Longitud</span>
-        <span class="cfg-btn-sub" id="sub-options">Completo</span>
+        <span class="cfg-btn-sub" id="sub-options">Estándar</span>
         <span class="cfg-btn-sub" id="sub-options-doc" style="color:var(--text-muted);">Doc: Estándar</span>
       </button>
     </div>
@@ -563,16 +563,17 @@
   <div class="sheet-title">📝 Longitud del informe</div>
   <hr class="sheet-divider">
   <div class="sheet-body" id="body-tokens">
-    <input type="range" id="token-slider" min="1000" max="7000" step="600" value="4000"
+    <input type="range" id="token-slider" min="1000" max="7000" step="2000" value="3000"
       oninput="updateSliderLabel()"
       style="width:100%;accent-color:var(--accent);cursor:pointer;margin-bottom:10px;">
     <div style="position:relative;height:14px;margin-bottom:10px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);">
       <span style="position:absolute;left:0%">Breve</span>
-      <span style="position:absolute;left:40%;transform:translateX(-50%)">Detallado</span>
-      <span style="position:absolute;right:0%">Ultra completo</span>
+      <span style="position:absolute;left:33.33%;transform:translateX(-50%)">Estándar</span>
+      <span style="position:absolute;left:66.67%;transform:translateX(-50%)">Detallado</span>
+      <span style="position:absolute;right:0%">Máximo</span>
     </div>
     <div id="slider-label" style="text-align:center;font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
-      ~1700 palabras · Completo · coste estimado ~$0.07
+      ~1200 palabras · Estándar · coste estimado ~$0.05 por informe
     </div>
     <div style="font-size:11px;color:var(--text-muted);margin-top:8px;text-align:center;font-family:'DM Mono',monospace;">
       Para narrativo institucional se recomienda "Detallado" o superior
@@ -580,16 +581,17 @@
 
     <hr class="sep">
     <div class="subsection">📎 Contexto de documentos adjuntos</div>
-    <input type="range" id="doc-summary-slider" min="800" max="4800" step="800" value="1600"
+    <input type="range" id="doc-summary-slider" min="1000" max="7000" step="2000" value="3000"
       oninput="updateDocSummaryLabel()"
       style="width:100%;accent-color:var(--accent);cursor:pointer;margin-bottom:10px;">
     <div style="position:relative;height:14px;margin-bottom:10px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);">
       <span style="position:absolute;left:0%">Breve</span>
-      <span style="position:absolute;left:40%;transform:translateX(-50%)">Detallado</span>
-      <span style="position:absolute;right:0%">Ultra completo</span>
+      <span style="position:absolute;left:33.33%;transform:translateX(-50%)">Estándar</span>
+      <span style="position:absolute;left:66.67%;transform:translateX(-50%)">Detallado</span>
+      <span style="position:absolute;right:0%">Máximo</span>
     </div>
     <div id="doc-summary-label" style="text-align:center;font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
-      ~1065 palabras por doc · Estándar
+      ~1600 palabras por doc · Estándar
     </div>
     <div style="font-size:11px;color:var(--text-muted);margin-top:8px;text-align:center;font-family:'DM Mono',monospace;">
       Cantidad de texto de cada documento incluido en el análisis
