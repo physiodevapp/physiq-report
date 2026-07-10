@@ -505,7 +505,7 @@ function updateDocSummaryLabel() {
   const tokens = parseInt(sl.value);
   const meta = docSummaryMeta.find(m => m.tokens === tokens) || docSummaryMeta[1];
   const lbl = document.getElementById('doc-summary-label');
-  if (lbl) lbl.textContent = `~${meta.words} palabras por doc · ${meta.label}`;
+  if (lbl) lbl.textContent = `~${meta.words} palabras de resumen · ${meta.label}`;
   const subDoc = document.getElementById('sub-options-doc');
   if (subDoc) subDoc.textContent = 'Doc: ' + meta.label;
   updateSliderLabel();
