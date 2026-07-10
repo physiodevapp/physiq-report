@@ -316,7 +316,8 @@ function _updateImportBadges() {
   const hasQuestionnaire = !!window._physiqQuestionnaireContext;
   const hasAudio = !!document.getElementById('audioBadge');
 
-  const count = [hasROM, hasAssessment, hasForce, hasJump, hasBalance, hasKinematics, hasQuestionnaire, hasAudio].filter(Boolean).length;
+  const hasDocs = attachedDocs.length > 0;
+  const count = [hasROM, hasAssessment, hasForce, hasJump, hasBalance, hasKinematics, hasQuestionnaire, hasAudio, hasDocs].filter(Boolean).length;
 
   const chip = document.getElementById('importChip');
   const chipText = document.getElementById('importChipText');
@@ -439,23 +440,42 @@ async function _extractDocText(file) {
   throw new Error('Formato no compatible. Usa PDF o Word (.docx).');
 }
 
+function _updateDocBadgeInSheet() {
+  document.getElementById('docsBadge')?.remove();
+  if (!attachedDocs.length) return;
+  const badge = document.createElement('div');
+  badge.id = 'docsBadge';
+  badge.style.cssText = 'background:rgba(56,217,169,0.07);border:1px solid rgba(56,217,169,0.22);border-radius:8px;padding:8px 14px;font-size:12px;color:var(--accent);font-family:\'DM Mono\',monospace;';
+  badge.textContent = attachedDocs.length === 1
+    ? `📎 ${attachedDocs[0].name}`
+    : `📎 ${attachedDocs.length} documentos adjuntos`;
+  const body = document.getElementById('body-imported');
+  if (body) body.appendChild(badge);
+}
+
 function _renderDocChips() {
-  const container = document.getElementById('doc-chips-container');
-  if (!container) return;
-  if (attachedDocs.length === 0) {
-    container.innerHTML = '';
-    const btn = document.getElementById('doc-attach-btn');
-    if (btn) { btn.style.display = 'inline-flex'; btn.textContent = '📎 Adjuntar documento'; }
-    return;
-  }
-  let html = '<div class="doc-chips-list">';
-  attachedDocs.forEach((doc, idx) => {
-    html += `<span class="doc-chip"><span class="doc-chip-name">${doc.name}</span><button class="doc-chip-remove" onclick="removeDoc(${idx})" aria-label="Eliminar">✕</button></span>`;
-  });
-  html += '</div>';
-  container.innerHTML = html;
+  const row = document.getElementById('doc-row');
   const btn = document.getElementById('doc-attach-btn');
-  if (btn) { btn.style.display = 'inline-flex'; btn.textContent = '+ Añadir otro'; btn.style.fontSize = '12px'; }
+  if (!row || !btn) return;
+
+  Array.from(row.children).forEach(el => { if (el !== btn) el.remove(); });
+
+  if (attachedDocs.length === 0) {
+    btn.classList.remove('has-docs');
+    btn.querySelector('.btn-text').textContent = '📎 Adjuntar documento';
+    row.insertBefore(btn, row.firstChild);
+  } else {
+    attachedDocs.forEach((doc, idx) => {
+      const chip = document.createElement('span');
+      chip.className = 'doc-chip';
+      chip.innerHTML = `<span class="doc-chip-name">${doc.name}</span><button class="doc-chip-remove" onclick="removeDoc(${idx})" aria-label="Eliminar">✕</button>`;
+      row.insertBefore(chip, btn);
+    });
+    btn.classList.add('has-docs');
+    btn.querySelector('.btn-text').textContent = '+ Añadir';
+  }
+  _updateDocBadgeInSheet();
+  _syncImportedCard();
 }
 
 function removeDoc(idx) {
@@ -2099,7 +2119,7 @@ _sessionCh.onmessage = ({ data }) => {
     window._physiqQuestionnaireContext = null;
     setManualRegion('', 'Genérica', true);
     updateRegionSelector();
-    ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'jumpBadge', 'balanceBadge', 'kinematicsBadge', 'questionnaireBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
+    ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'jumpBadge', 'balanceBadge', 'kinematicsBadge', 'questionnaireBadge', 'audioBadge', 'docsBadge'].forEach(id => document.getElementById(id)?.remove());
     _syncImportedCard();
     updateSessionChip(null);
     return;
@@ -2283,7 +2303,7 @@ function _executeClearSession() {
   window._physiqQuestionnaireContext = null;
   setManualRegion('', 'Genérica', true);
   updateRegionSelector();
-  ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'jumpBadge', 'balanceBadge', 'kinematicsBadge', 'questionnaireBadge', 'audioBadge'].forEach(id => document.getElementById(id)?.remove());
+  ['romBadge', 'assessmentBadge', 'assessmentIncompleteBadge', 'forceBadge', 'jumpBadge', 'balanceBadge', 'kinematicsBadge', 'questionnaireBadge', 'audioBadge', 'docsBadge'].forEach(id => document.getElementById(id)?.remove());
   _syncImportedCard();
   clearSession().then(() => {
     updateSessionChip(null);
