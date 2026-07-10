@@ -239,15 +239,15 @@ function parseTablesInText(text) {
 
 // ========= SLIDER =========
 const docSummaryMeta = [
-  {tokens:200,  label:'Breve'},
-  {tokens:300,  label:'Breve'},
-  {tokens:400,  label:'Estándar'},
-  {tokens:500,  label:'Estándar'},
-  {tokens:600,  label:'Detallado'},
-  {tokens:700,  label:'Detallado'},
-  {tokens:800,  label:'Extenso'},
-  {tokens:900,  label:'Extenso'},
-  {tokens:1000, label:'Extenso'},
+  {tokens:200,  words:75,  label:'Breve'},
+  {tokens:300,  words:115, label:'Breve'},
+  {tokens:400,  words:150, label:'Estándar'},
+  {tokens:500,  words:190, label:'Estándar'},
+  {tokens:600,  words:230, label:'Detallado'},
+  {tokens:700,  words:265, label:'Detallado'},
+  {tokens:800,  words:300, label:'Extenso'},
+  {tokens:900,  words:340, label:'Extenso'},
+  {tokens:1000, words:380, label:'Extenso'},
 ];
 
 const sliderMeta = [
@@ -500,9 +500,9 @@ function updateDocSummaryLabel() {
   const sl = document.getElementById('doc-summary-slider');
   if (!sl) return;
   const tokens = parseInt(sl.value);
-  const label = _docSummaryLabelFor(tokens);
+  const meta = docSummaryMeta.find(m => m.tokens === tokens) || docSummaryMeta[2];
   const lbl = document.getElementById('doc-summary-label');
-  if (lbl) lbl.textContent = `${label} · ${tokens} tokens`;
+  if (lbl) lbl.textContent = `~${meta.words} palabras · ${meta.label} · ${tokens} tokens`;
   const subDoc = document.getElementById('sub-options-doc');
   if (subDoc) subDoc.textContent = 'Doc: ' + label;
   updateSliderLabel();
