@@ -239,45 +239,12 @@ function parseTablesInText(text) {
 
 // ========= SLIDER =========
 const docSummaryMeta = [
-  {tokens:200,  words:75,   label:'Breve'},
-  {tokens:300,  words:115,  label:'Breve'},
-  {tokens:400,  words:150,  label:'Estándar'},
-  {tokens:500,  words:190,  label:'Estándar'},
-  {tokens:600,  words:230,  label:'Detallado'},
-  {tokens:700,  words:265,  label:'Detallado'},
-  {tokens:800,  words:300,  label:'Extenso'},
-  {tokens:900,  words:340,  label:'Extenso'},
-  {tokens:1000, words:380,  label:'Extenso'},
-  {tokens:1100, words:415,  label:'Amplio'},
-  {tokens:1200, words:455,  label:'Amplio'},
-  {tokens:1300, words:490,  label:'Amplio'},
-  {tokens:1400, words:530,  label:'Amplio'},
-  {tokens:1500, words:565,  label:'Amplio'},
-  {tokens:1600, words:605,  label:'Exhaustivo'},
-  {tokens:1700, words:645,  label:'Exhaustivo'},
-  {tokens:1800, words:680,  label:'Exhaustivo'},
-  {tokens:1900, words:720,  label:'Exhaustivo'},
-  {tokens:2000, words:755,  label:'Exhaustivo'},
-  {tokens:2100, words:795,  label:'Muy exhaustivo'},
-  {tokens:2200, words:835,  label:'Muy exhaustivo'},
-  {tokens:2300, words:870,  label:'Muy exhaustivo'},
-  {tokens:2400, words:910,  label:'Muy exhaustivo'},
-  {tokens:2500, words:945,  label:'Muy exhaustivo'},
-  {tokens:2600, words:985,  label:'Clínico completo'},
-  {tokens:2700, words:1025, label:'Clínico completo'},
-  {tokens:2800, words:1060, label:'Clínico completo'},
-  {tokens:2900, words:1100, label:'Clínico completo'},
-  {tokens:3000, words:1135, label:'Clínico completo'},
-  {tokens:3100, words:1175, label:'Ultra completo'},
-  {tokens:3200, words:1215, label:'Ultra completo'},
-  {tokens:3300, words:1250, label:'Ultra completo'},
-  {tokens:3400, words:1290, label:'Ultra completo'},
-  {tokens:3500, words:1325, label:'Ultra completo'},
-  {tokens:3600, words:1365, label:'Ultra completo'},
-  {tokens:3700, words:1405, label:'Ultra completo'},
-  {tokens:3800, words:1440, label:'Ultra completo'},
-  {tokens:3900, words:1480, label:'Ultra completo'},
-  {tokens:4000, words:1510, label:'Ultra completo'},
+  {tokens: 400,  words: 150,  label: 'Breve'},
+  {tokens: 800,  words: 300,  label: 'Estándar'},
+  {tokens: 1200, words: 455,  label: 'Extenso'},
+  {tokens: 1600, words: 605,  label: 'Exhaustivo'},
+  {tokens: 2000, words: 755,  label: 'Muy completo'},
+  {tokens: 2400, words: 910,  label: 'Ultra completo'},
 ];
 
 const sliderMeta = [
@@ -300,10 +267,8 @@ const _COST_PER_TOKEN = 0.01 / 600;
 function updateSliderLabel() {
   const val = parseInt(document.getElementById('token-slider').value);
   const meta = sliderMeta.find(m => m.tokens === val) || sliderMeta[5];
-  const docTokens = attachedDocs.length > 0 ? getDocSummaryTokens() : 0;
-  const totalCost = meta.costNum + docTokens * _COST_PER_TOKEN;
   document.getElementById('slider-label').textContent =
-    `~${meta.words} palabras · ${meta.label} · coste estimado ~$${totalCost.toFixed(2)} por informe`;
+    `~${meta.words} palabras · ${meta.label} · coste estimado ~$${meta.costNum.toFixed(2)} por informe`;
   _updateConfigBtns();
   saveConfig(true);
 }
@@ -552,8 +517,7 @@ function updateDocSummaryLabel() {
   const tokens = parseInt(sl.value);
   const meta = docSummaryMeta.find(m => m.tokens === tokens) || docSummaryMeta[2];
   const lbl = document.getElementById('doc-summary-label');
-  const docCost = (tokens * _COST_PER_TOKEN).toFixed(2);
-  if (lbl) lbl.textContent = `~${meta.words} palabras · ${meta.label} · ~$${docCost} por resumen`;
+  if (lbl) lbl.textContent = `~${meta.words} palabras por doc · ${meta.label}`;
   const subDoc = document.getElementById('sub-options-doc');
   if (subDoc) subDoc.textContent = 'Doc: ' + meta.label;
   updateSliderLabel();
@@ -1201,7 +1165,7 @@ async function generateReport() {
 
     // Embed doc text directly into the prompt (synchronous — no separate API call)
     if (hasDocs && !_docSummaryForPrompt) {
-      const perDocLimit = Math.max(2000, Math.floor(8000 / attachedDocs.length));
+      const perDocLimit = Math.max(500, Math.floor(getDocSummaryTokens() * 4 / attachedDocs.length));
       _docSummaryForPrompt = attachedDocs
         .map((d, i) => `--- Documento ${i + 1}: ${d.name} ---\n${d.text.slice(0, perDocLimit)}`)
         .join('\n\n');
