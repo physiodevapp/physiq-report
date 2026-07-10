@@ -6,6 +6,8 @@ let lastReportInfo = null;
 let manualRegion = null;
 let _activeSheet = null;
 let _applyingConfig = false;
+let attachedDocs = [];         // [{name, text}]
+let _docSummaryForPrompt = ''; // resumen listo para inyectar en buildPrompt
 
 // ─── SCROLL LOCK (dialogs / bottom sheets) ───────────────────
 // Reference-counted: several overlays (confirm-banner, config sheet,
@@ -236,6 +238,18 @@ function parseTablesInText(text) {
 }
 
 // ========= SLIDER =========
+const docSummaryMeta = [
+  {tokens:200,  label:'Breve'},
+  {tokens:300,  label:'Breve'},
+  {tokens:400,  label:'Estándar'},
+  {tokens:500,  label:'Estándar'},
+  {tokens:600,  label:'Detallado'},
+  {tokens:700,  label:'Detallado'},
+  {tokens:800,  label:'Extenso'},
+  {tokens:900,  label:'Extenso'},
+  {tokens:1000, label:'Extenso'},
+];
+
 const sliderMeta = [
   {tokens:1000, words:400,  label:'Muy breve',       cost:'~$0.02'},
   {tokens:1600, words:700,  label:'Breve',            cost:'~$0.03'},
@@ -333,6 +347,9 @@ function _updateConfigBtns() {
   const meta = sliderMeta.find(m => m.tokens === val) || sliderMeta[5];
   const subOpt = document.getElementById('sub-options');
   if (subOpt) subOpt.textContent = meta.label;
+  const docTokens = parseInt(document.getElementById('doc-summary-slider')?.value) || 400;
+  const subDoc = document.getElementById('sub-options-doc');
+  if (subDoc) subDoc.textContent = 'Doc: ' + _docSummaryLabelFor(docTokens);
 }
 
 // ========= FILE INPUTS =========
@@ -363,6 +380,177 @@ function clearAudio() {
   document.getElementById('audio-file').value = '';
   document.getElementById('audio-clear-btn').style.display = 'none';
   checkReady();
+}
+
+// ========= DOCUMENT ATTACHMENT =========
+let _pdfJsLoaded = false, _mammothLoaded = false;
+
+function _loadPdfJs() {
+  if (_pdfJsLoaded) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+    s.onload = () => {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+      _pdfJsLoaded = true;
+      resolve();
+    };
+    s.onerror = () => reject(new Error('No se pudo cargar PDF.js'));
+    document.head.appendChild(s);
+  });
+}
+
+function _loadMammoth() {
+  if (_mammothLoaded) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js';
+    s.onload = () => { _mammothLoaded = true; resolve(); };
+    s.onerror = () => reject(new Error('No se pudo cargar mammoth.js'));
+    document.head.appendChild(s);
+  });
+}
+
+async function _extractDocText(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'pdf') {
+    await _loadPdfJs();
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(item => item.str).join(' ') + '\n';
+    }
+    return text.trim();
+  } else if (ext === 'docx') {
+    await _loadMammoth();
+    const buf = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer: buf });
+    return result.value.trim();
+  }
+  throw new Error('Formato no compatible. Usa PDF o Word (.docx).');
+}
+
+function _renderDocChips() {
+  const container = document.getElementById('doc-chips-container');
+  if (!container) return;
+  if (attachedDocs.length === 0) {
+    container.innerHTML = '';
+    const btn = document.getElementById('doc-attach-btn');
+    if (btn) { btn.style.display = 'inline-flex'; btn.textContent = '📎 Adjuntar documento'; }
+    return;
+  }
+  let html = '<div class="doc-chips-list">';
+  attachedDocs.forEach((doc, idx) => {
+    html += `<span class="doc-chip"><span class="doc-chip-name">${doc.name}</span><button class="doc-chip-remove" onclick="removeDoc(${idx})" aria-label="Eliminar">✕</button></span>`;
+  });
+  html += '</div>';
+  container.innerHTML = html;
+  const btn = document.getElementById('doc-attach-btn');
+  if (btn) { btn.style.display = 'inline-flex'; btn.textContent = '+ Añadir otro'; btn.style.fontSize = '12px'; }
+}
+
+function removeDoc(idx) {
+  attachedDocs.splice(idx, 1);
+  _docSummaryForPrompt = '';
+  _renderDocChips();
+  checkReady();
+}
+
+document.getElementById('doc-file').addEventListener('change', async function(e) {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const errBox = document.getElementById('error-box');
+  errBox.style.display = 'none';
+  try {
+    const text = await _extractDocText(file);
+    if (!text) { errBox.textContent = '⚠️ El documento no contiene texto extraíble.'; errBox.style.display = 'block'; setTimeout(() => errBox.style.display = 'none', 4000); return; }
+    attachedDocs.push({ name: file.name, text: text.slice(0, 50000) });
+    _docSummaryForPrompt = '';
+    _renderDocChips();
+    checkReady();
+  } catch(err) {
+    errBox.textContent = '⚠️ ' + err.message;
+    errBox.style.display = 'block';
+    setTimeout(() => errBox.style.display = 'none', 4000);
+  }
+});
+
+function getDocSummaryTokens() {
+  const sl = document.getElementById('doc-summary-slider');
+  return sl ? parseInt(sl.value) : 400;
+}
+
+function _docSummaryLabelFor(tokens) {
+  return (docSummaryMeta.find(m => m.tokens === tokens) || docSummaryMeta[2]).label;
+}
+
+function updateDocSummaryLabel() {
+  const sl = document.getElementById('doc-summary-slider');
+  if (!sl) return;
+  const tokens = parseInt(sl.value);
+  const label = _docSummaryLabelFor(tokens);
+  const lbl = document.getElementById('doc-summary-label');
+  if (lbl) lbl.textContent = `${label} · ${tokens} tokens`;
+  const subDoc = document.getElementById('sub-options-doc');
+  if (subDoc) subDoc.textContent = 'Doc: ' + label;
+  saveConfig(true);
+}
+
+async function _summarizeAttachedDocs(docsText, maxTokens, token) {
+  const prompt = `Eres un asistente clínico. Resume el siguiente documento médico en español, de forma estructurada y clínicamente relevante. El resumen debe ser completo —nunca truncado a mitad de una idea— y ajustarse a un máximo de ${maxTokens} tokens de respuesta. Incluye los hallazgos, diagnósticos, tratamientos y evolución más relevantes. Omite información administrativa irrelevante.
+
+DOCUMENTO:
+${docsText}`;
+
+  const fd = new FormData();
+  fd.append('prompt', prompt.replace('{{TRANSCRIPT}}', ''));
+  fd.append('maxTokens', String(maxTokens));
+  fd.append('whisperHint', '');
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 120000);
+  try {
+    const res = await fetch(ORCHESTRATOR_URL, {
+      method: 'POST',
+      headers: { 'cf-turnstile-response': token },
+      body: fd,
+      signal: ctrl.signal
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || res.status); }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '', summary = '';
+    const parseBlock = (block) => {
+      let type = '', dataStr = '';
+      for (const line of block.split('\n')) {
+        if (line.startsWith('event:')) type = line.slice(6).trim();
+        else if (line.startsWith('data:')) dataStr = line.slice(5).trim();
+      }
+      if (!dataStr) return false;
+      let data;
+      try { data = JSON.parse(dataStr); } catch { return false; }
+      if (type === 'report_chunk') { summary += data.text ?? ''; }
+      else if (type === 'done') { return true; }
+      else if (type === 'error') { throw new Error(data.message || 'Error desconocido'); }
+      return false;
+    };
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) { if (buf.trim()) parseBlock(buf); break; }
+      buf += decoder.decode(value, { stream: true });
+      const blocks = buf.split('\n\n');
+      buf = blocks.pop() ?? '';
+      for (const block of blocks) { if (parseBlock(block)) return summary; }
+    }
+    return summary;
+  } catch(err) {
+    if (err.name === 'AbortError') throw new Error('Tiempo de espera agotado al resumir documentos.');
+    throw err;
+  } finally { clearTimeout(timer); }
 }
 
 document.getElementById('audio-file').addEventListener('change', function(e) {
@@ -421,7 +609,7 @@ document.getElementById('diagnosis').addEventListener('input', () => {
 function checkReady() {
   _updateConfigBtns();
   const hasName = !!document.getElementById('patient-name').value.trim();
-  const ok = hasName && (selectedFile || window._physiqAssessmentContext || window._physiqROMContext || window._physiqForceContext || window._physiqJumpContext || window._physiqBalanceContext || window._physiqKinematicsContext || window._physiqQuestionnaireContext);
+  const ok = hasName && (selectedFile || attachedDocs.length > 0 || window._physiqAssessmentContext || window._physiqROMContext || window._physiqForceContext || window._physiqJumpContext || window._physiqBalanceContext || window._physiqKinematicsContext || window._physiqQuestionnaireContext);
   document.getElementById('generate-btn').disabled = !ok;
 }
 
@@ -451,6 +639,7 @@ function saveConfig(silent) {
     seguimientoUrl: document.getElementById('clinic-seguimiento-url').value.trim(),
     reportEmail:    document.getElementById('clinic-report-email').value.trim(),
     tokens:         document.getElementById('token-slider').value,
+    docSummaryTokens: document.getElementById('doc-summary-slider')?.value || '400',
     template:       selectedTemplate,
   };
   localStorage.setItem('physiq_config', JSON.stringify(cfg));
@@ -485,8 +674,10 @@ function loadConfig() {
   if (c.seguimientoUrl) document.getElementById('clinic-seguimiento-url').value = c.seguimientoUrl;
   if (c.reportEmail)    document.getElementById('clinic-report-email').value    = c.reportEmail;
   if (c.tokens) { document.getElementById('token-slider').value = c.tokens; }
+  if (c.docSummaryTokens) { const sl = document.getElementById('doc-summary-slider'); if (sl) sl.value = c.docSummaryTokens; }
   if (c.template) selectTemplate(c.template);
   updateSliderLabel();
+  updateDocSummaryLabel();
   const sl = localStorage.getItem('physiq_logo');
   if (sl) {
     logoBase64 = sl; logoMime = localStorage.getItem('physiq_logo_mime') || 'image/png';
@@ -679,13 +870,15 @@ function buildPrompt(transcript, info, template) {
   const questionnaireCtx  = buildQuestionnaireContext(window._physiqQuestionnaireContext);
   const hasHypotheses = (window._physiqAssessmentContext?.h || []).length > 0;
 
+  const docCtx = _docSummaryForPrompt ? `RESUMEN DE DOCUMENTOS ADJUNTOS:\n${_docSummaryForPrompt}\n\n` : '';
+
   if (template === 'brief') {
     return `Eres un fisioterapeuta clínico experto en documentación CIF-APTA.
 Genera un informe clínico breve en español a partir de la transcripción de sesión. El informe debe estar escrito en prosa clínica continua, sin listas de ítems, y no superar las 550 palabras en total.
 
 PACIENTE: ${info.name} | Fecha: ${info.date} | Diagnóstico: ${info.diagnosis}
 
-${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}${jumpCtx ? jumpCtx + '\n\n' : ''}${balanceCtx ? balanceCtx + '\n\n' : ''}${kinematicsCtx ? kinematicsCtx + '\n\n' : ''}${questionnaireCtx ? questionnaireCtx + '\n\n' : ''}TRANSCRIPCIÓN:
+${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}${jumpCtx ? jumpCtx + '\n\n' : ''}${balanceCtx ? balanceCtx + '\n\n' : ''}${kinematicsCtx ? kinematicsCtx + '\n\n' : ''}${questionnaireCtx ? questionnaireCtx + '\n\n' : ''}${docCtx}TRANSCRIPCIÓN:
 ${transcript}
 
 INSTRUCCIONES:
@@ -704,7 +897,7 @@ INSTRUCCIONES:
 
 PACIENTE: ${info.name} | Fecha: ${info.date} | Diagnóstico médico: ${info.diagnosis}
 
-${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}${jumpCtx ? jumpCtx + '\n\n' : ''}${balanceCtx ? balanceCtx + '\n\n' : ''}${kinematicsCtx ? kinematicsCtx + '\n\n' : ''}${questionnaireCtx ? questionnaireCtx + '\n\n' : ''}TRANSCRIPCIÓN DE LA SESIÓN:
+${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}${jumpCtx ? jumpCtx + '\n\n' : ''}${balanceCtx ? balanceCtx + '\n\n' : ''}${kinematicsCtx ? kinematicsCtx + '\n\n' : ''}${questionnaireCtx ? questionnaireCtx + '\n\n' : ''}${docCtx}TRANSCRIPCIÓN DE LA SESIÓN:
 ${transcript}
 
 INSTRUCCIONES CRÍTICAS — LEE Y CUMPLE TODAS:
@@ -935,25 +1128,50 @@ async function generateReport() {
   document.getElementById('generate-btn').disabled = true;
   document.getElementById('generate-btn').innerHTML = '<div class="spinner"></div> Verificando...';
   [1,2,3].forEach(i => setStep(i,''));
+  const stepDoc = document.getElementById('step-doc');
+  if (stepDoc) stepDoc.style.display = 'none';
   _isProcessing = true;
   try {
-    const token = await getTurnstileToken();
+    const hasDocs = attachedDocs.length > 0;
+    const token1 = await getTurnstileToken();
     _openProcessingOverlay();
-    setStep(1,'active');
-    const region = window._physiqAssessmentContext?.r ?? manualRegion;
-    const result = await callOrchestrator(selectedFile, region, info, token, () => {
-      setStep(1,'done'); setStep(2,'active');
-    });
-    transcriptText = result.transcript;
-    setStep(2,'done'); setStep(3,'active');
-    await new Promise(r => setTimeout(r, 350));
-    setStep(3,'done');
-    document.getElementById('result-section').style.display = 'block';
-    document.getElementById('step-config').style.display = 'none';
-    renderReport(result.report, transcriptText, info);
+
+    if (hasDocs && !_docSummaryForPrompt) {
+      if (stepDoc) { stepDoc.style.display = 'flex'; stepDoc.className = 'progress-step active'; }
+      const docsText = attachedDocs.map((d, i) => `--- Documento ${i + 1}: ${d.name} ---\n${d.text}`).join('\n\n');
+      _docSummaryForPrompt = await _summarizeAttachedDocs(docsText, getDocSummaryTokens(), token1);
+      if (stepDoc) stepDoc.className = 'progress-step done';
+      const token2 = await getTurnstileToken();
+      setStep(1,'active');
+      const region = window._physiqAssessmentContext?.r ?? manualRegion;
+      const result = await callOrchestrator(selectedFile, region, info, token2, () => {
+        setStep(1,'done'); setStep(2,'active');
+      });
+      transcriptText = result.transcript;
+      setStep(2,'done'); setStep(3,'active');
+      await new Promise(r => setTimeout(r, 350));
+      setStep(3,'done');
+      document.getElementById('result-section').style.display = 'block';
+      document.getElementById('step-config').style.display = 'none';
+      renderReport(result.report, transcriptText, info);
+    } else {
+      setStep(1,'active');
+      const region = window._physiqAssessmentContext?.r ?? manualRegion;
+      const result = await callOrchestrator(selectedFile, region, info, token1, () => {
+        setStep(1,'done'); setStep(2,'active');
+      });
+      transcriptText = result.transcript;
+      setStep(2,'done'); setStep(3,'active');
+      await new Promise(r => setTimeout(r, 350));
+      setStep(3,'done');
+      document.getElementById('result-section').style.display = 'block';
+      document.getElementById('step-config').style.display = 'none';
+      renderReport(result.report, transcriptText, info);
+    }
+
     document.getElementById('generate-btn').innerHTML = '✓ Informe generado';
   } catch(err) { console.error('[PhysiQ] generateReport error:', err); showError(err.message); }
-  finally { _isProcessing = false; _closeProcessingOverlay(); _showTurnstile(); }
+  finally { _isProcessing = false; _closeProcessingOverlay(); _showTurnstile(); if (stepDoc) stepDoc.style.display = 'none'; }
 }
 
 // ========= DOWNLOAD WORD =========
@@ -1245,10 +1463,12 @@ function copyReport() {
 
 function resetApp() {
   selectedFile = null; transcriptText = ''; lastReportText = '';
+  attachedDocs = []; _docSummaryForPrompt = '';
   _hideRecordingHint();
   document.getElementById('file-name').textContent = '';
   document.getElementById('audio-file').value = '';
   document.getElementById('audio-clear-btn').style.display = 'none';
+  _renderDocChips();
   ['patient-name','session-date','diagnosis'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('result-section').style.display = 'none';
   document.getElementById('step-config').style.display = 'flex';

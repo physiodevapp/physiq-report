@@ -78,6 +78,15 @@
   .file-selected{margin-top:5px;font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);}
   #session-rec-hint{display:none;margin-top:6px;text-align:center;}
   #cf-turnstile-container{display:flex;justify-content:center;align-items:center;min-height:65px;}
+  /* ── Document attachment ── */
+  .doc-attach-btn{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--accent2);color:var(--accent2);border-radius:999px;padding:6px 14px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:background 0.15s;margin-top:8px;}
+  .doc-attach-btn:hover{background:rgba(79,156,249,0.1);}
+  .doc-attach-wrap{display:flex;flex-direction:column;align-items:flex-start;}
+  .doc-chips-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+  .doc-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(79,156,249,0.1);border:1px solid rgba(79,156,249,0.3);border-radius:999px;padding:4px 10px;font-family:'DM Mono',monospace;font-size:11px;color:var(--accent2);}
+  .doc-chip-name{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .doc-chip-remove{background:none;border:none;color:var(--accent2);cursor:pointer;font-size:11px;padding:0;line-height:1;opacity:0.7;}
+  .doc-chip-remove:hover{opacity:1;}
   #session-rec-hint button{background:rgba(79,195,161,0.08);border:1px solid rgba(79,195,161,0.25);border-radius:999px;padding:5px 14px;font-size:11px;color:var(--accent);cursor:pointer;font-family:'DM Mono',monospace;transition:background 0.15s;}
   #session-rec-hint button:hover{background:rgba(79,195,161,0.16);}
   .logo-preview{max-height:50px;max-width:160px;border-radius:6px;margin-top:8px;display:none;}
@@ -328,6 +337,7 @@
         <span class="cfg-btn-icon">📝</span>
         <span class="cfg-btn-label">Longitud</span>
         <span class="cfg-btn-sub" id="sub-options">Completo</span>
+        <span class="cfg-btn-sub" id="sub-options-doc" style="color:var(--text-muted);">Doc: Estándar</span>
       </button>
     </div>
 
@@ -343,6 +353,12 @@
     <div style="font-size:11px;color:var(--text-muted);margin-top:6px;font-family:'DM Mono',monospace;text-align:center;">El archivo de audio es local. Si usas dos dispositivos sincronizados, adjúntalo desde el dispositivo en el que vayas a generar el informe.</div>
     <div id="session-rec-hint">
       <button onclick="_useSessionRecording()">🎙 Grabación de sesión disponible (<span id="session-rec-duration"></span>) — <span id="session-rec-action">Usar</span></button>
+    </div>
+
+    <div class="doc-attach-wrap">
+      <input type="file" id="doc-file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none;">
+      <button class="doc-attach-btn" id="doc-attach-btn" onclick="document.getElementById('doc-file').click()">📎 Adjuntar documento</button>
+      <div id="doc-chips-container"></div>
     </div>
 
     <div class="error-box" id="error-box"></div>
@@ -386,6 +402,7 @@
 <div id="processing-overlay">
   <div id="processing-dialog">
     <div class="section-title" style="margin-bottom:12px;">Procesando sesión...</div>
+    <div class="progress-step" id="step-doc" style="display:none;"><div class="step-dot"></div>Resumiendo documentos adjuntos...</div>
     <div class="progress-step" id="step-1"><div class="step-dot"></div>Transcribiendo audio con Whisper...</div>
     <div class="progress-step" id="step-2"><div class="step-dot"></div>Analizando con Claude (CIF-APTA)...</div>
     <div class="progress-step" id="step-3"><div class="step-dot"></div>Estructurando informe final...</div>
@@ -537,7 +554,7 @@
   </div>
 </div>
 
-<!-- Options sheet (token slider) -->
+<!-- Options sheet (token sliders) -->
 <div class="config-sheet" id="sheet-options">
   <div class="sheet-handle"></div>
   <div class="sheet-title">📝 Longitud del informe</div>
@@ -554,6 +571,21 @@
     </div>
     <div style="font-size:11px;color:var(--text-muted);margin-top:8px;text-align:center;font-family:'DM Mono',monospace;">
       Para narrativo institucional se recomienda "Detallado" o superior
+    </div>
+
+    <hr class="sep">
+    <div class="subsection">📎 Resumen de documentos adjuntos</div>
+    <input type="range" id="doc-summary-slider" min="200" max="1000" step="100" value="400"
+      oninput="updateDocSummaryLabel()"
+      style="width:100%;accent-color:var(--accent2);cursor:pointer;margin-bottom:10px;">
+    <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);margin-bottom:10px;">
+      <span>Breve</span><span>Estándar</span><span>Detallado</span><span>Extenso</span>
+    </div>
+    <div id="doc-summary-label" style="text-align:center;font-family:'DM Mono',monospace;font-size:12px;color:var(--accent2);padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
+      Estándar · 400 tokens
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:8px;text-align:center;font-family:'DM Mono',monospace;">
+      Longitud máxima del resumen de documentos adjuntos (PDF/Word)
     </div>
   </div>
 </div>
