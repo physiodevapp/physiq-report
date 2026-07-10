@@ -242,14 +242,14 @@ const docSummaryMeta = [
   {tokens:1000, words:530,  label:'Breve'},
   {tokens:3000, words:1600, label:'Estándar'},
   {tokens:5000, words:2665, label:'Detallado'},
-  {tokens:7000, words:3730, label:'Ultra completo'},
+  {tokens:7000, words:3730, label:'Máximo'},
 ];
 
 const sliderMeta = [
   {tokens:1000, words:400,  label:'Breve',         costNum:0.02},
   {tokens:3000, words:1200, label:'Estándar',       costNum:0.05},
   {tokens:5000, words:2000, label:'Detallado',      costNum:0.08},
-  {tokens:7000, words:2750, label:'Ultra completo', costNum:0.12},
+  {tokens:7000, words:2750, label:'Máximo', costNum:0.12},
 ];
 
 // cost rate derived from sliderMeta: $0.01 per 600 output tokens
