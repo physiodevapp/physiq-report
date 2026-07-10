@@ -341,8 +341,8 @@
       <button class="config-btn" onclick="openConfigSheet('options')">
         <span class="cfg-btn-icon">📝</span>
         <span class="cfg-btn-label">Longitud</span>
-        <span class="cfg-btn-sub" id="sub-options">Estándar</span>
-        <span class="cfg-btn-sub" id="sub-options-doc" style="color:var(--text-muted);">Doc: Estándar</span>
+        <span class="cfg-btn-sub" id="sub-options">Detallado</span>
+        <span class="cfg-btn-sub" id="sub-options-doc" style="color:var(--text-muted);">Doc: Detallado</span>
       </button>
     </div>
 
@@ -563,7 +563,7 @@
   <div class="sheet-title">📝 Longitud del informe</div>
   <hr class="sheet-divider">
   <div class="sheet-body" id="body-tokens">
-    <input type="range" id="token-slider" min="1000" max="7000" step="2000" value="3000"
+    <input type="range" id="token-slider" min="1000" max="7000" step="2000" value="5000"
       oninput="updateSliderLabel()"
       style="width:100%;accent-color:var(--accent);cursor:pointer;margin-bottom:10px;">
     <div style="position:relative;height:14px;margin-bottom:10px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);">
@@ -573,7 +573,7 @@
       <span style="position:absolute;right:0%">Máximo</span>
     </div>
     <div id="slider-label" style="text-align:center;font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
-      ~1200 palabras · Estándar · coste estimado ~$0.05 por informe
+      ~2000 palabras · Detallado · coste estimado ~$0.08 por informe
     </div>
     <div style="font-size:11px;color:var(--text-muted);margin-top:8px;text-align:center;font-family:'DM Mono',monospace;">
       Para narrativo institucional se recomienda "Detallado" o superior
@@ -581,7 +581,7 @@
 
     <hr class="sep">
     <div class="subsection">📎 Contexto de documentos adjuntos</div>
-    <input type="range" id="doc-summary-slider" min="1000" max="7000" step="2000" value="3000"
+    <input type="range" id="doc-summary-slider" min="1000" max="7000" step="2000" value="5000"
       oninput="updateDocSummaryLabel()"
       style="width:100%;accent-color:var(--accent);cursor:pointer;margin-bottom:10px;">
     <div style="position:relative;height:14px;margin-bottom:10px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);">
@@ -591,7 +591,7 @@
       <span style="position:absolute;right:0%">Máximo</span>
     </div>
     <div id="doc-summary-label" style="text-align:center;font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
-      ~1600 palabras por doc · Estándar
+      ~2665 palabras por doc · Detallado
     </div>
     <div style="font-size:11px;color:var(--text-muted);margin-top:8px;text-align:center;font-family:'DM Mono',monospace;">
       Cantidad de texto de cada documento incluido en el análisis
