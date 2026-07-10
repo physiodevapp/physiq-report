@@ -238,6 +238,18 @@ function parseTablesInText(text) {
 }
 
 // ========= SLIDER =========
+const docSummaryMeta = [
+  {tokens:200,  label:'Breve'},
+  {tokens:300,  label:'Breve'},
+  {tokens:400,  label:'Estándar'},
+  {tokens:500,  label:'Estándar'},
+  {tokens:600,  label:'Detallado'},
+  {tokens:700,  label:'Detallado'},
+  {tokens:800,  label:'Extenso'},
+  {tokens:900,  label:'Extenso'},
+  {tokens:1000, label:'Extenso'},
+];
+
 const sliderMeta = [
   {tokens:1000, words:400,  label:'Muy breve',       cost:'~$0.02'},
   {tokens:1600, words:700,  label:'Breve',            cost:'~$0.03'},
@@ -335,6 +347,9 @@ function _updateConfigBtns() {
   const meta = sliderMeta.find(m => m.tokens === val) || sliderMeta[5];
   const subOpt = document.getElementById('sub-options');
   if (subOpt) subOpt.textContent = meta.label;
+  const docTokens = parseInt(document.getElementById('doc-summary-slider')?.value) || 400;
+  const subDoc = document.getElementById('sub-options-doc');
+  if (subDoc) subDoc.textContent = 'Doc: ' + _docSummaryLabelFor(docTokens);
 }
 
 // ========= FILE INPUTS =========
@@ -470,10 +485,20 @@ function getDocSummaryTokens() {
   return sl ? parseInt(sl.value) : 400;
 }
 
+function _docSummaryLabelFor(tokens) {
+  return (docSummaryMeta.find(m => m.tokens === tokens) || docSummaryMeta[2]).label;
+}
+
 function updateDocSummaryLabel() {
   const sl = document.getElementById('doc-summary-slider');
+  if (!sl) return;
+  const tokens = parseInt(sl.value);
+  const label = _docSummaryLabelFor(tokens);
   const lbl = document.getElementById('doc-summary-label');
-  if (sl && lbl) lbl.textContent = sl.value + ' tokens';
+  if (lbl) lbl.textContent = `${label} · ${tokens} tokens`;
+  const subDoc = document.getElementById('sub-options-doc');
+  if (subDoc) subDoc.textContent = 'Doc: ' + label;
+  saveConfig(true);
 }
 
 async function _summarizeAttachedDocs(docsText, maxTokens, token) {

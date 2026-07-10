@@ -337,6 +337,7 @@
         <span class="cfg-btn-icon">📝</span>
         <span class="cfg-btn-label">Longitud</span>
         <span class="cfg-btn-sub" id="sub-options">Completo</span>
+        <span class="cfg-btn-sub" id="sub-options-doc" style="color:var(--text-muted);">Doc: Estándar</span>
       </button>
     </div>
 
@@ -578,10 +579,10 @@
       oninput="updateDocSummaryLabel()"
       style="width:100%;accent-color:var(--accent2);cursor:pointer;margin-bottom:10px;">
     <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);margin-bottom:10px;">
-      <span>Breve</span><span>Estándar</span><span>Detallado</span>
+      <span>Breve</span><span>Estándar</span><span>Detallado</span><span>Extenso</span>
     </div>
     <div id="doc-summary-label" style="text-align:center;font-family:'DM Mono',monospace;font-size:12px;color:var(--accent2);padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
-      400 tokens
+      Estándar · 400 tokens
     </div>
     <div style="font-size:11px;color:var(--text-muted);margin-top:8px;text-align:center;font-family:'DM Mono',monospace;">
       Longitud máxima del resumen de documentos adjuntos (PDF/Word)
