@@ -239,15 +239,45 @@ function parseTablesInText(text) {
 
 // ========= SLIDER =========
 const docSummaryMeta = [
-  {tokens:200,  words:75,  label:'Breve'},
-  {tokens:300,  words:115, label:'Breve'},
-  {tokens:400,  words:150, label:'Estándar'},
-  {tokens:500,  words:190, label:'Estándar'},
-  {tokens:600,  words:230, label:'Detallado'},
-  {tokens:700,  words:265, label:'Detallado'},
-  {tokens:800,  words:300, label:'Extenso'},
-  {tokens:900,  words:340, label:'Extenso'},
-  {tokens:1000, words:380, label:'Extenso'},
+  {tokens:200,  words:75,   label:'Breve'},
+  {tokens:300,  words:115,  label:'Breve'},
+  {tokens:400,  words:150,  label:'Estándar'},
+  {tokens:500,  words:190,  label:'Estándar'},
+  {tokens:600,  words:230,  label:'Detallado'},
+  {tokens:700,  words:265,  label:'Detallado'},
+  {tokens:800,  words:300,  label:'Extenso'},
+  {tokens:900,  words:340,  label:'Extenso'},
+  {tokens:1000, words:380,  label:'Extenso'},
+  {tokens:1100, words:415,  label:'Amplio'},
+  {tokens:1200, words:455,  label:'Amplio'},
+  {tokens:1300, words:490,  label:'Amplio'},
+  {tokens:1400, words:530,  label:'Amplio'},
+  {tokens:1500, words:565,  label:'Amplio'},
+  {tokens:1600, words:605,  label:'Exhaustivo'},
+  {tokens:1700, words:645,  label:'Exhaustivo'},
+  {tokens:1800, words:680,  label:'Exhaustivo'},
+  {tokens:1900, words:720,  label:'Exhaustivo'},
+  {tokens:2000, words:755,  label:'Exhaustivo'},
+  {tokens:2100, words:795,  label:'Muy exhaustivo'},
+  {tokens:2200, words:835,  label:'Muy exhaustivo'},
+  {tokens:2300, words:870,  label:'Muy exhaustivo'},
+  {tokens:2400, words:910,  label:'Muy exhaustivo'},
+  {tokens:2500, words:945,  label:'Muy exhaustivo'},
+  {tokens:2600, words:985,  label:'Clínico completo'},
+  {tokens:2700, words:1025, label:'Clínico completo'},
+  {tokens:2800, words:1060, label:'Clínico completo'},
+  {tokens:2900, words:1100, label:'Clínico completo'},
+  {tokens:3000, words:1135, label:'Clínico completo'},
+  {tokens:3100, words:1175, label:'Ultra completo'},
+  {tokens:3200, words:1215, label:'Ultra completo'},
+  {tokens:3300, words:1250, label:'Ultra completo'},
+  {tokens:3400, words:1290, label:'Ultra completo'},
+  {tokens:3500, words:1325, label:'Ultra completo'},
+  {tokens:3600, words:1365, label:'Ultra completo'},
+  {tokens:3700, words:1405, label:'Ultra completo'},
+  {tokens:3800, words:1440, label:'Ultra completo'},
+  {tokens:3900, words:1480, label:'Ultra completo'},
+  {tokens:4000, words:1510, label:'Ultra completo'},
 ];
 
 const sliderMeta = [
@@ -522,7 +552,8 @@ function updateDocSummaryLabel() {
   const tokens = parseInt(sl.value);
   const meta = docSummaryMeta.find(m => m.tokens === tokens) || docSummaryMeta[2];
   const lbl = document.getElementById('doc-summary-label');
-  if (lbl) lbl.textContent = `~${meta.words} palabras · ${meta.label} · ${tokens} tokens`;
+  const docCost = (tokens * _COST_PER_TOKEN).toFixed(2);
+  if (lbl) lbl.textContent = `~${meta.words} palabras · ${meta.label} · ~$${docCost} por resumen`;
   const subDoc = document.getElementById('sub-options-doc');
   if (subDoc) subDoc.textContent = 'Doc: ' + label;
   updateSliderLabel();
