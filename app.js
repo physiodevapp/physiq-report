@@ -241,7 +241,7 @@ function parseTablesInText(text) {
 const docSummaryMeta = [
   {tokens: 800,  words: 530,  label: 'Breve'},
   {tokens: 1600, words: 1065, label: 'Estándar'},
-  {tokens: 2400, words: 1600, label: 'Extenso'},
+  {tokens: 2400, words: 1600, label: 'Detallado'},
   {tokens: 3200, words: 2130, label: 'Exhaustivo'},
   {tokens: 4000, words: 2665, label: 'Muy completo'},
   {tokens: 4800, words: 3200, label: 'Ultra completo'},
