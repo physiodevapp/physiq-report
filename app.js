@@ -251,24 +251,29 @@ const docSummaryMeta = [
 ];
 
 const sliderMeta = [
-  {tokens:1000, words:400,  label:'Muy breve',       cost:'~$0.02'},
-  {tokens:1600, words:700,  label:'Breve',            cost:'~$0.03'},
-  {tokens:2200, words:950,  label:'Estándar',         cost:'~$0.04'},
-  {tokens:2800, words:1200, label:'Medio',            cost:'~$0.05'},
-  {tokens:3400, words:1450, label:'Detallado',        cost:'~$0.06'},
-  {tokens:4000, words:1700, label:'Completo',         cost:'~$0.07'},
-  {tokens:4600, words:2000, label:'Exhaustivo',       cost:'~$0.08'},
-  {tokens:5200, words:2250, label:'Muy exhaustivo',   cost:'~$0.09'},
-  {tokens:5800, words:2500, label:'Máximo',           cost:'~$0.10'},
-  {tokens:6400, words:2750, label:'Clínico completo', cost:'~$0.11'},
-  {tokens:7000, words:3000, label:'Ultra completo',   cost:'~$0.12'},
+  {tokens:1000, words:400,  label:'Muy breve',       costNum:0.02},
+  {tokens:1600, words:700,  label:'Breve',            costNum:0.03},
+  {tokens:2200, words:950,  label:'Estándar',         costNum:0.04},
+  {tokens:2800, words:1200, label:'Medio',            costNum:0.05},
+  {tokens:3400, words:1450, label:'Detallado',        costNum:0.06},
+  {tokens:4000, words:1700, label:'Completo',         costNum:0.07},
+  {tokens:4600, words:2000, label:'Exhaustivo',       costNum:0.08},
+  {tokens:5200, words:2250, label:'Muy exhaustivo',   costNum:0.09},
+  {tokens:5800, words:2500, label:'Máximo',           costNum:0.10},
+  {tokens:6400, words:2750, label:'Clínico completo', costNum:0.11},
+  {tokens:7000, words:3000, label:'Ultra completo',   costNum:0.12},
 ];
+
+// cost rate derived from sliderMeta: $0.01 per 600 output tokens
+const _COST_PER_TOKEN = 0.01 / 600;
 
 function updateSliderLabel() {
   const val = parseInt(document.getElementById('token-slider').value);
   const meta = sliderMeta.find(m => m.tokens === val) || sliderMeta[5];
+  const docTokens = attachedDocs.length > 0 ? getDocSummaryTokens() : 0;
+  const totalCost = meta.costNum + docTokens * _COST_PER_TOKEN;
   document.getElementById('slider-label').textContent =
-    `~${meta.words} palabras · ${meta.label} · coste estimado ${meta.cost} por informe`;
+    `~${meta.words} palabras · ${meta.label} · coste estimado ~$${totalCost.toFixed(2)} por informe`;
   _updateConfigBtns();
   saveConfig(true);
 }
@@ -458,6 +463,7 @@ function removeDoc(idx) {
   _docSummaryForPrompt = '';
   _renderDocChips();
   checkReady();
+  updateSliderLabel();
 }
 
 document.getElementById('doc-file').addEventListener('change', async function(e) {
@@ -473,6 +479,7 @@ document.getElementById('doc-file').addEventListener('change', async function(e)
     _docSummaryForPrompt = '';
     _renderDocChips();
     checkReady();
+    updateSliderLabel();
   } catch(err) {
     errBox.textContent = '⚠️ ' + err.message;
     errBox.style.display = 'block';
@@ -498,6 +505,7 @@ function updateDocSummaryLabel() {
   if (lbl) lbl.textContent = `${label} · ${tokens} tokens`;
   const subDoc = document.getElementById('sub-options-doc');
   if (subDoc) subDoc.textContent = 'Doc: ' + label;
+  updateSliderLabel();
   saveConfig(true);
 }
 
