@@ -566,8 +566,11 @@
     <input type="range" id="token-slider" min="1000" max="7000" step="600" value="4000"
       oninput="updateSliderLabel()"
       style="width:100%;accent-color:var(--accent);cursor:pointer;margin-bottom:10px;">
-    <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);margin-bottom:10px;">
-      <span>Muy breve</span><span>Estándar</span><span>Detallado</span><span>Ultra completo</span>
+    <div style="position:relative;height:14px;margin-bottom:10px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);">
+      <span style="position:absolute;left:0%">Muy breve</span>
+      <span style="position:absolute;left:20%;transform:translateX(-50%)">Estándar</span>
+      <span style="position:absolute;left:40%;transform:translateX(-50%)">Detallado</span>
+      <span style="position:absolute;right:0%">Ultra completo</span>
     </div>
     <div id="slider-label" style="text-align:center;font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
       ~1700 palabras · Completo · coste estimado ~$0.07
@@ -577,18 +580,21 @@
     </div>
 
     <hr class="sep">
-    <div class="subsection">📎 Resumen de documentos adjuntos</div>
-    <input type="range" id="doc-summary-slider" min="200" max="4000" step="100" value="400"
+    <div class="subsection">📎 Contexto de documentos adjuntos</div>
+    <input type="range" id="doc-summary-slider" min="400" max="2400" step="400" value="800"
       oninput="updateDocSummaryLabel()"
       style="width:100%;accent-color:var(--accent);cursor:pointer;margin-bottom:10px;">
-    <div style="display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);margin-bottom:10px;">
-      <span>Breve</span><span>Extenso</span><span>Exhaustivo</span><span>Ultra completo</span>
+    <div style="position:relative;height:14px;margin-bottom:10px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-muted);">
+      <span style="position:absolute;left:0%">Breve</span>
+      <span style="position:absolute;left:40%;transform:translateX(-50%)">Extenso</span>
+      <span style="position:absolute;left:80%;transform:translateX(-50%)">Exhaustivo</span>
+      <span style="position:absolute;right:0%">Ultra completo</span>
     </div>
     <div id="doc-summary-label" style="text-align:center;font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);padding:8px;background:var(--bg);border-radius:8px;border:1px solid var(--border);">
-      ~150 palabras · Estándar · ~$0.01 por resumen
+      ~300 palabras por doc · Estándar
     </div>
     <div style="font-size:11px;color:var(--text-muted);margin-top:8px;text-align:center;font-family:'DM Mono',monospace;">
-      Longitud máxima del resumen de documentos adjuntos (PDF/Word)
+      Cantidad de texto de cada documento incluido en el análisis
     </div>
   </div>
 </div>
