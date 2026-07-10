@@ -7,7 +7,6 @@ let manualRegion = null;
 let _activeSheet = null;
 let _applyingConfig = false;
 let attachedDocs = [];         // [{name, text}]
-let _docSummaryForPrompt = ''; // resumen listo para inyectar en buildPrompt
 
 // ─── SCROLL LOCK (dialogs / bottom sheets) ───────────────────
 // Reference-counted: several overlays (confirm-banner, config sheet,
@@ -466,7 +465,6 @@ function _renderDocChips() {
 
 function removeDoc(idx) {
   attachedDocs.splice(idx, 1);
-  _docSummaryForPrompt = '';
   _renderDocChips();
   checkReady();
   updateSliderLabel();
@@ -482,7 +480,6 @@ document.getElementById('doc-file').addEventListener('change', async function(e)
     const text = await _extractDocText(file);
     if (!text) { errBox.textContent = '⚠️ El documento no contiene texto extraíble.'; errBox.style.display = 'block'; setTimeout(() => errBox.style.display = 'none', 4000); return; }
     attachedDocs.push({ name: file.name, text: text.slice(0, 50000) });
-    _docSummaryForPrompt = '';
     _renderDocChips();
     checkReady();
     updateSliderLabel();
@@ -822,6 +819,10 @@ async function callOrchestrator(file, region, info, token, onTranscript) {
   fd.append('whisperHint', getWhisperPrompt(region));
   fd.append('prompt', buildPrompt('{{TRANSCRIPT}}', info, selectedTemplate));
   fd.append('maxTokens', String(getTokens()));
+  if (attachedDocs.length) {
+    fd.append('documents', JSON.stringify(attachedDocs.map(d => ({ name: d.name, text: d.text }))));
+    fd.append('docSummaryTokens', String(getDocSummaryTokens()));
+  }
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 300000);
   try {
@@ -890,7 +891,7 @@ function buildPrompt(transcript, info, template) {
   const questionnaireCtx  = buildQuestionnaireContext(window._physiqQuestionnaireContext);
   const hasHypotheses = (window._physiqAssessmentContext?.h || []).length > 0;
 
-  const docCtx = _docSummaryForPrompt ? `DOCUMENTOS ADJUNTOS:\n${_docSummaryForPrompt}\n\n` : '';
+  const docCtx = attachedDocs.length ? '{{DOC_SUMMARY}}' : '';
 
   if (template === 'brief') {
     return `Eres un fisioterapeuta clínico experto en documentación CIF-APTA.
@@ -1153,14 +1154,6 @@ async function generateReport() {
   try {
     const hasDocs = attachedDocs.length > 0;
     const hasAudio = !!selectedFile;
-
-    // Embed doc text directly into the prompt (synchronous — no separate API call)
-    if (hasDocs && !_docSummaryForPrompt) {
-      const perDocLimit = Math.max(500, Math.floor(getDocSummaryTokens() * 4 / attachedDocs.length));
-      _docSummaryForPrompt = attachedDocs
-        .map((d, i) => `--- Documento ${i + 1}: ${d.name} ---\n${d.text.slice(0, perDocLimit)}`)
-        .join('\n\n');
-    }
 
     // Show only the steps that will actually run
     if (step1El) step1El.style.display = hasAudio ? '' : 'none';
