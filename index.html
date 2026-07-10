@@ -79,14 +79,20 @@
   #session-rec-hint{display:none;margin-top:6px;text-align:center;}
   #cf-turnstile-container{display:flex;justify-content:center;align-items:center;min-height:65px;}
   /* ── Document attachment ── */
-  .doc-attach-btn{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:6px 14px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:background 0.15s;margin-top:8px;}
-  .doc-attach-btn:hover{background:rgba(0,200,120,0.1);}
-  .doc-attach-wrap{display:flex;flex-direction:column;align-items:flex-start;}
-  .doc-chips-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
-  .doc-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(0,200,120,0.1);border:1px solid rgba(0,200,120,0.3);border-radius:999px;padding:4px 10px;font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);}
+  .doc-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:2px 0;}
+  .doc-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(0,200,120,0.08);border:1px solid rgba(0,200,120,0.28);border-radius:999px;padding:4px 10px;font-family:'DM Mono',monospace;font-size:11px;color:var(--accent);}
   .doc-chip-name{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .doc-chip-remove{background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;padding:0;line-height:1;opacity:0.7;}
+  .doc-chip-remove{background:none;border:none;color:var(--accent);cursor:pointer;font-size:10px;padding:0;line-height:1;opacity:0.6;}
   .doc-chip-remove:hover{opacity:1;}
+  .doc-attach-btn{display:inline-flex;align-items:center;gap:5px;background:transparent;border:1px dashed rgba(56,217,169,0.4);color:var(--text-muted);border-radius:999px;padding:4px 12px;font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:border-color 0.15s,color 0.15s;}
+  .doc-attach-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .doc-attach-btn .btn-text{display:inline;}
+  .doc-attach-btn .btn-icon-only{display:none;}
+  @media(max-width:480px){
+    .doc-attach-btn.has-docs .btn-text{display:none;}
+    .doc-attach-btn.has-docs .btn-icon-only{display:inline;}
+    .doc-attach-btn.has-docs{padding:4px 9px;}
+  }
   #session-rec-hint button{background:rgba(79,195,161,0.08);border:1px solid rgba(79,195,161,0.25);border-radius:999px;padding:5px 14px;font-size:11px;color:var(--accent);cursor:pointer;font-family:'DM Mono',monospace;transition:background 0.15s;}
   #session-rec-hint button:hover{background:rgba(79,195,161,0.16);}
   .logo-preview{max-height:50px;max-width:160px;border-radius:6px;margin-top:8px;display:none;}
@@ -354,10 +360,9 @@
       <button onclick="_useSessionRecording()">🎙 Grabación de sesión disponible (<span id="session-rec-duration"></span>) — <span id="session-rec-action">Usar</span></button>
     </div>
 
-    <div class="doc-attach-wrap">
-      <input type="file" id="doc-file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none;">
-      <button class="doc-attach-btn" id="doc-attach-btn" onclick="document.getElementById('doc-file').click()">📎 Adjuntar documento</button>
-      <div id="doc-chips-container"></div>
+    <input type="file" id="doc-file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none;">
+    <div class="doc-row" id="doc-row">
+      <button class="doc-attach-btn" id="doc-attach-btn" onclick="document.getElementById('doc-file').click()"><span class="btn-icon-only">📎</span><span class="btn-text">📎 Adjuntar documento</span></button>
     </div>
 
     <div class="error-box" id="error-box"></div>
