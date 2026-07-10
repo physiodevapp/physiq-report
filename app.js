@@ -567,7 +567,7 @@ DOCUMENTO:
 ${docsText}`;
 
   const fd = new FormData();
-  fd.append('prompt', prompt.replace('{{TRANSCRIPT}}', ''));
+  fd.append('prompt', prompt + '\n{{TRANSCRIPT}}');
   fd.append('maxTokens', String(maxTokens));
   fd.append('whisperHint', '');
   const ctrl = new AbortController();
@@ -1201,38 +1201,30 @@ async function generateReport() {
     const token1 = await getTurnstileToken();
     _openProcessingOverlay();
 
+    const region = window._physiqAssessmentContext?.r ?? manualRegion;
+    const onTranscript = selectedFile ? () => { setStep(1,'done'); setStep(2,'active'); } : null;
+    let result;
+
     if (hasDocs && !_docSummaryForPrompt) {
       if (stepDoc) { stepDoc.style.display = 'flex'; stepDoc.className = 'progress-step active'; }
       const docsText = attachedDocs.map((d, i) => `--- Documento ${i + 1}: ${d.name} ---\n${d.text}`).join('\n\n');
       _docSummaryForPrompt = await _summarizeAttachedDocs(docsText, getDocSummaryTokens(), token1);
       if (stepDoc) stepDoc.className = 'progress-step done';
       const token2 = await getTurnstileToken();
-      setStep(1,'active');
-      const region = window._physiqAssessmentContext?.r ?? manualRegion;
-      const result = await callOrchestrator(selectedFile, region, info, token2, () => {
-        setStep(1,'done'); setStep(2,'active');
-      });
-      transcriptText = result.transcript;
-      setStep(2,'done'); setStep(3,'active');
-      await new Promise(r => setTimeout(r, 350));
-      setStep(3,'done');
-      document.getElementById('result-section').style.display = 'block';
-      document.getElementById('step-config').style.display = 'none';
-      renderReport(result.report, transcriptText, info);
+      if (!selectedFile) { setStep(1,'done'); setStep(2,'active'); } else { setStep(1,'active'); }
+      result = await callOrchestrator(selectedFile, region, info, token2, onTranscript);
     } else {
-      setStep(1,'active');
-      const region = window._physiqAssessmentContext?.r ?? manualRegion;
-      const result = await callOrchestrator(selectedFile, region, info, token1, () => {
-        setStep(1,'done'); setStep(2,'active');
-      });
-      transcriptText = result.transcript;
-      setStep(2,'done'); setStep(3,'active');
-      await new Promise(r => setTimeout(r, 350));
-      setStep(3,'done');
-      document.getElementById('result-section').style.display = 'block';
-      document.getElementById('step-config').style.display = 'none';
-      renderReport(result.report, transcriptText, info);
+      if (!selectedFile) { setStep(1,'done'); setStep(2,'active'); } else { setStep(1,'active'); }
+      result = await callOrchestrator(selectedFile, region, info, token1, onTranscript);
     }
+
+    transcriptText = result.transcript;
+    setStep(2,'done'); setStep(3,'active');
+    await new Promise(r => setTimeout(r, 350));
+    setStep(3,'done');
+    document.getElementById('result-section').style.display = 'block';
+    document.getElementById('step-config').style.display = 'none';
+    renderReport(result.report, transcriptText, info);
 
     document.getElementById('generate-btn').innerHTML = '✓ Informe generado';
   } catch(err) { console.error('[PhysiQ] generateReport error:', err); showError(err.message); }
