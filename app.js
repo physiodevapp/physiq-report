@@ -935,7 +935,7 @@ function buildPrompt(transcript, info, template) {
   const questionnaireCtx  = buildQuestionnaireContext(window._physiqQuestionnaireContext);
   const hasHypotheses = (window._physiqAssessmentContext?.h || []).length > 0;
 
-  const docCtx = _docSummaryForPrompt ? `RESUMEN DE DOCUMENTOS ADJUNTOS:\n${_docSummaryForPrompt}\n\n` : '';
+  const docCtx = _docSummaryForPrompt ? `DOCUMENTOS ADJUNTOS:\n${_docSummaryForPrompt}\n\n` : '';
 
   if (template === 'brief') {
     return `Eres un fisioterapeuta clínico experto en documentación CIF-APTA.
@@ -1193,30 +1193,35 @@ async function generateReport() {
   document.getElementById('generate-btn').disabled = true;
   document.getElementById('generate-btn').innerHTML = '<div class="spinner"></div> Verificando...';
   [1,2,3].forEach(i => setStep(i,''));
-  const stepDoc = document.getElementById('step-doc');
-  if (stepDoc) stepDoc.style.display = 'none';
+  const step1El = document.getElementById('step-1');
   _isProcessing = true;
   try {
     const hasDocs = attachedDocs.length > 0;
+    const hasAudio = !!selectedFile;
+
+    // Embed doc text directly into the prompt (synchronous — no separate API call)
+    if (hasDocs && !_docSummaryForPrompt) {
+      const perDocLimit = Math.max(2000, Math.floor(8000 / attachedDocs.length));
+      _docSummaryForPrompt = attachedDocs
+        .map((d, i) => `--- Documento ${i + 1}: ${d.name} ---\n${d.text.slice(0, perDocLimit)}`)
+        .join('\n\n');
+    }
+
+    // Show only the steps that will actually run
+    if (step1El) step1El.style.display = hasAudio ? '' : 'none';
+
     const token1 = await getTurnstileToken();
     _openProcessingOverlay();
 
     const region = window._physiqAssessmentContext?.r ?? manualRegion;
-    const onTranscript = selectedFile ? () => { setStep(1,'done'); setStep(2,'active'); } : null;
-    let result;
 
-    if (hasDocs && !_docSummaryForPrompt) {
-      if (stepDoc) { stepDoc.style.display = 'flex'; stepDoc.className = 'progress-step active'; }
-      const docsText = attachedDocs.map((d, i) => `--- Documento ${i + 1}: ${d.name} ---\n${d.text}`).join('\n\n');
-      _docSummaryForPrompt = await _summarizeAttachedDocs(docsText, getDocSummaryTokens(), token1);
-      if (stepDoc) stepDoc.className = 'progress-step done';
-      const token2 = await getTurnstileToken();
-      if (!selectedFile) { setStep(1,'done'); setStep(2,'active'); } else { setStep(1,'active'); }
-      result = await callOrchestrator(selectedFile, region, info, token2, onTranscript);
-    } else {
-      if (!selectedFile) { setStep(1,'done'); setStep(2,'active'); } else { setStep(1,'active'); }
-      result = await callOrchestrator(selectedFile, region, info, token1, onTranscript);
-    }
+    if (hasAudio) { setStep(1,'active'); }
+    else { setStep(2,'active'); }
+
+    const result = await callOrchestrator(
+      selectedFile, region, info, token1,
+      hasAudio ? () => { setStep(1,'done'); setStep(2,'active'); } : null
+    );
 
     transcriptText = result.transcript;
     setStep(2,'done'); setStep(3,'active');
@@ -1228,7 +1233,7 @@ async function generateReport() {
 
     document.getElementById('generate-btn').innerHTML = '✓ Informe generado';
   } catch(err) { console.error('[PhysiQ] generateReport error:', err); showError(err.message); }
-  finally { _isProcessing = false; _closeProcessingOverlay(); _showTurnstile(); if (stepDoc) stepDoc.style.display = 'none'; }
+  finally { _isProcessing = false; _closeProcessingOverlay(); _showTurnstile(); if (step1El) step1El.style.display = ''; }
 }
 
 // ========= DOWNLOAD WORD =========
