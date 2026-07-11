@@ -1430,7 +1430,7 @@ function appendContentToWord(children, text, ctx) {
       });
     } else if (b.type === 'table') {
       const numCols = b.rows[0].length;
-      const colWidth = Math.floor(9000 / numCols);
+      const colWidth = Math.floor(9386 / numCols);
       const tableRows = b.rows.map((row, i) => {
         return new TableRow({
           children: row.map(cell => new TableCell({
@@ -1450,7 +1450,7 @@ function appendContentToWord(children, text, ctx) {
         });
       });
       children.push(new Table({
-        width: {size: 9000, type: WidthType.DXA},
+        width: {size: 9386, type: WidthType.DXA},
         columnWidths: Array(numCols).fill(colWidth),
         rows: tableRows
       }));
