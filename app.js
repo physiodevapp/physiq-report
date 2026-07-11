@@ -486,7 +486,21 @@ function getDocSummaryTokens() {
 }
 
 async function _summarizeAttachedDocs(docsText, maxTokens, token) {
-  const prompt = `Eres un asistente clínico. Resume el siguiente documento médico en español, de forma estructurada y clínicamente relevante. El resumen debe ser completo —nunca truncado a mitad de una idea— y ajustarse a un máximo de ${maxTokens} tokens de respuesta. Incluye los hallazgos, diagnósticos, tratamientos y evolución más relevantes. Omite información administrativa irrelevante.
+  const prompt = `Eres un asistente clínico especializado en fisioterapia. Extrae y condensa la información del documento adjunto para apoyar la redacción de un informe de fisioterapia en español. Usa este orden de prioridad estricto:
+
+1. Diagnóstico(s) médico(s) y fecha(s)
+2. Intervención quirúrgica o procedimientos: técnica, fecha, hallazgos intraoperatorios
+3. Tratamientos previos y respuesta: farmacológico, rehabilitador, infiltraciones
+4. Hallazgos objetivos: pruebas de imagen, escalas de dolor/función, mediciones numéricas
+5. Evolución clínica cronológica
+6. Limitaciones funcionales documentadas
+7. Factores contextuales: comorbilidades, medicación activa, factores psicosociales relevantes
+
+NORMAS:
+- Prosa densa o listas cortas. Sin párrafo de introducción ni frase de cierre.
+- Omite datos administrativos (número de historia, fechas de cita, firmas, identificadores).
+- Si hay varios documentos, integra la información sin repetir.
+- Ajusta la profundidad para no superar los ${maxTokens} tokens. Cierra siempre la última sección.
 
 DOCUMENTO:
 ${docsText}`;
