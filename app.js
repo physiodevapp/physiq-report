@@ -237,12 +237,6 @@ function parseTablesInText(text) {
 }
 
 // ========= SLIDER =========
-const docSummaryMeta = [
-  {tokens:500,  words:350,  label:'Breve'},
-  {tokens:1000, words:700,  label:'Estándar'},
-  {tokens:1500, words:1050, label:'Detallado'},
-  {tokens:2000, words:1400, label:'Máximo'},
-];
 
 const sliderMeta = [
   {tokens:1000, words:400,  label:'Breve',         costNum:0.02},
@@ -338,9 +332,8 @@ function _updateConfigBtns() {
   const meta = sliderMeta.find(m => m.tokens === val) || sliderMeta[1];
   const subOpt = document.getElementById('sub-options');
   if (subOpt) subOpt.textContent = meta.label;
-  const docTokens = parseInt(document.getElementById('doc-summary-slider')?.value) || 400;
   const subDoc = document.getElementById('sub-options-doc');
-  if (subDoc) subDoc.textContent = 'Doc: ' + _docSummaryLabelFor(docTokens);
+  if (subDoc) subDoc.textContent = 'Doc: Máximo';
 }
 
 // ========= FILE INPUTS =========
@@ -491,25 +484,7 @@ document.getElementById('doc-file').addEventListener('change', async function(e)
 });
 
 function getDocSummaryTokens() {
-  const sl = document.getElementById('doc-summary-slider');
-  return sl ? parseInt(sl.value) : 1000;
-}
-
-function _docSummaryLabelFor(tokens) {
-  return (docSummaryMeta.find(m => m.tokens === tokens) || docSummaryMeta[1]).label;
-}
-
-function updateDocSummaryLabel() {
-  const sl = document.getElementById('doc-summary-slider');
-  if (!sl) return;
-  const tokens = parseInt(sl.value);
-  const meta = docSummaryMeta.find(m => m.tokens === tokens) || docSummaryMeta[1];
-  const lbl = document.getElementById('doc-summary-label');
-  if (lbl) lbl.textContent = `~${Math.round(tokens * 0.7)} palabras de resumen · ${meta.label}`;
-  const subDoc = document.getElementById('sub-options-doc');
-  if (subDoc) subDoc.textContent = 'Doc: ' + meta.label;
-  updateSliderLabel();
-  saveConfig(true);
+  return 2000;
 }
 
 async function _summarizeAttachedDocs(docsText, maxTokens, token) {
@@ -650,7 +625,7 @@ function saveConfig(silent) {
     seguimientoUrl: document.getElementById('clinic-seguimiento-url').value.trim(),
     reportEmail:    document.getElementById('clinic-report-email').value.trim(),
     tokens:         document.getElementById('token-slider').value,
-    docSummaryTokens: document.getElementById('doc-summary-slider')?.value || '400',
+
     template:       selectedTemplate,
   };
   localStorage.setItem('physiq_config', JSON.stringify(cfg));
@@ -685,10 +660,9 @@ function loadConfig() {
   if (c.seguimientoUrl) document.getElementById('clinic-seguimiento-url').value = c.seguimientoUrl;
   if (c.reportEmail)    document.getElementById('clinic-report-email').value    = c.reportEmail;
   if (c.tokens) { document.getElementById('token-slider').value = c.tokens; }
-  if (c.docSummaryTokens) { const sl = document.getElementById('doc-summary-slider'); if (sl) sl.value = c.docSummaryTokens; }
+
   if (c.template) selectTemplate(c.template);
   updateSliderLabel();
-  updateDocSummaryLabel();
   const sl = localStorage.getItem('physiq_logo');
   if (sl) {
     logoBase64 = sl; logoMime = localStorage.getItem('physiq_logo_mime') || 'image/png';
