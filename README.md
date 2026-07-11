@@ -35,19 +35,18 @@ All context updates happen in real time via `BroadcastChannel('physiq-session')`
 
 ## External requirements
 
-The app requires two active **Cloudflare Workers**:
+The app requires one active **Cloudflare Worker**:
 
 | Worker | Role |
 |---|---|
-| `physiq-whisper` | Proxy to the Whisper API (audio transcription) |
-| `physiq-claude` | Proxy to the Anthropic API (report generation, model `claude-sonnet-4-5`) |
+| `physiq-orchestrator` | Full pipeline: Turnstile validation, Whisper transcription, optional doc summarization (Haiku), and Claude report generation (Sonnet) via SSE. Also handles report delivery by email (`/email`). |
 
-Worker URLs are hardcoded in `app.js` (near `transcribeAudio` and `analyzeWithClaude`). Update them if you deploy your own workers.
+The worker URL is hardcoded as `ORCHESTRATOR_URL` at the top of `app.js`. Update it if you deploy your own worker.
 
 ## Self-hosting
 
-1. Create both workers on [Cloudflare](https://workers.cloudflare.com/) with access to the Whisper and Anthropic APIs.
-2. Update the worker URLs in `app.js`.
+1. Create the orchestrator worker on [Cloudflare](https://workers.cloudflare.com/) with access to the Whisper and Anthropic APIs.
+2. Update `ORCHESTRATOR_URL` in `app.js`.
 3. Serve `index.html` from any static host (Cloudflare Pages, GitHub Pages, etc.) or use it locally.
 
 ## Report customization

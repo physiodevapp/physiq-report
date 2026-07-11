@@ -26,9 +26,8 @@ There is no framework, no bundler, no modules.
 
 **External dependencies loaded at runtime:**
 - `docx` v8.5.0 from CDN (jsdelivr → unpkg → cloudflare fallbacks) — used for `.docx` export
-- Cloudflare Worker endpoints (hardcoded URLs):
-  - `https://physiq-whisper.edu-gamboa-rodriguez.workers.dev` — audio transcription (Whisper)
-  - `https://physiq-claude.edu-gamboa-rodriguez.workers.dev` — report generation (claude-sonnet-4-5); acts as a proxy that injects the Anthropic API key and forwards the same body shape as the Anthropic API (`model`, `max_tokens`, `messages`)
+- Cloudflare Worker endpoint (hardcoded as `ORCHESTRATOR_URL` in `app.js`):
+  - `https://physiq-orchestrator.edu-gamboa-rodriguez.workers.dev` — single worker that handles Turnstile validation, Whisper transcription, optional doc summarization (Haiku, 2000-token ceiling), and Claude report generation (Sonnet, SSE stream). Also exposes `/email` for report delivery by email.
 
 **Client-side persistence:**
 - `localStorage` key `physiq_config` (JSON) — all UI/clinic settings
@@ -76,6 +75,8 @@ There is no framework, no bundler, no modules.
 | `_consumeAudioFromIDB()` | `app.js` | Reads and deletes hub audio from IDB (called only when user confirms use) |
 | `_showRecordingHint(duration)` | `app.js` | Shows `#session-rec-hint` hint when hub recording stops with audio available |
 | `copyReport()` | `app.js` | Copies the rendered report text to the clipboard |
+| `callOrchestrator()` | `app.js` | Main pipeline call: POSTs audio file, Whisper hint, prompt, and optional doc list to the orchestrator; streams SSE response and calls `onTranscript` callback when the transcript chunk arrives |
+| `_summarizeAttachedDocs()` | `app.js` | Summarizes attached documents using a priority-ordered physiotherapy extraction prompt (diagnoses → procedures → treatments → objective findings → evolution → functional limits → context); always uses 2000-token ceiling with Haiku via the orchestrator |
 
 ## Report templates
 
@@ -83,13 +84,15 @@ There is no framework, no bundler, no modules.
 
 `buildPrompt()` forces `'brief'` when `getTokens() === 1000` (slider 1 at the lowest step), regardless of the user's template selection. The narrative prompt also injects a `PRESUPUESTO DE EXTENSIÓN` instruction with the word budget from `sliderMeta.words` so Claude self-limits and closes all sections cleanly.
 
+`sliderMeta` has 4 steps (1000/3000/5000/7000 tokens). Its `words` field (400/1200/2000/2750) is the internal word budget injected into the narrative prompt — it uses a lower ~0.4 words/token ratio to leave headroom. The UI displays `Math.round(tokens × 0.7)` instead (Spanish estimate), computed inline in `updateSliderLabel()`.
+
 ## Truncation detection
 
 After Claude responds, `detectTruncation(reportText)` checks whether the expected closing section is present (`## SEGUIMIENTO FUNCIONAL` for narrative, `OBJETIVOS Y PLAN` for brief) and whether the text ends on a sentence-final character. If either check fails, an amber warning is shown inline inside `#result-body`. Token limit is user-configurable (1000–7000 tokens via slider 1).
 
 ## Cloudflare Workers
 
-The two workers are external to this repo. They proxy requests to the Whisper API and Anthropic API respectively. If either endpoint changes, update the hardcoded URLs in `app.js` (inside `transcribeAudio` and `analyzeWithClaude`).
+The orchestrator worker is external to this repo. It handles the full pipeline: Turnstile validation → Whisper transcription → (optional) Haiku doc summarization → Sonnet report generation via SSE. If the endpoint changes, update `ORCHESTRATOR_URL` at the top of `app.js`.
 
 Every request to a worker includes a Cloudflare Turnstile token (`cf-turnstile-response` header). The widget is rendered in `always` mode — always visible. `getTurnstileToken()` returns a Promise that resolves once the token is available, refreshing the widget if expired. The widget **replaces the "Generar informe" button** until verified; once verified, the real button appears.
 
