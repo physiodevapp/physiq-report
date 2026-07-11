@@ -53,6 +53,8 @@ function closeActiveSheet() {
 function restoreConfigArea() {
   document.getElementById('step-config').style.display = 'flex';
   document.getElementById('result-section').style.display = 'none';
+  document.getElementById('generate-btn').innerHTML = 'Generar Informe CIF-APTA';
+  checkReady();
 }
 
 const ORCHESTRATOR_URL = 'https://physiq-orchestrator.edu-gamboa-rodriguez.workers.dev';
@@ -62,15 +64,25 @@ const TURNSTILE_SITEKEY = '0x4AAAAAADU3dzE5Tw_whVks';
 let _turnstileToken = null, _turnstileResolve = null, _turnstileWidgetId = null;
 let _emailTurnstileToken = null, _emailTurnstileWidgetId = null;
 let _isProcessing = false;
+let _dotsInterval = null;
 
 function _openProcessingOverlay() {
   document.getElementById('processing-overlay').classList.add('open');
   lockBodyScroll();
+  let _dotsStep = 0;
+  const _dotStates = ['.', '..', '...'];
+  const dotsEl = document.getElementById('processing-dots');
+  if (dotsEl) dotsEl.textContent = '.';
+  _dotsInterval = setInterval(() => {
+    _dotsStep = (_dotsStep + 1) % 3;
+    if (dotsEl) dotsEl.textContent = _dotStates[_dotsStep];
+  }, 500);
 }
 
 function _closeProcessingOverlay() {
   document.getElementById('processing-overlay').classList.remove('open');
   unlockBodyScroll();
+  if (_dotsInterval) { clearInterval(_dotsInterval); _dotsInterval = null; }
 }
 
 function _showEmailSendBtn() {
