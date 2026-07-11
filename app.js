@@ -332,8 +332,6 @@ function _updateConfigBtns() {
   const meta = sliderMeta.find(m => m.tokens === val) || sliderMeta[1];
   const subOpt = document.getElementById('sub-options');
   if (subOpt) subOpt.textContent = meta.label;
-  const subDoc = document.getElementById('sub-options-doc');
-  if (subDoc) subDoc.textContent = 'Doc: Máximo';
 }
 
 // ========= FILE INPUTS =========
