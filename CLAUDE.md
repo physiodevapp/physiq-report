@@ -81,9 +81,11 @@ There is no framework, no bundler, no modules.
 
 `selectedTemplate` is either `'brief'` or `'narrative'` (default). This controls which prompt is built in `buildPrompt()`. The narrative template follows the CIF biopsychosocial framework with specific sections the truncation-detection logic checks for.
 
+`buildPrompt()` forces `'brief'` when `getTokens() === 1000` (slider 1 at the lowest step), regardless of the user's template selection. The narrative prompt also injects a `PRESUPUESTO DE EXTENSIÓN` instruction with the word budget from `sliderMeta.words` so Claude self-limits and closes all sections cleanly.
+
 ## Truncation detection
 
-After Claude responds, the app inspects `lastReportText` for expected final sections. If the text ends abruptly or is missing expected closing sections, a warning is shown. Token limit is user-configurable (1000–7000 tokens via a slider).
+After Claude responds, `detectTruncation(reportText)` checks whether the expected closing section is present (`## SEGUIMIENTO FUNCIONAL` for narrative, `OBJETIVOS Y PLAN` for brief) and whether the text ends on a sentence-final character. If either check fails, an amber warning is shown inline inside `#result-body`. Token limit is user-configurable (1000–7000 tokens via slider 1).
 
 ## Cloudflare Workers
 

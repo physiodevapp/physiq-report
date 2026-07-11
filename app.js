@@ -237,12 +237,6 @@ function parseTablesInText(text) {
 }
 
 // ========= SLIDER =========
-const docSummaryMeta = [
-  {tokens:1000, words:530,  label:'Breve'},
-  {tokens:3000, words:1600, label:'Estándar'},
-  {tokens:5000, words:2665, label:'Detallado'},
-  {tokens:7000, words:3730, label:'Máximo'},
-];
 
 const sliderMeta = [
   {tokens:1000, words:400,  label:'Breve',         costNum:0.02},
@@ -258,7 +252,7 @@ function updateSliderLabel() {
   const val = parseInt(document.getElementById('token-slider').value);
   const meta = sliderMeta.find(m => m.tokens === val) || sliderMeta[1];
   document.getElementById('slider-label').textContent =
-    `~${meta.words} palabras · ${meta.label} · coste estimado ~$${meta.costNum.toFixed(2)} por informe`;
+    `~${Math.round(val * 0.7)} palabras · ${meta.label} · coste estimado ~$${meta.costNum.toFixed(2)} por informe`;
   _updateConfigBtns();
   saveConfig(true);
 }
@@ -338,9 +332,8 @@ function _updateConfigBtns() {
   const meta = sliderMeta.find(m => m.tokens === val) || sliderMeta[1];
   const subOpt = document.getElementById('sub-options');
   if (subOpt) subOpt.textContent = meta.label;
-  const docTokens = parseInt(document.getElementById('doc-summary-slider')?.value) || 400;
   const subDoc = document.getElementById('sub-options-doc');
-  if (subDoc) subDoc.textContent = 'Doc: ' + _docSummaryLabelFor(docTokens);
+  if (subDoc) subDoc.textContent = 'Doc: Máximo';
 }
 
 // ========= FILE INPUTS =========
@@ -491,25 +484,7 @@ document.getElementById('doc-file').addEventListener('change', async function(e)
 });
 
 function getDocSummaryTokens() {
-  const sl = document.getElementById('doc-summary-slider');
-  return sl ? parseInt(sl.value) : 400;
-}
-
-function _docSummaryLabelFor(tokens) {
-  return (docSummaryMeta.find(m => m.tokens === tokens) || docSummaryMeta[1]).label;
-}
-
-function updateDocSummaryLabel() {
-  const sl = document.getElementById('doc-summary-slider');
-  if (!sl) return;
-  const tokens = parseInt(sl.value);
-  const meta = docSummaryMeta.find(m => m.tokens === tokens) || docSummaryMeta[1];
-  const lbl = document.getElementById('doc-summary-label');
-  if (lbl) lbl.textContent = `~${meta.words} palabras de resumen · ${meta.label}`;
-  const subDoc = document.getElementById('sub-options-doc');
-  if (subDoc) subDoc.textContent = 'Doc: ' + meta.label;
-  updateSliderLabel();
-  saveConfig(true);
+  return 2000;
 }
 
 async function _summarizeAttachedDocs(docsText, maxTokens, token) {
@@ -650,7 +625,7 @@ function saveConfig(silent) {
     seguimientoUrl: document.getElementById('clinic-seguimiento-url').value.trim(),
     reportEmail:    document.getElementById('clinic-report-email').value.trim(),
     tokens:         document.getElementById('token-slider').value,
-    docSummaryTokens: document.getElementById('doc-summary-slider')?.value || '400',
+
     template:       selectedTemplate,
   };
   localStorage.setItem('physiq_config', JSON.stringify(cfg));
@@ -685,10 +660,9 @@ function loadConfig() {
   if (c.seguimientoUrl) document.getElementById('clinic-seguimiento-url').value = c.seguimientoUrl;
   if (c.reportEmail)    document.getElementById('clinic-report-email').value    = c.reportEmail;
   if (c.tokens) { document.getElementById('token-slider').value = c.tokens; }
-  if (c.docSummaryTokens) { const sl = document.getElementById('doc-summary-slider'); if (sl) sl.value = c.docSummaryTokens; }
+
   if (c.template) selectTemplate(c.template);
   updateSliderLabel();
-  updateDocSummaryLabel();
   const sl = localStorage.getItem('physiq_logo');
   if (sl) {
     logoBase64 = sl; logoMime = localStorage.getItem('physiq_logo_mime') || 'image/png';
@@ -893,6 +867,8 @@ function buildPrompt(transcript, info, template) {
 
   const docCtx = attachedDocs.length ? '{{DOC_SUMMARY}}' : '';
 
+  if (getTokens() === 1000) template = 'brief';
+
   if (template === 'brief') {
     return `Eres un fisioterapeuta clínico experto en documentación CIF-APTA.
 Genera un informe clínico breve en español a partir de la transcripción de sesión. El informe debe estar escrito en prosa clínica continua, sin listas de ítems, y no superar las 550 palabras en total.
@@ -1010,6 +986,8 @@ ESTRUCTURA OBLIGATORIA — empieza DIRECTAMENTE con la primera sección, sin tí
 
 ## SEGUIMIENTO FUNCIONAL
 [Espacio para registrar reevaluaciones futuras. Si no procede en esta sesión, escribir: "Pendiente de reevaluaciones programadas."]
+
+PRESUPUESTO DE EXTENSIÓN: el informe completo no debe superar las ${(sliderMeta.find(m => m.tokens === getTokens()) || sliderMeta[1]).words} palabras en total. Ajusta la profundidad de cada sección para que el informe esté completo y bien cerrado dentro de ese límite. No trunces a mitad de sección.
 
 RECORDATORIO FINAL: tu respuesta DEBE empezar literalmente con la cadena "## CONDICIÓN DE SALUD Y FACTORES CONTEXTUALES" como primer texto, sin nada antes.`;
 }
