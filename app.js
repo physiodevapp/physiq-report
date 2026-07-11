@@ -238,10 +238,10 @@ function parseTablesInText(text) {
 
 // ========= SLIDER =========
 const docSummaryMeta = [
-  {tokens:1000, words:530,  label:'Breve'},
-  {tokens:3000, words:1600, label:'Estándar'},
-  {tokens:5000, words:2665, label:'Detallado'},
-  {tokens:7000, words:3730, label:'Máximo'},
+  {tokens:500,  words:350,  label:'Breve'},
+  {tokens:1000, words:700,  label:'Estándar'},
+  {tokens:1500, words:1050, label:'Detallado'},
+  {tokens:2000, words:1400, label:'Máximo'},
 ];
 
 const sliderMeta = [
@@ -258,7 +258,7 @@ function updateSliderLabel() {
   const val = parseInt(document.getElementById('token-slider').value);
   const meta = sliderMeta.find(m => m.tokens === val) || sliderMeta[1];
   document.getElementById('slider-label').textContent =
-    `~${meta.words} palabras · ${meta.label} · coste estimado ~$${meta.costNum.toFixed(2)} por informe`;
+    `~${Math.round(val * 0.7)} palabras · ${meta.label} · coste estimado ~$${meta.costNum.toFixed(2)} por informe`;
   _updateConfigBtns();
   saveConfig(true);
 }
@@ -492,7 +492,7 @@ document.getElementById('doc-file').addEventListener('change', async function(e)
 
 function getDocSummaryTokens() {
   const sl = document.getElementById('doc-summary-slider');
-  return sl ? parseInt(sl.value) : 400;
+  return sl ? parseInt(sl.value) : 1000;
 }
 
 function _docSummaryLabelFor(tokens) {
@@ -505,7 +505,7 @@ function updateDocSummaryLabel() {
   const tokens = parseInt(sl.value);
   const meta = docSummaryMeta.find(m => m.tokens === tokens) || docSummaryMeta[1];
   const lbl = document.getElementById('doc-summary-label');
-  if (lbl) lbl.textContent = `~${meta.words} palabras de resumen · ${meta.label}`;
+  if (lbl) lbl.textContent = `~${Math.round(tokens * 0.7)} palabras de resumen · ${meta.label}`;
   const subDoc = document.getElementById('sub-options-doc');
   if (subDoc) subDoc.textContent = 'Doc: ' + meta.label;
   updateSliderLabel();
@@ -893,6 +893,8 @@ function buildPrompt(transcript, info, template) {
 
   const docCtx = attachedDocs.length ? '{{DOC_SUMMARY}}' : '';
 
+  if (getTokens() === 1000) template = 'brief';
+
   if (template === 'brief') {
     return `Eres un fisioterapeuta clínico experto en documentación CIF-APTA.
 Genera un informe clínico breve en español a partir de la transcripción de sesión. El informe debe estar escrito en prosa clínica continua, sin listas de ítems, y no superar las 550 palabras en total.
@@ -1010,6 +1012,8 @@ ESTRUCTURA OBLIGATORIA — empieza DIRECTAMENTE con la primera sección, sin tí
 
 ## SEGUIMIENTO FUNCIONAL
 [Espacio para registrar reevaluaciones futuras. Si no procede en esta sesión, escribir: "Pendiente de reevaluaciones programadas."]
+
+PRESUPUESTO DE EXTENSIÓN: el informe completo no debe superar las ${(sliderMeta.find(m => m.tokens === getTokens()) || sliderMeta[1]).words} palabras en total. Ajusta la profundidad de cada sección para que el informe esté completo y bien cerrado dentro de ese límite. No trunces a mitad de sección.
 
 RECORDATORIO FINAL: tu respuesta DEBE empezar literalmente con la cadena "## CONDICIÓN DE SALUD Y FACTORES CONTEXTUALES" como primer texto, sin nada antes.`;
 }
