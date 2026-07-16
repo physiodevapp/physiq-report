@@ -524,9 +524,10 @@ ${docsText}`;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 120000);
   try {
+    const _lk1 = localStorage.getItem('physiq-license-key') || '';
     const res = await fetch(ORCHESTRATOR_URL, {
       method: 'POST',
-      headers: { 'cf-turnstile-response': token },
+      headers: Object.assign({ 'cf-turnstile-response': token }, _lk1 ? { 'X-License-Key': _lk1 } : {}),
       body: fd,
       signal: ctrl.signal
     });
@@ -824,9 +825,10 @@ async function callOrchestrator(file, region, info, token, onTranscript) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 300000);
   try {
+    const _lk2 = localStorage.getItem('physiq-license-key') || '';
     const res = await fetch(ORCHESTRATOR_URL, {
       method: 'POST',
-      headers: { 'cf-turnstile-response': token },
+      headers: Object.assign({ 'cf-turnstile-response': token }, _lk2 ? { 'X-License-Key': _lk2 } : {}),
       body: fd,
       signal: ctrl.signal
     });
@@ -2581,9 +2583,10 @@ async function _doSendEmail() {
       html = _buildEmailHtml(_markdownToEmailHtml(lastReportText), info);
     }
 
+    const _lk3 = localStorage.getItem('physiq-license-key') || '';
     const res = await fetch(ORCHESTRATOR_URL + '/email', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'cf-turnstile-response': token },
+      headers: Object.assign({ 'Content-Type': 'application/json', 'cf-turnstile-response': token }, _lk3 ? { 'X-License-Key': _lk3 } : {}),
       body: JSON.stringify({ to, subject, html, attachments }),
     });
     const data = await res.json();
@@ -2720,3 +2723,13 @@ function hideTranslateBanner() {
   const banner = document.getElementById('translateBanner');
   if (banner) banner.classList.remove('visible');
 }
+
+// ── License gate ──────────────────────────────────────────────────────────────
+// If there is no license key in localStorage, redirect to the hub activation
+// screen. Both the hub and physiq-report run on physiodevapp.github.io, so they
+// share the same localStorage origin.
+(function () {
+  if (!localStorage.getItem('physiq-license-key')) {
+    window.location.replace('https://physiodevapp.github.io/physiq/');
+  }
+}());
