@@ -21,8 +21,20 @@
 //   event: report_chunk data: { text: string }
 //   event: done         data: { success: true }
 //   event: error        data: { message: string }
+//
+// FormData fields (/ route):
+//   file             — audio blob (optional)
+//   whisperHint      — hint string for Whisper (optional)
+//   prompt           — prompt template with {{TRANSCRIPT}} and optionally {{DOC_SUMMARY}} placeholders
+//   maxTokens        — max output tokens for the report (default 5000)
+//   documents        — JSON array of {name, text} objects (optional, triggers doc summarization)
+//   docSummaryTokens — max output tokens for the doc summary call (default 5000)
 
 const FROM_ADDRESS = 'PhysiQ Informes <informes@dataphysiq.com>';
+const CLAUDE_MODEL = 'claude-sonnet-4-5';
+const CLAUDE_SUMMARY_MODEL = 'claude-haiku-4-5-20251001';
+
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 function isLocalDev(origin) {
   return origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1');
@@ -44,6 +56,62 @@ async function checkLicense(request, env, origin) {
 
   return null;
 }
+
+// ── Whisper transcription ──────────────────────────────────────────────────
+
+async function transcribeAudio(audioFile, whisperHint, env) {
+  const whisperForm = new FormData();
+  whisperForm.append('file', audioFile);
+  whisperForm.append('model', 'whisper-1');
+  whisperForm.append('language', 'es');
+  if (whisperHint) whisperForm.append('prompt', whisperHint);
+
+  const res = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${env.OPENAI_API_KEY}` },
+    body: whisperForm,
+  });
+  if (!res.ok) {
+    const e = await res.json();
+    throw new Error('Whisper: ' + (e.error?.message || res.status));
+  }
+  return (await res.json()).text;
+}
+
+// ── Document summarization (non-streaming Claude call) ─────────────────────
+
+async function summarizeDocs(documents, docSummaryTokens, env) {
+  const docsText = documents
+    .map((d, i) => `=== Documento ${i + 1}: ${d.name} ===\n${d.text}`)
+    .join('\n\n');
+
+  const prompt = `Eres un asistente clínico experto. Resume los siguientes documentos médicos en español de forma estructurada y clínicamente relevante. El resumen debe ser completo —nunca cortado a mitad de una idea— y ajustarse a un máximo de ${docSummaryTokens} tokens de respuesta. Para cada documento incluye los hallazgos, diagnósticos, tratamientos y evolución más relevantes. Omite información administrativa irrelevante. Si hay varios documentos, sintetiza también los puntos de conexión clínica entre ellos.
+
+${docsText}`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: CLAUDE_SUMMARY_MODEL,
+      max_tokens: docSummaryTokens,
+      messages: [{ role: 'user', content: prompt }],
+      stream: false,
+    }),
+  });
+  if (!res.ok) {
+    const e = await res.json();
+    throw new Error('Claude (docs): ' + (e.error?.message || res.status));
+  }
+  const result = await res.json();
+  return result.content?.[0]?.text || '';
+}
+
+// ── Main handler ───────────────────────────────────────────────────────────
 
 export default {
   async fetch(request, env, ctx) {
@@ -115,38 +183,32 @@ export default {
     ctx.waitUntil((async () => {
       try {
         const formData = await request.formData();
-        const audioFile      = formData.get('file');
-        const whisperHint    = formData.get('whisperHint') || '';
-        const promptTemplate = formData.get('prompt') || '';
-        const maxTokens      = parseInt(formData.get('maxTokens') || '4000');
+        const audioFile        = formData.get('file');
+        const whisperHint      = formData.get('whisperHint') || '';
+        const promptTemplate   = formData.get('prompt') || '';
+        const maxTokens        = parseInt(formData.get('maxTokens') || '5000');
+        const docSummaryTokens = parseInt(formData.get('docSummaryTokens') || '5000');
+        let documents = [];
+        try { documents = JSON.parse(formData.get('documents') || '[]'); } catch { /* no docs */ }
 
-        // Step 1: Whisper (skipped if no audio)
-        let transcript;
-        if (audioFile) {
-          const whisperForm = new FormData();
-          whisperForm.append('file', audioFile);
-          whisperForm.append('model', 'whisper-1');
-          whisperForm.append('language', 'es');
-          if (whisperHint) whisperForm.append('prompt', whisperHint);
-
-          const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${env.OPENAI_API_KEY}` },
-            body: whisperForm,
-          });
-          if (!whisperRes.ok) {
-            const e = await whisperRes.json();
-            throw new Error('Whisper: ' + (e.error?.message || whisperRes.status));
-          }
-          transcript = (await whisperRes.json()).text;
-        } else {
-          transcript = '(No disponible — informe basado exclusivamente en los datos de la valoración estructurada)';
-        }
+        // Step 1: Whisper + doc summarization in parallel (when both present)
+        const [transcript, docSummary] = await Promise.all([
+          audioFile
+            ? transcribeAudio(audioFile, whisperHint, env)
+            : Promise.resolve('(No disponible — informe basado exclusivamente en los datos de la valoración estructurada)'),
+          documents.length
+            ? summarizeDocs(documents, docSummaryTokens, env)
+            : Promise.resolve(''),
+        ]);
 
         sendSSE('transcript', { text: transcript });
 
-        // Step 2: Claude (streaming)
-        const prompt = promptTemplate.replace('{{TRANSCRIPT}}', transcript);
+        // Step 2: Claude (streaming report)
+        const docBlock = docSummary ? `DOCUMENTOS ADJUNTOS (resumen clínico):\n${docSummary}\n\n` : '';
+        const prompt = promptTemplate
+          .replace('{{DOC_SUMMARY}}', docBlock)
+          .replace('{{TRANSCRIPT}}', transcript);
+
         const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
@@ -155,7 +217,7 @@ export default {
             'anthropic-version': '2023-06-01',
           },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-5',
+            model: CLAUDE_MODEL,
             max_tokens: maxTokens,
             messages: [{ role: 'user', content: prompt }],
             stream: true,
