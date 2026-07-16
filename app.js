@@ -531,6 +531,7 @@ ${docsText}`;
       body: fd,
       signal: ctrl.signal
     });
+    if (res.status === 401) { _handleLicenseRevoked(); return ''; }
     if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || res.status); }
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
@@ -832,6 +833,7 @@ async function callOrchestrator(file, region, info, token, onTranscript) {
       body: fd,
       signal: ctrl.signal
     });
+    if (res.status === 401) { _handleLicenseRevoked(); return; }
     if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || res.status); }
 
     const reader  = res.body.getReader();
@@ -2589,6 +2591,7 @@ async function _doSendEmail() {
       headers: Object.assign({ 'Content-Type': 'application/json', 'cf-turnstile-response': token }, _lk3 ? { 'X-License-Key': _lk3 } : {}),
       body: JSON.stringify({ to, subject, html, attachments }),
     });
+    if (res.status === 401) { _handleLicenseRevoked(); return; }
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error al enviar');
 
@@ -2733,3 +2736,8 @@ function hideTranslateBanner() {
     window.location.replace('https://physiodevapp.github.io/physiq/');
   }
 }());
+
+function _handleLicenseRevoked() {
+  localStorage.removeItem('physiq-license-key');
+  window.location.replace('https://physiodevapp.github.io/physiq/');
+}
