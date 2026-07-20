@@ -1,0 +1,18 @@
+name            = "physiq-orchestrator"
+main            = "physiq-orchestrator.js"
+compatibility_date = "2025-01-01"
+
+# KV Namespace — declared here so `wrangler deploy` keeps the binding attached.
+# (wrangler.toml is the source of truth: a binding not listed here is removed on deploy.)
+#   Key format in KV:  <license-key-string>  →  {"clinic":"Nombre","active":true}
+#   While LICENSES is unbound the Worker runs without license checks (dev passthrough).
+[[kv_namespaces]]
+binding = "LICENSES"
+id      = "5980b672f0e0409d935fc74e0b948532"  # physiq-licenses
+
+# Secrets — set in Cloudflare dashboard: Worker → Settings → Variables → Secret
+# (preserved by `wrangler deploy`, not managed here):
+#   TURNSTILE_SECRET
+#   OPENAI_API_KEY
+#   ANTHROPIC_API_KEY
+#   RESEND_API_KEY
