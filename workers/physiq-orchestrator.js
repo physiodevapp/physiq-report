@@ -136,6 +136,30 @@ async function rateLimited(request, env, pathname, mode, licenseKey) {
   return false;
 }
 
+// ── Analytics Engine — el reparto demo/real, exacto ─────────────────────────
+//
+// El contador del KV solo se escribe en modo real, así que la parte demo del
+// tráfico solo se podía *estimar* restándola del total de peticiones del
+// Worker — un total que incluye /validate y los preflights CORS. Este data
+// point la mide directamente, y con el mismo esquema que el copiloto: blob1
+// distingue de qué Worker viene cada fila, así que los dos escriben en el
+// mismo dataset y una sola consulta los cubre.
+//
+// `writeDataPoint` no bloquea y no debe esperarse. El binding es opcional igual
+// que los limitadores: sin él esto es un no-op, nunca un error. Es telemetría:
+// se escribe *después* de que `modeFor` haya resuelto y va en try/catch, porque
+// una métrica jamás puede tumbar una petición.
+function track(env, { path, mode, outcome, licensed }) {
+  if (!env.AE) return;
+  try {
+    env.AE.writeDataPoint({
+      indexes: [mode],                                              // 'real' | 'demo'
+      blobs:   ['report', path, mode, outcome, licensed ? 'lic' : 'anon'],
+      doubles: [],
+    });
+  } catch { /* ignorada a propósito */ }
+}
+
 // FNV-1a — keeps the license key itself out of rate-limit keys (it is a bearer
 // secret, and those keys surface in logs and analytics).
 function fnv1a(str) {
@@ -276,6 +300,7 @@ export default {
     corsHeaders['X-PhysiQ-Mode'] = mode;
 
     if (await rateLimited(request, env, url.pathname, mode, licensed ? key : '')) {
+      track(env, { path: url.pathname, mode, outcome: 'ratelimited', licensed });
       return new Response(JSON.stringify({ error: { message: 'Has alcanzado el límite de peticiones. Inténtalo de nuevo en un minuto.' } }), {
         status: 429,
         headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': '60' },
@@ -290,12 +315,15 @@ export default {
       const token = request.headers.get('cf-turnstile-response');
       const ok    = token ? await verifyTurnstile(token, request, env) : false;
       if (!ok) {
+        track(env, { path: url.pathname, mode, outcome: 'turnstile', licensed });
         return new Response(JSON.stringify({ error: { message: token ? 'Verificación de seguridad fallida' : 'Verificación requerida' } }), {
           status: 403,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
     }
+
+    track(env, { path: url.pathname, mode, outcome: 'served', licensed });
 
     // Answered after the rate-limit check on purpose — see rateLimited().
     if (isValidate) return handleValidate(env, licensed, corsHeaders);

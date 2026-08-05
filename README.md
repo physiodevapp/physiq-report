@@ -81,6 +81,16 @@ are keyed by hashed license when there is one and by IP otherwise; see
 `workers/wrangler.toml`. Every binding is optional in code — unbound means "no
 limiting", never a runtime error.
 
+### Usage telemetry
+
+`track()` writes one row per request to the Analytics Engine dataset
+`physiq_usage` — worker, path, mode (`real` / `demo`), outcome
+(`served` / `ratelimited` / `turnstile`) and identity (`lic` / `anon`). It runs
+after `modeFor()` has resolved and is pure telemetry: optional binding, wrapped in
+try/catch, never read back. The hub's copilot worker writes to the same dataset
+(`blob1` tells them apart) and the hub's `scripts/usage-report.js` queries it to
+show the exact demo/real split against provider spend.
+
 ### Enabling real mode
 
 Set the worker secrets (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `RESEND_API_KEY`,

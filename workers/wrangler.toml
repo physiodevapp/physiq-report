@@ -49,6 +49,18 @@ simple       = { limit = 20, period = 60 }
 binding = "RATE"
 id      = "462ecd5f583149038885748a134200a5"  # physiq-rate
 
+# Analytics Engine — one row per request, tagged with the mode it resolved to.
+# This is what makes the demo/real split exact instead of "total requests minus
+# the KV counter": the KV counter only exists for real traffic, and the Worker's
+# request total also counts /validate and CORS preflights.
+#
+# Same dataset as physiq-copilot; blob1 ('report' / 'copilot') tells them apart.
+# Optional in code (`if (!env.AE) return`), so removing these two lines disables
+# the telemetry and nothing else. Queried with scripts/usage-report.js in the hub.
+[[analytics_engine_datasets]]
+binding = "AE"
+dataset = "physiq_usage"
+
 # Secrets — set in Cloudflare dashboard: Worker → Settings → Variables → Secret
 # (preserved by `wrangler deploy`, not managed here):
 #   TURNSTILE_SECRET
