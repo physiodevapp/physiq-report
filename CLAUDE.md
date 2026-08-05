@@ -96,7 +96,7 @@ The orchestrator worker lives in `workers/` and deploys via `wrangler deploy`. I
 
 ⚠ It is no longer a single file — it imports `workers/demo/`, so pasting `physiq-orchestrator.js` into the dashboard editor is not a valid deploy path any more.
 
-Every request to a worker includes a Cloudflare Turnstile token (`cf-turnstile-response` header). The widget is rendered in `always` mode — always visible. `getTurnstileToken()` returns a Promise that resolves once the token is available, refreshing the widget if expired. The widget **replaces the "Generar informe" button** until verified; once verified, the real button appears. Turnstile only runs in real mode: it guards paid work, and demo blocks nothing by design, so verifying there would be a wasted subrequest. `RL_DEMO` covers scripted replay of the demo.
+Every request to a worker includes a Cloudflare Turnstile token (`cf-turnstile-response` header). The widget is rendered in `always` mode — always visible. `getTurnstileToken()` returns a Promise that resolves once the token is available, refreshing the widget if expired. The widget **replaces the "Generar informe" button** until verified; once verified, the real button appears. Turnstile only runs in real mode, server and client alike: it guards paid work, and demo blocks nothing by design. `_showTurnstile`, `_showEmailTurnstile` and `getTurnstileToken` all short-circuit when `_demoMode` — otherwise a blocked Turnstile script would hide the generate button and make the demo unusable. `RL_DEMO` covers scripted replay instead.
 
 ### Demo mode
 
@@ -107,6 +107,8 @@ Without a verifiable license the worker serves fixtures instead of calling paid 
 - **There is no license gate in `app.js` any more.** A visitor without a key gets demo mode, not a redirect to the hub. `_setDemoMode` only mirrors what the worker announced (`X-PhysiQ-Mode`, or the hub's `PHYSIQ_MODE` postMessage) — never let the client decide the mode.
 - The demo report fixture ends with its own "generado en MODO DEMO" note. Keep it there: that is what makes the disclaimer survive into the `.docx`, the PDF and the email without touching each exporter.
 - The demo patient must stay in sync with the hub's copilot fixtures (`physiq/worker/demo/fixtures.js`) — same fictional patient, same case.
+- `_initMode()` resolves the mode from `GET /validate` at startup, before the first real request: the generate button is rendered according to the mode, so it cannot wait for a response header. On failure it stays in real mode — degrading toward the restrictive path is the safe direction.
+- `checkReady()` treats demo as a valid input source, and `_prefillDemoCase()` fills the empty patient fields with the fictional case so the `.docx` header matches the body. It only fills *empty* fields and assigns directly without firing the `input` listeners — writing the demo patient into the shared IDB session would contaminate the physio's real one.
 
 ## Code conventions
 

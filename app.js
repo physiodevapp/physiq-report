@@ -94,6 +94,7 @@ function _showEmailSendBtn() {
 }
 
 function _showEmailTurnstile() {
+  if (_demoMode) { _showEmailSendBtn(); return; }   // mismo criterio que _showTurnstile
   document.getElementById('cf-turnstile-email-wrap').style.display = '';
   document.getElementById('email-send-btn').style.display = 'none';
 }
@@ -101,6 +102,12 @@ function _showEmailTurnstile() {
 function _showTurnstile() {
   if (_isProcessing) return;
   if (_turnstileToken) { _showGenerateBtn(); return; }
+  // En demo el worker no exige el token, así que exigirlo aquí solo puede
+  // estorbar: si un bloqueador impide cargar el script de Turnstile, el botón
+  // no aparecería nunca y la demo quedaría inservible justo para el visitante
+  // más protegido. El servidor sigue siendo quien decide; esto solo evita
+  // bloquear en cliente algo que el servidor ya no bloquea.
+  if (_demoMode) { _showGenerateBtn(); return; }
   document.getElementById('turnstile-wrap').style.display = '';
   document.getElementById('generate-btn').style.display = 'none';
 }
@@ -132,6 +139,10 @@ function initTurnstile() {
 
 function getTurnstileToken() {
   return new Promise((resolve, reject) => {
+    // En demo el worker ignora el token: no hay nada de pago que proteger. Se
+    // resuelve vacío en vez de rechazar, para que un script de Turnstile
+    // bloqueado no impida usar la demo.
+    if (_demoMode) { resolve(''); return; }
     if (typeof turnstile === 'undefined') {
       reject(new Error('Verificación de seguridad no disponible. Comprueba tu conexión o desactiva el bloqueador de anuncios para physiq-report.'));
       return;
@@ -622,7 +633,9 @@ document.getElementById('diagnosis').addEventListener('input', () => {
 function checkReady() {
   _updateConfigBtns();
   const hasName = !!document.getElementById('patient-name').value.trim();
-  const ok = hasName && (selectedFile || attachedDocs.length > 0 || window._physiqAssessmentContext || window._physiqROMContext || window._physiqForceContext || window._physiqJumpContext || window._physiqBalanceContext || window._physiqKinematicsContext || window._physiqQuestionnaireContext);
+  // En demo el propio caso precargado hace de fuente: exigir audio o contexto
+  // dejaría el botón muerto justo para el visitante que viene a ver la demo.
+  const ok = hasName && (_demoMode || selectedFile || attachedDocs.length > 0 || window._physiqAssessmentContext || window._physiqROMContext || window._physiqForceContext || window._physiqJumpContext || window._physiqBalanceContext || window._physiqKinematicsContext || window._physiqQuestionnaireContext);
   document.getElementById('generate-btn').disabled = !ok;
 }
 
@@ -2746,9 +2759,55 @@ function hideTranslateBanner() {
 let _demoMode = false;
 
 function _setDemoMode(on) {
+  const changed = _demoMode !== on;
   _demoMode = on;
   document.body.classList.toggle('physiq-demo', on);
+  // El modo suele resolverse después del primer render. Al entrar en demo hay
+  // que levantar las puertas de Turnstile que ya estaban pintadas.
+  if (changed && on && !_isProcessing) {
+    try { _showGenerateBtn(); _prefillDemoCase(); } catch {}
+  }
 }
+
+// La ficha del paciente alimenta la cabecera del .docx y los chips del
+// resultado, mientras que el cuerpo del informe lo fija el fixture. Si el
+// visitante deja la ficha vacía sale un documento incoherente: cuerpo sobre
+// Elena R. y cabecera en blanco. Se rellena con el mismo caso ficticio.
+//
+// Solo campos vacíos —nunca pisa lo que el usuario haya escrito— y por
+// asignación directa, sin disparar los listeners de 'input': escribir esto en
+// la sesión compartida de IDB contaminaría al paciente real del fisio.
+// La fecha no se rellena: la app ya deja la de hoy por defecto en ese campo, y
+// para una sesión que supuestamente acabas de documentar es lo coherente.
+const DEMO_CASE = {
+  name:      'Elena R. (paciente demo)',
+  diagnosis: 'Lumbalgia con irradiación radicular L5 izquierda',
+};
+
+function _prefillDemoCase() {
+  const fields = [['patient-name', DEMO_CASE.name], ['diagnosis', DEMO_CASE.diagnosis]];
+  for (const [id, val] of fields) {
+    const el = document.getElementById(id);
+    if (el && !el.value.trim()) el.value = val;
+  }
+  if (typeof checkReady === 'function') checkReady();
+}
+
+// Resuelve el modo al arrancar, antes de la primera petición real: el botón de
+// generar se pinta según el modo, así que no puede esperar a una cabecera de
+// respuesta. Si el worker no contesta, se queda en real y Turnstile sigue
+// mandando — degradar hacia el camino restrictivo es lo correcto aquí.
+(async function _initMode() {
+  try {
+    const key = localStorage.getItem('physiq-license-key') || '';
+    const res = await fetch(ORCHESTRATOR_URL + '/validate', {
+      headers: key ? { 'X-License-Key': key } : {},
+    });
+    if (!res.ok) return;
+    const info = await res.json();
+    if (info?.mode) _setDemoMode(info.mode === 'demo' || info.mode === 'mixed');
+  } catch { /* worker inalcanzable — no bloquear la app por ello */ }
+}());
 
 // El chip de la cabecera lleva a la explicación, que ya está en la página: no
 // hace falta un modal nuevo para decir algo que cabe en un banner permanente.

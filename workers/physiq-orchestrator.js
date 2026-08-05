@@ -127,6 +127,28 @@ function fnv1a(str) {
   return (h >>> 0).toString(36);
 }
 
+// Reports the mode per route, because secrets are configured per provider: with
+// RESEND_API_KEY missing, email is demo while report generation may be real.
+//
+// Deliberately never says *why* it is demo. Distinguishing "no key" from "invalid
+// key" would hand a brute-forcer the oracle it needs; a client that sent a key and
+// got `demo` back already knows its key is not valid. `demoOnly` is safe to expose:
+// it is a global property of the worker, not a fact about any key.
+function handleValidate(env, licensed, corsHeaders) {
+  const routes = {
+    report: modeFor(env, '/',      licensed),
+    email:  modeFor(env, '/email', licensed),
+  };
+  const values = Object.values(routes);
+  const mode = values.every(m => m === 'real') ? 'real'
+             : values.every(m => m === 'demo') ? 'demo'
+             : 'mixed';
+  return new Response(JSON.stringify({
+    ok: true, mode, routes,
+    demoOnly: env.DEMO_ONLY === '1' || env.DEMO_ONLY === 'true',
+  }), { headers: { ...corsHeaders, 'X-PhysiQ-Mode': mode, 'Content-Type': 'application/json' } });
+}
+
 async function verifyTurnstile(token, request, env) {
   try {
     const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
@@ -207,7 +229,7 @@ export default {
 
     const corsHeaders = {
       'Access-Control-Allow-Origin': isLocalDev(origin) ? origin : 'https://physiodevapp.github.io',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, cf-turnstile-response, X-License-Key',
       // The client reads the mode off the response to label the report as demo.
       'Access-Control-Expose-Headers': 'X-PhysiQ-Mode',
@@ -217,12 +239,22 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
+    const url = new URL(request.url);
+    const { licensed, key } = await licenseState(request, env, origin);
+
+    // GET /validate — lets the client know the mode BEFORE it makes its first
+    // real request. Without it the mode is only learnable from a response
+    // header, which is too late: the UI gates the "Generar informe" button on
+    // Turnstile, and in demo that gate has to be lifted up front.
+    // Costs nothing and reveals nothing per-key: see handleValidate.
+    if (url.pathname === '/validate' && request.method === 'GET') {
+      return handleValidate(env, licensed, corsHeaders);
+    }
+
     if (request.method !== 'POST') {
       return new Response('Method not allowed', { status: 405 });
     }
 
-    const url = new URL(request.url);
-    const { licensed, key } = await licenseState(request, env, origin);
     const mode = modeFor(env, url.pathname, licensed);
     corsHeaders['X-PhysiQ-Mode'] = mode;
 

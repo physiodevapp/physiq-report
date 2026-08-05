@@ -44,10 +44,19 @@ the API keys live — so no demo path can reach a paid provider even by mistake.
 is the zero-cost guarantee, and it is a property of the function signatures rather
 than of remembering to write an early return.
 
-Turnstile now runs only in real mode. It exists to guard paid work, and in demo
-nothing is blocked by design, so a check whose failure cannot reject the request
-would just be a wasted subrequest on every visit. Scripted replay of the demo is
-contained by the demo rate limiter instead, which costs nothing to enforce.
+Turnstile now runs only in real mode, on both sides. On the server it exists to
+guard paid work, and in demo nothing is blocked by design, so a check whose
+failure cannot reject the request would just be a wasted subrequest. On the
+client the gate is lifted too: the "Generar informe" button used to appear only
+after Turnstile's callback fired, so a visitor with an ad blocker — exactly the
+privacy-minded visitor this project wants to reach — would have seen no button at
+all. Scripted replay of the demo is contained by the demo rate limiter instead,
+which costs nothing to enforce.
+
+Because the button is rendered according to the mode, the client cannot wait for
+a response header to learn it. `GET /validate` reports the mode up front, before
+any real request; it needs no Turnstile token and no license, and it never
+reveals *why* a visitor is in demo.
 
 ### Rate limiting
 
