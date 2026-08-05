@@ -45,6 +45,9 @@
   body.physiq-demo .demo-banner{display:flex;}
   .demo-banner strong{color:#f2b33d;font-weight:500;}
   .demo-banner a{color:var(--accent2);text-decoration:underline;text-underline-offset:2px;}
+  .demo-email-note{display:none;gap:9px;align-items:flex-start;background:rgba(242,179,61,0.07);border:1px solid rgba(242,179,61,0.28);border-radius:9px;padding:10px 12px;margin-bottom:14px;font-size:0.78rem;color:var(--text2);line-height:1.55;}
+  body.physiq-demo .demo-email-note{display:flex;}
+  .demo-email-note strong{color:#f2b33d;font-weight:500;}
   .btn-translate{position:relative;background:transparent;border:none;color:var(--text3);font-size:1rem;cursor:pointer;padding:4px 8px;border-radius:6px;transition:color 0.2s;line-height:1;}
   .btn-translate:hover{color:var(--text2);}
   .translate-tooltip{position:fixed;top:64px;right:1.5rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;white-space:nowrap;font-size:0.75rem;color:var(--text2);font-family:'DM Sans',sans-serif;font-weight:300;line-height:1.6;opacity:0;pointer-events:none;transition:opacity 0.2s;z-index:500;}
@@ -612,6 +615,13 @@
   <div class="sheet-title">✉️ Enviar informe por email</div>
   <hr class="sheet-divider">
   <div class="sheet-body">
+    <!-- Aviso antes de pedir la dirección, no después de pulsar Enviar: el
+         visitante escribe su email esperando recibir el informe, así que tiene
+         que saberlo antes de teclearlo. Solo visible con body.physiq-demo. -->
+    <div class="demo-email-note" id="demoEmailNote">
+      <span>🧪</span>
+      <div><strong>Modo demo:</strong> el envío se simula. No se enviará ningún correo y no recibirás nada en la dirección que escribas.</div>
+    </div>
     <div class="field" style="margin-bottom:14px;">
       <label>Destinatario</label>
       <input type="email" id="email-to" placeholder="tu@email.com" style="width:100%;">
