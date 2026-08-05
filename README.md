@@ -6,9 +6,90 @@ A clinical tool for physiotherapists that generates structured session reports f
 
 **Standalone: [→ Open app](https://physiodevapp.github.io/physiq-report/)**
 
-## Demo
+## Running it locally
 
 Open `index.html` directly in the browser. No installation, server, or build step required.
+
+## Demo mode
+
+PhysiQ is a public portfolio project whose AI features run on a personal API
+budget. Rather than gating the app behind a license key that turns it into a blank
+wall when disabled, the orchestrator serves a **demo mode**: a visitor without a
+license walks the entire report flow — transcript, streamed report, Word export,
+email — on preloaded fixtures, with **zero calls to Whisper, Claude or Resend**.
+
+The report describes a fictional patient — the same case the hub's copilot uses, so
+a visitor exploring both finds one coherent patient rather than two. The demo report
+text carries its own closing note stating it was generated in demo mode over a
+fictional case, so that notice survives into the `.docx`, the PDF and the email *by
+construction*, instead of depending on each export path remembering to add it.
+Email delivery answers `{ ok: true, demo: true }` and the UI says "envío simulado":
+claiming a clinical report was emailed when it was not would be worse than not
+sending it at all.
+
+That branch also protects the sending domain. Real delivery goes out through
+Resend as `informes@dataphysiq.com`, a verified domain — so an open demo that
+actually sent mail would hand anonymous visitors a way to send arbitrary content
+from it, with the deliverability reputation of that domain on the line. The demo
+handler never reaches `handleEmail`, so `RESEND_API_KEY` is never used and
+`FROM_ADDRESS` is never touched. It does not even parse the request body: the
+address the visitor types is never read, logged or stored server-side.
+
+### How the mode is decided
+
+**In the worker, never in the client.** The decision runs in the router before any
+handler and is fail-closed — `real` requires *all* of: no `DEMO_ONLY` kill switch,
+an `X-License-Key` present, that key active in the `LICENSES` KV namespace, and the
+secrets that route needs. Anything else degrades to demo instead of a 401.
+
+There is one dev bypass: when the worker itself runs under `wrangler dev` it
+assumes a developer with `.dev.vars` and skips the licence check. It keys off the
+worker's *own* hostname, never off the request's `Origin` header — a header the
+caller controls, and which `curl -H 'Origin: http://localhost'` forges in a second.
+(That header *was* the bypass condition until this change, which meant one spoofed
+header bought real mode with no licence.)
+
+The client cannot influence it: it never sends a mode. It reads one from the
+`X-PhysiQ-Mode` response header (and from the hub's `PHYSIQ_MODE` postMessage) and
+uses it only to render the badge. Forcing `_demoMode` from devtools produces a UI
+that lies while the worker keeps serving fixtures.
+
+Demo handlers in `workers/demo/handlers.js` **never receive `env`**, which is where
+the API keys live — so no demo path can reach a paid provider even by mistake. That
+is the zero-cost guarantee, and it is a property of the function signatures rather
+than of remembering to write an early return.
+
+Turnstile now runs only in real mode, on both sides. On the server it exists to
+guard paid work, and in demo nothing is blocked by design, so a check whose
+failure cannot reject the request would just be a wasted subrequest. On the
+client the gate is lifted too: the "Generar informe" button used to appear only
+after Turnstile's callback fired, so a visitor with an ad blocker — exactly the
+privacy-minded visitor this project wants to reach — would have seen no button at
+all. Scripted replay of the demo is contained by the demo rate limiter instead,
+which costs nothing to enforce.
+
+Because the button is rendered according to the mode, the client cannot wait for
+a response header to learn it. `GET /validate` reports the mode up front, before
+any real request; it needs no Turnstile token and no license, and it never
+reveals *why* a visitor is in demo.
+
+### Rate limiting
+
+Second layer, protecting the budget if a license key ever leaks. Report generation
+is the most expensive call in the ecosystem, so its window is the tightest. Limits
+are keyed by hashed license when there is one and by IP otherwise; see
+`workers/wrangler.toml`. Every binding is optional in code — unbound means "no
+limiting", never a runtime error.
+
+### Enabling real mode
+
+Set the worker secrets (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `RESEND_API_KEY`,
+`TURNSTILE_SECRET`), keep `DEMO_ONLY` at `"0"`, and add a license key to the
+`physiq-licenses` KV namespace as `{"clinic":"Nombre","active":true}`. Enter it from
+the hub's front screen. Flipping `active` to `false` in KV drops every visitor back
+to demo instantly and with no deploy — KV holds data, not config. `DEMO_ONLY=1` does
+the same globally, but it *is* config: `wrangler deploy` resets `[vars]` to the values
+in `wrangler.toml`, so set it there and push rather than in the dashboard.
 
 ## Workflow
 

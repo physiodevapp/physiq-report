@@ -35,6 +35,19 @@
   .session-btn{display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;color:var(--text-muted);padding:6px;flex-shrink:0;transition:color 0.2s;}
   .session-btn.active{color:var(--accent);}
   .header-right{display:flex;align-items:center;gap:0.75rem;}
+  /* Modo demo — indicador persistente. Solo visible cuando el worker ha resuelto
+     demo (body.physiq-demo, ver _setDemoMode en app.js). */
+  .demo-chip{display:none;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:999px;border:1px solid rgba(242,179,61,0.35);background:rgba(242,179,61,0.1);color:#f2b33d;font-family:'DM Mono',monospace;font-size:0.62rem;letter-spacing:0.09em;text-transform:uppercase;cursor:pointer;}
+  body.physiq-demo .demo-chip{display:inline-flex;}
+  .demo-chip:hover{background:rgba(242,179,61,0.18);}
+  .demo-chip-dot{width:5px;height:5px;border-radius:50%;background:#f2b33d;flex:none;}
+  .demo-banner{display:none;gap:9px;align-items:flex-start;background:rgba(242,179,61,0.07);border:1px solid rgba(242,179,61,0.28);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:0.78rem;color:var(--text2);line-height:1.6;}
+  body.physiq-demo .demo-banner{display:flex;}
+  .demo-banner strong{color:#f2b33d;font-weight:500;}
+  .demo-banner a{color:var(--accent2);text-decoration:underline;text-underline-offset:2px;}
+  .demo-email-note{display:none;gap:9px;align-items:flex-start;background:rgba(242,179,61,0.07);border:1px solid rgba(242,179,61,0.28);border-radius:9px;padding:10px 12px;margin-bottom:14px;font-size:0.78rem;color:var(--text2);line-height:1.55;}
+  body.physiq-demo .demo-email-note{display:flex;}
+  .demo-email-note strong{color:#f2b33d;font-weight:500;}
   .btn-translate{position:relative;background:transparent;border:none;color:var(--text3);font-size:1rem;cursor:pointer;padding:4px 8px;border-radius:6px;transition:color 0.2s;line-height:1;}
   .btn-translate:hover{color:var(--text2);}
   .translate-tooltip{position:fixed;top:64px;right:1.5rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;white-space:nowrap;font-size:0.75rem;color:var(--text2);font-family:'DM Sans',sans-serif;font-weight:300;line-height:1.6;opacity:0;pointer-events:none;transition:opacity 0.2s;z-index:500;}
@@ -260,6 +273,9 @@
 <header>
   <div class="logo"><span class="logo-main">Physi<span class="logo-q">Q</span></span><span class="logo-sub">— <span class="logo-sub-word">Report</span><span class="logo-sub-initial">R</span></span></div>
   <div class="header-right">
+    <button class="demo-chip" onclick="showDemoInfo()" title="Estás en modo demo — toca para saber por qué" aria-label="Modo demo activo">
+      <span class="demo-chip-dot"></span>Demo
+    </button>
     <button id="sessionBtn" class="session-btn" onclick="toggleSessionPanel()" aria-label="Sesión activa" title="Sesión activa"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-6 8-6s8 2 8 6"/></svg></button>
     <button class="btn-translate" onclick="handleTranslateClick()" aria-label="View in English">🌐<span class="translate-tooltip">Long-press or right-click → Translate to English</span></button>
   </div>
@@ -303,6 +319,19 @@
   <button class="translate-banner-close" onclick="hideTranslateBanner()">✕</button>
 </div>
 <main>
+
+  <!-- Modo demo: explicación permanente, visible solo con body.physiq-demo -->
+  <div class="demo-banner" id="demoBanner">
+    <span>🧪</span>
+    <div>
+      <strong>Modo demo.</strong> El informe se genera a partir de una transcripción y un
+      texto de ejemplo precargados sobre un paciente ficticio: no se llama a Whisper ni a
+      Claude, y el envío por correo se simula. PhysiQ es un proyecto público y su
+      presupuesto de IA es personal, así que la generación real queda reservada a
+      instalaciones con licencia.
+      <a href="https://github.com/physiodevapp/physiq-report" target="_blank" rel="noopener">Ver el código</a>
+    </div>
+  </div>
 
   <div id="step-config">
 
@@ -586,6 +615,13 @@
   <div class="sheet-title">✉️ Enviar informe por email</div>
   <hr class="sheet-divider">
   <div class="sheet-body">
+    <!-- Aviso antes de pedir la dirección, no después de pulsar Enviar: el
+         visitante escribe su email esperando recibir el informe, así que tiene
+         que saberlo antes de teclearlo. Solo visible con body.physiq-demo. -->
+    <div class="demo-email-note" id="demoEmailNote">
+      <span>🧪</span>
+      <div><strong>Modo demo:</strong> el envío se simula. No se enviará ningún correo y no recibirás nada en la dirección que escribas.</div>
+    </div>
     <div class="field" style="margin-bottom:14px;">
       <label>Destinatario</label>
       <input type="email" id="email-to" placeholder="tu@email.com" style="width:100%;">

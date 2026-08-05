@@ -94,6 +94,7 @@ function _showEmailSendBtn() {
 }
 
 function _showEmailTurnstile() {
+  if (_demoMode) { _showEmailSendBtn(); return; }   // mismo criterio que _showTurnstile
   document.getElementById('cf-turnstile-email-wrap').style.display = '';
   document.getElementById('email-send-btn').style.display = 'none';
 }
@@ -101,6 +102,12 @@ function _showEmailTurnstile() {
 function _showTurnstile() {
   if (_isProcessing) return;
   if (_turnstileToken) { _showGenerateBtn(); return; }
+  // En demo el worker no exige el token, así que exigirlo aquí solo puede
+  // estorbar: si un bloqueador impide cargar el script de Turnstile, el botón
+  // no aparecería nunca y la demo quedaría inservible justo para el visitante
+  // más protegido. El servidor sigue siendo quien decide; esto solo evita
+  // bloquear en cliente algo que el servidor ya no bloquea.
+  if (_demoMode) { _showGenerateBtn(); return; }
   document.getElementById('turnstile-wrap').style.display = '';
   document.getElementById('generate-btn').style.display = 'none';
 }
@@ -130,8 +137,20 @@ function initTurnstile() {
   });
 }
 
+// El script de Turnstile puede no haber cargado: bloqueador de anuncios, red
+// corporativa, o modo demo donde ni siquiera se pinta el widget. Resetear un
+// widget inexistente no es un motivo para tumbar un envío.
+function _turnstileReset(widgetId) {
+  if (typeof turnstile === 'undefined' || widgetId == null) return;
+  try { turnstile.reset(widgetId); } catch { /* widget ya destruido */ }
+}
+
 function getTurnstileToken() {
   return new Promise((resolve, reject) => {
+    // En demo el worker ignora el token: no hay nada de pago que proteger. Se
+    // resuelve vacío en vez de rechazar, para que un script de Turnstile
+    // bloqueado no impida usar la demo.
+    if (_demoMode) { resolve(''); return; }
     if (typeof turnstile === 'undefined') {
       reject(new Error('Verificación de seguridad no disponible. Comprueba tu conexión o desactiva el bloqueador de anuncios para physiq-report.'));
       return;
@@ -139,7 +158,7 @@ function getTurnstileToken() {
     if (_turnstileToken) {
       const t = _turnstileToken;
       _turnstileToken = null;
-      turnstile.reset(_turnstileWidgetId);
+      _turnstileReset(_turnstileWidgetId);
       _showTurnstile();
       resolve(t);
       return;
@@ -159,7 +178,10 @@ const DEFAULT_INTRO = `El presente informe sintetiza la historia clínica y func
 Para proporcionar una visión integral y holística de su situación, la estructura de este documento se basa explícitamente en el marco conceptual de la Clasificación Internacional del Funcionamiento, de la Discapacidad y de la Salud (CIF) de la Organización Mundial de la Salud (OMS).`;
 
 // ========= LOAD DOCX LIBRARY =========
-function loadDocx(cb) {
+// `onError` es opcional: sin él se conserva el aviso de siempre. Con él, quien
+// llama decide — y eso importa porque agotar los CDN sin avisar al callback
+// dejaba colgada para siempre a la promesa que lo envuelve en _doSendEmail.
+function loadDocx(cb, onError) {
   if (window.docx) { cb(); return; }
   const urls = [
     'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js',
@@ -168,7 +190,12 @@ function loadDocx(cb) {
   ];
   let i = 0;
   function tryNext() {
-    if (i >= urls.length) { alert('No se pudo cargar la librería Word.'); return; }
+    if (i >= urls.length) {
+      const err = new Error('No se pudo cargar la librería Word.');
+      if (onError) { onError(err); return; }
+      alert(err.message);
+      return;
+    }
     const s = document.createElement('script');
     s.src = urls[i++];
     s.onload = () => { if (window.docx) cb(); else tryNext(); };
@@ -531,6 +558,7 @@ ${docsText}`;
       body: fd,
       signal: ctrl.signal
     });
+    _noteMode(res);
     if (res.status === 401) { _handleLicenseRevoked(); return ''; }
     if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || res.status); }
     const reader = res.body.getReader();
@@ -621,7 +649,9 @@ document.getElementById('diagnosis').addEventListener('input', () => {
 function checkReady() {
   _updateConfigBtns();
   const hasName = !!document.getElementById('patient-name').value.trim();
-  const ok = hasName && (selectedFile || attachedDocs.length > 0 || window._physiqAssessmentContext || window._physiqROMContext || window._physiqForceContext || window._physiqJumpContext || window._physiqBalanceContext || window._physiqKinematicsContext || window._physiqQuestionnaireContext);
+  // En demo el propio caso precargado hace de fuente: exigir audio o contexto
+  // dejaría el botón muerto justo para el visitante que viene a ver la demo.
+  const ok = hasName && (_demoMode || selectedFile || attachedDocs.length > 0 || window._physiqAssessmentContext || window._physiqROMContext || window._physiqForceContext || window._physiqJumpContext || window._physiqBalanceContext || window._physiqKinematicsContext || window._physiqQuestionnaireContext);
   document.getElementById('generate-btn').disabled = !ok;
 }
 
@@ -833,6 +863,7 @@ async function callOrchestrator(file, region, info, token, onTranscript) {
       body: fd,
       signal: ctrl.signal
     });
+    _noteMode(res);
     if (res.status === 401) { _handleLicenseRevoked(); return; }
     if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || res.status); }
 
@@ -1049,6 +1080,7 @@ function renderReport(reportText, transcript, info) {
     ${info.date?`<span class="badge">📅 ${info.date}</span>`:''}
     ${info.diagnosis?`<span class="badge">🏥 ${info.diagnosis}</span>`:''}
     <span class="badge">📐 ${selectedTemplate === 'brief' ? 'Breve' : 'Narrativo'}</span>
+    ${_demoMode ? '<span class="badge" style="background:rgba(242,179,61,0.12);color:#f2b33d;border-color:rgba(242,179,61,0.35);">🧪 Demo</span>' : ''}
   </div>`;
   let html = '';
 
@@ -2560,7 +2592,7 @@ async function _doSendEmail() {
   const btn = document.getElementById('email-send-btn');
   const token = _emailTurnstileToken;
   _emailTurnstileToken = null;
-  turnstile.reset(_emailTurnstileWidgetId);
+  _turnstileReset(_emailTurnstileWidgetId);
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div> Enviando...';
   status.style.display = 'none';
@@ -2573,7 +2605,7 @@ async function _doSendEmail() {
     let attachments, html;
     try {
       const { blob, filename } = await new Promise((resolve, reject) => {
-        loadDocx(async () => { try { resolve(await _buildWordBlob()); } catch (e) { reject(e); } });
+        loadDocx(async () => { try { resolve(await _buildWordBlob()); } catch (e) { reject(e); } }, reject);
       });
       const ab = await blob.arrayBuffer();
       const bytes = new Uint8Array(ab);
@@ -2591,13 +2623,18 @@ async function _doSendEmail() {
       headers: Object.assign({ 'Content-Type': 'application/json', 'cf-turnstile-response': token }, _lk3 ? { 'X-License-Key': _lk3 } : {}),
       body: JSON.stringify({ to, subject, html, attachments }),
     });
+    _noteMode(res);
     if (res.status === 401) { _handleLicenseRevoked(); return; }
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error al enviar');
 
-    status.textContent = attachments ? '✓ Enviado con Word adjunto a ' + to : '✓ Enviado a ' + to;
+    // En demo el worker responde { demo: true } sin tocar Resend. Decir "enviado"
+    // sería mentir sobre el envío de un informe clínico: se dice lo que ha pasado.
+    status.textContent = data.demo
+      ? 'Envío simulado (modo demo) — no se ha enviado ningún correo'
+      : (attachments ? '✓ Enviado con Word adjunto a ' + to : '✓ Enviado a ' + to);
     status.style.cssText = 'display:block;color:var(--accent);font-size:13px;margin-top:10px;';
-    btn.innerHTML = '✓ Enviado';
+    btn.innerHTML = data.demo ? '✓ Simulado' : '✓ Enviado';
     setTimeout(() => closeActiveSheet(), 2000);
   } catch (err) {
     status.textContent = '⚠️ ' + err.message;
@@ -2727,17 +2764,91 @@ function hideTranslateBanner() {
   if (banner) banner.classList.remove('visible');
 }
 
-// ── License gate ──────────────────────────────────────────────────────────────
-// If there is no license key in localStorage, redirect to the hub activation
-// screen. Both the hub and physiq-report run on physiodevapp.github.io, so they
-// share the same localStorage origin.
-(function () {
-  if (!localStorage.getItem('physiq-license-key')) {
-    window.location.replace('https://physiodevapp.github.io/physiq/');
+// ── Run mode (real / demo) ────────────────────────────────────────────────────
+//
+// The license gate is gone: a visitor without a key now gets demo mode instead of
+// being redirected back to the hub. The mode is NOT decided here — the
+// orchestrator resolves it per request (license in KV + secrets present + kill
+// switch) and announces it in the X-PhysiQ-Mode response header. This flag only
+// mirrors it so the UI can label what the user is looking at. Forcing it from
+// devtools produces a UI that lies; the worker keeps serving fixtures regardless.
+let _demoMode = false;
+
+function _setDemoMode(on) {
+  const changed = _demoMode !== on;
+  _demoMode = on;
+  document.body.classList.toggle('physiq-demo', on);
+  // El modo suele resolverse después del primer render. Al entrar en demo hay
+  // que levantar las puertas de Turnstile que ya estaban pintadas.
+  if (changed && on && !_isProcessing) {
+    try { _showGenerateBtn(); _prefillDemoCase(); } catch {}
   }
+}
+
+// La ficha del paciente alimenta la cabecera del .docx y los chips del
+// resultado, mientras que el cuerpo del informe lo fija el fixture. Si el
+// visitante deja la ficha vacía sale un documento incoherente: cuerpo sobre
+// Elena R. y cabecera en blanco. Se rellena con el mismo caso ficticio.
+//
+// Solo campos vacíos —nunca pisa lo que el usuario haya escrito— y por
+// asignación directa, sin disparar los listeners de 'input': escribir esto en
+// la sesión compartida de IDB contaminaría al paciente real del fisio.
+// La fecha no se rellena: la app ya deja la de hoy por defecto en ese campo, y
+// para una sesión que supuestamente acabas de documentar es lo coherente.
+const DEMO_CASE = {
+  name:      'Elena R. (paciente demo)',
+  diagnosis: 'Lumbalgia con irradiación radicular L5 izquierda',
+};
+
+function _prefillDemoCase() {
+  const fields = [['patient-name', DEMO_CASE.name], ['diagnosis', DEMO_CASE.diagnosis]];
+  for (const [id, val] of fields) {
+    const el = document.getElementById(id);
+    if (el && !el.value.trim()) el.value = val;
+  }
+  if (typeof checkReady === 'function') checkReady();
+}
+
+// Resuelve el modo al arrancar, antes de la primera petición real: el botón de
+// generar se pinta según el modo, así que no puede esperar a una cabecera de
+// respuesta. Si el worker no contesta, se queda en real y Turnstile sigue
+// mandando — degradar hacia el camino restrictivo es lo correcto aquí.
+(async function _initMode() {
+  try {
+    const key = localStorage.getItem('physiq-license-key') || '';
+    const res = await fetch(ORCHESTRATOR_URL + '/validate', {
+      headers: key ? { 'X-License-Key': key } : {},
+    });
+    if (!res.ok) return;
+    const info = await res.json();
+    if (info?.mode) _setDemoMode(info.mode === 'demo' || info.mode === 'mixed');
+  } catch { /* worker inalcanzable — no bloquear la app por ello */ }
 }());
 
+// El chip de la cabecera lleva a la explicación, que ya está en la página: no
+// hace falta un modal nuevo para decir algo que cabe en un banner permanente.
+function showDemoInfo() {
+  const b = document.getElementById('demoBanner');
+  if (!b) return;
+  b.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  b.animate([{ opacity: 1 }, { opacity: 0.35 }, { opacity: 1 }], { duration: 700, iterations: 2 });
+}
+
+// The hub broadcasts the mode it resolved at startup, so the badge is correct
+// from the first paint instead of only after the first request.
+window.addEventListener('message', (e) => {
+  if (e.data?.type === 'PHYSIQ_MODE') _setDemoMode(e.data.mode === 'demo' || e.data.mode === 'mixed');
+});
+
+// Read off every orchestrator response.
+function _noteMode(res) {
+  const m = res.headers.get('X-PhysiQ-Mode');
+  if (m) _setDemoMode(m === 'demo');
+}
+
+// Kept for the 401 path, which now only fires if the worker rejects a request for
+// a reason other than licensing. It no longer evicts the user to the hub — demo
+// mode is the graceful floor.
 function _handleLicenseRevoked() {
-  localStorage.removeItem('physiq-license-key');
-  window.location.replace('https://physiodevapp.github.io/physiq/');
+  _setDemoMode(true);
 }
