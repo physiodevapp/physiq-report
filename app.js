@@ -137,6 +137,14 @@ function initTurnstile() {
   });
 }
 
+// El script de Turnstile puede no haber cargado: bloqueador de anuncios, red
+// corporativa, o modo demo donde ni siquiera se pinta el widget. Resetear un
+// widget inexistente no es un motivo para tumbar un envío.
+function _turnstileReset(widgetId) {
+  if (typeof turnstile === 'undefined' || widgetId == null) return;
+  try { turnstile.reset(widgetId); } catch { /* widget ya destruido */ }
+}
+
 function getTurnstileToken() {
   return new Promise((resolve, reject) => {
     // En demo el worker ignora el token: no hay nada de pago que proteger. Se
@@ -150,7 +158,7 @@ function getTurnstileToken() {
     if (_turnstileToken) {
       const t = _turnstileToken;
       _turnstileToken = null;
-      turnstile.reset(_turnstileWidgetId);
+      _turnstileReset(_turnstileWidgetId);
       _showTurnstile();
       resolve(t);
       return;
@@ -170,7 +178,10 @@ const DEFAULT_INTRO = `El presente informe sintetiza la historia clínica y func
 Para proporcionar una visión integral y holística de su situación, la estructura de este documento se basa explícitamente en el marco conceptual de la Clasificación Internacional del Funcionamiento, de la Discapacidad y de la Salud (CIF) de la Organización Mundial de la Salud (OMS).`;
 
 // ========= LOAD DOCX LIBRARY =========
-function loadDocx(cb) {
+// `onError` es opcional: sin él se conserva el aviso de siempre. Con él, quien
+// llama decide — y eso importa porque agotar los CDN sin avisar al callback
+// dejaba colgada para siempre a la promesa que lo envuelve en _doSendEmail.
+function loadDocx(cb, onError) {
   if (window.docx) { cb(); return; }
   const urls = [
     'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js',
@@ -179,7 +190,12 @@ function loadDocx(cb) {
   ];
   let i = 0;
   function tryNext() {
-    if (i >= urls.length) { alert('No se pudo cargar la librería Word.'); return; }
+    if (i >= urls.length) {
+      const err = new Error('No se pudo cargar la librería Word.');
+      if (onError) { onError(err); return; }
+      alert(err.message);
+      return;
+    }
     const s = document.createElement('script');
     s.src = urls[i++];
     s.onload = () => { if (window.docx) cb(); else tryNext(); };
@@ -2576,7 +2592,7 @@ async function _doSendEmail() {
   const btn = document.getElementById('email-send-btn');
   const token = _emailTurnstileToken;
   _emailTurnstileToken = null;
-  turnstile.reset(_emailTurnstileWidgetId);
+  _turnstileReset(_emailTurnstileWidgetId);
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px;"></div> Enviando...';
   status.style.display = 'none';
@@ -2589,7 +2605,7 @@ async function _doSendEmail() {
     let attachments, html;
     try {
       const { blob, filename } = await new Promise((resolve, reject) => {
-        loadDocx(async () => { try { resolve(await _buildWordBlob()); } catch (e) { reject(e); } });
+        loadDocx(async () => { try { resolve(await _buildWordBlob()); } catch (e) { reject(e); } }, reject);
       });
       const ab = await blob.arrayBuffer();
       const bytes = new Uint8Array(ab);

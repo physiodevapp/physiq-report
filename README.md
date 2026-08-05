@@ -27,6 +27,14 @@ Email delivery answers `{ ok: true, demo: true }` and the UI says "envío simula
 claiming a clinical report was emailed when it was not would be worse than not
 sending it at all.
 
+That branch also protects the sending domain. Real delivery goes out through
+Resend as `informes@dataphysiq.com`, a verified domain — so an open demo that
+actually sent mail would hand anonymous visitors a way to send arbitrary content
+from it, with the deliverability reputation of that domain on the line. The demo
+handler never reaches `handleEmail`, so `RESEND_API_KEY` is never used and
+`FROM_ADDRESS` is never touched. It does not even parse the request body: the
+address the visitor types is never read, logged or stored server-side.
+
 ### How the mode is decided
 
 **In the worker, never in the client.** The decision runs in the router before any
