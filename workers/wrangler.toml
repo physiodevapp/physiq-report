@@ -5,10 +5,44 @@ compatibility_date = "2025-01-01"
 # KV Namespace — declared here so `wrangler deploy` keeps the binding attached.
 # (wrangler.toml is the source of truth: a binding not listed here is removed on deploy.)
 #   Key format in KV:  <license-key-string>  →  {"clinic":"Nombre","active":true}
-#   While LICENSES is unbound the Worker runs without license checks (dev passthrough).
+#   While LICENSES is unbound the Worker serves demo mode (fail-closed).
 [[kv_namespaces]]
 binding = "LICENSES"
 id      = "5980b672f0e0409d935fc74e0b948532"  # physiq-licenses
+
+[vars]
+# Budget kill switch: set to "1" (dashboard variable, no deploy needed) to force
+# every request into demo mode regardless of license.
+DEMO_ONLY = "0"
+# Per-actor cap of real (paid) reports per day. Only enforced while the optional
+# RATE KV namespace is bound.
+DAILY_CAP = "50"
+
+# ── Rate limiting ────────────────────────────────────────────────────────────
+# Requires wrangler ≥ 4.36.0. `simple.period` only accepts 10 or 60 seconds, and
+# counters are local to each Cloudflare location — these stop bursts, while the
+# all-day ceiling is the KV counter guarded by DAILY_CAP. Keys are the hashed
+# license when there is one, IP otherwise. Optional in code: an unbound limiter
+# means "no limiting", never a runtime error.
+
+# Report generation: Whisper + a long Claude completion. The most expensive call
+# in the ecosystem, hence the tightest window.
+[[ratelimits]]
+name         = "RL_REPORT"
+namespace_id = "2001"
+simple       = { limit = 4, period = 60 }
+
+# Demo traffic costs nothing — anti-abuse only, deliberately loose.
+[[ratelimits]]
+name         = "RL_DEMO"
+namespace_id = "2002"
+simple       = { limit = 20, period = 60 }
+
+# Optional KV namespace for the daily budget cap (keys `rl:<date>:<actor>`, TTL 25h).
+# Create with `wrangler kv namespace create physiq-rate` and uncomment:
+# [[kv_namespaces]]
+# binding = "RATE"
+# id      = "<namespace id>"
 
 # Secrets — set in Cloudflare dashboard: Worker → Settings → Variables → Secret
 # (preserved by `wrangler deploy`, not managed here):

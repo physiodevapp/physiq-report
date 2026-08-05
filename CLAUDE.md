@@ -92,9 +92,21 @@ After Claude responds, `detectTruncation(reportText)` checks whether the expecte
 
 ## Cloudflare Workers
 
-The orchestrator worker is external to this repo. It handles the full pipeline: Turnstile validation → Whisper transcription → (optional) Haiku doc summarization → Sonnet report generation via SSE. If the endpoint changes, update `ORCHESTRATOR_URL` at the top of `app.js`.
+The orchestrator worker lives in `workers/` and deploys via `wrangler deploy`. It handles the full pipeline: Turnstile validation → Whisper transcription → (optional) Haiku doc summarization → Sonnet report generation via SSE. If the endpoint changes, update `ORCHESTRATOR_URL` at the top of `app.js`.
 
-Every request to a worker includes a Cloudflare Turnstile token (`cf-turnstile-response` header). The widget is rendered in `always` mode — always visible. `getTurnstileToken()` returns a Promise that resolves once the token is available, refreshing the widget if expired. The widget **replaces the "Generar informe" button** until verified; once verified, the real button appears.
+⚠ It is no longer a single file — it imports `workers/demo/`, so pasting `physiq-orchestrator.js` into the dashboard editor is not a valid deploy path any more.
+
+Every request to a worker includes a Cloudflare Turnstile token (`cf-turnstile-response` header). The widget is rendered in `always` mode — always visible. `getTurnstileToken()` returns a Promise that resolves once the token is available, refreshing the widget if expired. The widget **replaces the "Generar informe" button** until verified; once verified, the real button appears. Turnstile only runs in real mode: it guards paid work, and demo blocks nothing by design, so verifying there would be a wasted subrequest. `RL_DEMO` covers scripted replay of the demo.
+
+### Demo mode
+
+Without a verifiable license the worker serves fixtures instead of calling paid APIs. Full rationale in README → "Demo mode"; the rules that matter when editing this repo:
+
+- **The mode is decided in `fetch()`**, by `modeFor()` in `workers/physiq-orchestrator.js`, before any handler. Fail-closed: `real` needs no `DEMO_ONLY`, a valid key in the `LICENSES` KV *and* the secrets that route uses.
+- **`workers/demo/handlers.js` must never receive `env`.** That is the zero-cost guarantee — no `env` means no API keys to authenticate a paid call with. Do not pass `env` through, and do not import anything into that module other than `fixtures.js`.
+- **There is no license gate in `app.js` any more.** A visitor without a key gets demo mode, not a redirect to the hub. `_setDemoMode` only mirrors what the worker announced (`X-PhysiQ-Mode`, or the hub's `PHYSIQ_MODE` postMessage) — never let the client decide the mode.
+- The demo report fixture ends with its own "generado en MODO DEMO" note. Keep it there: that is what makes the disclaimer survive into the `.docx`, the PDF and the email without touching each exporter.
+- The demo patient must stay in sync with the hub's copilot fixtures (`physiq/worker/demo/fixtures.js`) — same fictional patient, same case.
 
 ## Code conventions
 

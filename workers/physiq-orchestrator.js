@@ -1,4 +1,4 @@
-// physiq-orchestrator — single worker: Turnstile + Whisper + Claude (SSE streaming) + Resend email
+// physiq-orchestrator — Turnstile + Whisper + Claude (SSE streaming) + Resend email
 // Deploy to Cloudflare Workers. Required env vars:
 //
 // Secrets (Dashboard → Worker → Settings → Variables → Add secret):
@@ -7,10 +7,22 @@
 //   ANTHROPIC_API_KEY  — Anthropic API key (Claude)
 //   RESEND_API_KEY     — Resend API key (email delivery)
 //
+// Variables (plain text, not secret):
+//   DEMO_ONLY  — "1" forces every request into demo mode (budget kill switch)
+//   DAILY_CAP  — per-actor cap of real (paid) reports per day; default 50
+//
 // KV Namespace binding (Dashboard → Worker → Settings → Bindings):
 //   Variable name: LICENSES  →  KV namespace: physiq-licenses
 //   Key format:  <license-key-string>  →  {"clinic":"Nombre","active":true}
-//   While LICENSES is unbound the worker runs without license checks (dev passthrough).
+//   While LICENSES is unbound the worker serves demo mode (fail-closed), except
+//   on localhost, where it assumes a developer with .dev.vars.
+//
+// Optional bindings (all degrade to "no limiting" when absent):
+//   RL_REPORT, RL_DEMO — Workers rate limiting bindings (see wrangler.toml)
+//   RATE               — KV namespace for the per-actor daily budget cap
+//
+// ⚠ No longer a single file: workers/demo/ is bundled at deploy time, so pasting
+// this file alone into the dashboard editor is no longer a valid fallback.
 //
 // Routes:
 //   POST /        — multipart/form-data → SSE stream (transcript + report)
@@ -30,6 +42,8 @@
 //   documents        — JSON array of {name, text} objects (optional, triggers doc summarization)
 //   docSummaryTokens — max output tokens for the doc summary call (default 5000)
 
+import { demoReport, demoEmail } from './demo/handlers.js';
+
 const FROM_ADDRESS = 'PhysiQ Informes <informes@dataphysiq.com>';
 const CLAUDE_MODEL = 'claude-sonnet-4-5';
 const CLAUDE_SUMMARY_MODEL = 'claude-haiku-4-5-20251001';
@@ -40,21 +54,95 @@ function isLocalDev(origin) {
   return origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1');
 }
 
-async function checkLicense(request, env, origin) {
-  if (isLocalDev(origin)) return null;   // dev bypass
-  if (!env.LICENSES) return null;        // KV not bound yet — passthrough
+// ── Mode resolution ─────────────────────────────────────────────────────────
+//
+// Same contract as physiq-copilot (full rationale in the hub README → "Demo
+// mode"): the decision lives in the router, before any handler, and is
+// fail-closed — 'real' requires ALL of the conditions below. Anything else
+// degrades to demo instead of returning 401, so a visitor without a license
+// still gets to walk the whole report flow, on fixtures.
+//
+// Which secrets each route needs to run for real. Missing any → demo rather than
+// a 502, so partial configuration degrades per route and a fork deployed with no
+// secrets comes up as a working demo.
+const ROUTE_SECRETS = {
+  '/':      ['ANTHROPIC_API_KEY'],   // OPENAI_API_KEY only matters when audio is attached
+  '/email': ['RESEND_API_KEY'],
+};
 
+async function licenseState(request, env, origin) {
   const key = request.headers.get('X-License-Key') || '';
-  if (!key) return new Response(JSON.stringify({ error: { message: 'Licencia requerida' } }), {
-    status: 401, headers: { 'Content-Type': 'application/json' },
-  });
+  if (isLocalDev(origin)) return { licensed: true,  key };   // dev machine with .dev.vars
+  if (!env.LICENSES)      return { licensed: false, key };   // KV unbound in prod → fail closed
+  if (!key)               return { licensed: false, key: '' };
 
   const entry = await env.LICENSES.get(key, { type: 'json' });
-  if (!entry || entry.active === false) return new Response(JSON.stringify({ error: { message: 'Licencia no válida' } }), {
-    status: 401, headers: { 'Content-Type': 'application/json' },
-  });
+  return { licensed: !!entry && entry.active !== false, key };
+}
 
-  return null;
+function modeFor(env, pathname, licensed) {
+  if (env.DEMO_ONLY === '1' || env.DEMO_ONLY === 'true') return 'demo';   // budget kill switch
+  if (!licensed) return 'demo';
+  const needed = ROUTE_SECRETS[pathname] ?? [];
+  if (needed.some(name => !env[name])) return 'demo';
+  return 'real';
+}
+
+// ── Rate limiting ───────────────────────────────────────────────────────────
+//
+// Second layer: demo costs nothing, but a leaked license key would. Keyed by
+// hashed license when there is one (the stable identity Cloudflare's guidance
+// recommends) and by IP otherwise. Report generation is the most expensive call
+// in the ecosystem — Whisper plus a long Claude completion — so its window is
+// the tightest one. Every binding is optional: unbound means no limiting, never
+// a 500.
+async function rateLimited(request, env, pathname, mode, licenseKey) {
+  const ip    = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const actor = licenseKey ? `lic:${fnv1a(licenseKey)}` : `ip:${ip}`;
+
+  const limiter = mode === 'demo' ? env.RL_DEMO : env.RL_REPORT;
+  if (limiter) {
+    const { success } = await limiter.limit({ key: `${pathname}:${actor}` });
+    if (!success) return true;
+  }
+
+  if (mode !== 'real' || !env.RATE) return false;
+  const cap = parseInt(env.DAILY_CAP || '50', 10);
+  const day = new Date().toISOString().slice(0, 10);
+  const k   = `rl:${day}:${actor}`;
+  const n   = parseInt(await env.RATE.get(k) || '0', 10);
+  if (n >= cap) return true;
+  await env.RATE.put(k, String(n + 1), { expirationTtl: 90000 });
+  return false;
+}
+
+// FNV-1a — keeps the license key itself out of rate-limit keys (it is a bearer
+// secret, and those keys surface in logs and analytics).
+function fnv1a(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+}
+
+async function verifyTurnstile(token, request, env) {
+  try {
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        secret: env.TURNSTILE_SECRET,
+        response: token,
+        remoteip: request.headers.get('CF-Connecting-IP') ?? '',
+      }),
+    });
+    const { success } = await res.json();
+    return !!success;
+  } catch {
+    return false;
+  }
 }
 
 // ── Whisper transcription ──────────────────────────────────────────────────
@@ -121,6 +209,8 @@ export default {
       'Access-Control-Allow-Origin': isLocalDev(origin) ? origin : 'https://physiodevapp.github.io',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, cf-turnstile-response, X-License-Key',
+      // The client reads the mode off the response to label the report as demo.
+      'Access-Control-Expose-Headers': 'X-PhysiQ-Mode',
     };
 
     if (request.method === 'OPTIONS') {
@@ -131,41 +221,42 @@ export default {
       return new Response('Method not allowed', { status: 405 });
     }
 
-    // License check
-    const licenseErr = await checkLicense(request, env, origin);
-    if (licenseErr) {
-      return new Response(licenseErr.body, {
-        status: licenseErr.status,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Turnstile validation — all routes require it
-    const turnstileToken = request.headers.get('cf-turnstile-response');
-    if (!turnstileToken) {
-      return new Response(JSON.stringify({ error: { message: 'Verificación requerida' } }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-    const verifyRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        secret: env.TURNSTILE_SECRET,
-        response: turnstileToken,
-        remoteip: request.headers.get('CF-Connecting-IP') ?? '',
-      }),
-    });
-    const { success } = await verifyRes.json();
-    if (!success) {
-      return new Response(JSON.stringify({ error: { message: 'Verificación de seguridad fallida' } }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
     const url = new URL(request.url);
+    const { licensed, key } = await licenseState(request, env, origin);
+    const mode = modeFor(env, url.pathname, licensed);
+    corsHeaders['X-PhysiQ-Mode'] = mode;
+
+    if (await rateLimited(request, env, url.pathname, mode, licensed ? key : '')) {
+      return new Response(JSON.stringify({ error: { message: 'Has alcanzado el límite de peticiones. Inténtalo de nuevo en un minuto.' } }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Retry-After': '60' },
+      });
+    }
+
+    // Turnstile guards paid work, so it only runs in real mode. In demo nothing
+    // is blocked by design — a check whose failure cannot reject the request is
+    // just a wasted subrequest on every visit. Scripted replay of the demo is
+    // handled by RL_DEMO instead, which costs nothing to enforce.
+    if (mode === 'real') {
+      const token = request.headers.get('cf-turnstile-response');
+      const ok    = token ? await verifyTurnstile(token, request, env) : false;
+      if (!ok) {
+        return new Response(JSON.stringify({ error: { message: token ? 'Verificación de seguridad fallida' : 'Verificación requerida' } }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // ── The fork. Nothing below this branch receives `env`, so no demo path can
+    // reach Whisper, Claude or Resend even by mistake — it has no credentials to
+    // authenticate with. See workers/demo/handlers.js.
+    if (mode === 'demo') {
+      return url.pathname === '/email'
+        ? demoEmail(corsHeaders)
+        : demoReport(request, corsHeaders, ctx);
+    }
+
     if (url.pathname === '/email') {
       return handleEmail(request, env, corsHeaders);
     }

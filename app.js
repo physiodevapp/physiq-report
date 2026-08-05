@@ -531,6 +531,7 @@ ${docsText}`;
       body: fd,
       signal: ctrl.signal
     });
+    _noteMode(res);
     if (res.status === 401) { _handleLicenseRevoked(); return ''; }
     if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || res.status); }
     const reader = res.body.getReader();
@@ -833,6 +834,7 @@ async function callOrchestrator(file, region, info, token, onTranscript) {
       body: fd,
       signal: ctrl.signal
     });
+    _noteMode(res);
     if (res.status === 401) { _handleLicenseRevoked(); return; }
     if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || res.status); }
 
@@ -1049,6 +1051,7 @@ function renderReport(reportText, transcript, info) {
     ${info.date?`<span class="badge">📅 ${info.date}</span>`:''}
     ${info.diagnosis?`<span class="badge">🏥 ${info.diagnosis}</span>`:''}
     <span class="badge">📐 ${selectedTemplate === 'brief' ? 'Breve' : 'Narrativo'}</span>
+    ${_demoMode ? '<span class="badge" style="background:rgba(242,179,61,0.12);color:#f2b33d;border-color:rgba(242,179,61,0.35);">🧪 Demo</span>' : ''}
   </div>`;
   let html = '';
 
@@ -2591,13 +2594,18 @@ async function _doSendEmail() {
       headers: Object.assign({ 'Content-Type': 'application/json', 'cf-turnstile-response': token }, _lk3 ? { 'X-License-Key': _lk3 } : {}),
       body: JSON.stringify({ to, subject, html, attachments }),
     });
+    _noteMode(res);
     if (res.status === 401) { _handleLicenseRevoked(); return; }
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error al enviar');
 
-    status.textContent = attachments ? '✓ Enviado con Word adjunto a ' + to : '✓ Enviado a ' + to;
+    // En demo el worker responde { demo: true } sin tocar Resend. Decir "enviado"
+    // sería mentir sobre el envío de un informe clínico: se dice lo que ha pasado.
+    status.textContent = data.demo
+      ? 'Envío simulado (modo demo) — no se ha enviado ningún correo'
+      : (attachments ? '✓ Enviado con Word adjunto a ' + to : '✓ Enviado a ' + to);
     status.style.cssText = 'display:block;color:var(--accent);font-size:13px;margin-top:10px;';
-    btn.innerHTML = '✓ Enviado';
+    btn.innerHTML = data.demo ? '✓ Simulado' : '✓ Enviado';
     setTimeout(() => closeActiveSheet(), 2000);
   } catch (err) {
     status.textContent = '⚠️ ' + err.message;
@@ -2727,17 +2735,45 @@ function hideTranslateBanner() {
   if (banner) banner.classList.remove('visible');
 }
 
-// ── License gate ──────────────────────────────────────────────────────────────
-// If there is no license key in localStorage, redirect to the hub activation
-// screen. Both the hub and physiq-report run on physiodevapp.github.io, so they
-// share the same localStorage origin.
-(function () {
-  if (!localStorage.getItem('physiq-license-key')) {
-    window.location.replace('https://physiodevapp.github.io/physiq/');
-  }
-}());
+// ── Run mode (real / demo) ────────────────────────────────────────────────────
+//
+// The license gate is gone: a visitor without a key now gets demo mode instead of
+// being redirected back to the hub. The mode is NOT decided here — the
+// orchestrator resolves it per request (license in KV + secrets present + kill
+// switch) and announces it in the X-PhysiQ-Mode response header. This flag only
+// mirrors it so the UI can label what the user is looking at. Forcing it from
+// devtools produces a UI that lies; the worker keeps serving fixtures regardless.
+let _demoMode = false;
 
+function _setDemoMode(on) {
+  _demoMode = on;
+  document.body.classList.toggle('physiq-demo', on);
+}
+
+// El chip de la cabecera lleva a la explicación, que ya está en la página: no
+// hace falta un modal nuevo para decir algo que cabe en un banner permanente.
+function showDemoInfo() {
+  const b = document.getElementById('demoBanner');
+  if (!b) return;
+  b.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  b.animate([{ opacity: 1 }, { opacity: 0.35 }, { opacity: 1 }], { duration: 700, iterations: 2 });
+}
+
+// The hub broadcasts the mode it resolved at startup, so the badge is correct
+// from the first paint instead of only after the first request.
+window.addEventListener('message', (e) => {
+  if (e.data?.type === 'PHYSIQ_MODE') _setDemoMode(e.data.mode === 'demo' || e.data.mode === 'mixed');
+});
+
+// Read off every orchestrator response.
+function _noteMode(res) {
+  const m = res.headers.get('X-PhysiQ-Mode');
+  if (m) _setDemoMode(m === 'demo');
+}
+
+// Kept for the 401 path, which now only fires if the worker rejects a request for
+// a reason other than licensing. It no longer evicts the user to the hub — demo
+// mode is the graceful floor.
 function _handleLicenseRevoked() {
-  localStorage.removeItem('physiq-license-key');
-  window.location.replace('https://physiodevapp.github.io/physiq/');
+  _setDemoMode(true);
 }
