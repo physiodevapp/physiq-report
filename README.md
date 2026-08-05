@@ -42,6 +42,13 @@ handler and is fail-closed — `real` requires *all* of: no `DEMO_ONLY` kill swi
 an `X-License-Key` present, that key active in the `LICENSES` KV namespace, and the
 secrets that route needs. Anything else degrades to demo instead of a 401.
 
+There is one dev bypass: when the worker itself runs under `wrangler dev` it
+assumes a developer with `.dev.vars` and skips the licence check. It keys off the
+worker's *own* hostname, never off the request's `Origin` header — a header the
+caller controls, and which `curl -H 'Origin: http://localhost'` forges in a second.
+(That header *was* the bypass condition until this change, which meant one spoofed
+header bought real mode with no licence.)
+
 The client cannot influence it: it never sends a mode. It reads one from the
 `X-PhysiQ-Mode` response header (and from the hub's `PHYSIQ_MODE` postMessage) and
 uses it only to render the badge. Forcing `_demoMode` from devtools produces a UI

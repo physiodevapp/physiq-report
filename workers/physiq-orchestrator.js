@@ -50,8 +50,21 @@ const CLAUDE_SUMMARY_MODEL = 'claude-haiku-4-5-20251001';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+// Only for CORS. Allowing a localhost Origin is harmless: CORS is a browser
+// policy, and this lets a locally-served front end talk to the deployed worker.
 function isLocalDev(origin) {
   return origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1');
+}
+
+// For the licence bypass, and NOT interchangeable with the above.
+//
+// `Origin` is a request header the client controls: outside a browser,
+// `curl -H 'Origin: http://localhost'` forges it in a second. Keying the dev
+// bypass off it meant one spoofed header granted real mode with no licence.
+// The worker's own hostname cannot be forged by the caller: under `wrangler dev`
+// it is localhost, in production it is the workers.dev subdomain.
+function isLocalWorker(url) {
+  return url.hostname === 'localhost' || url.hostname === '127.0.0.1';
 }
 
 // ── Mode resolution ─────────────────────────────────────────────────────────
@@ -70,9 +83,9 @@ const ROUTE_SECRETS = {
   '/email': ['RESEND_API_KEY'],
 };
 
-async function licenseState(request, env, origin) {
+async function licenseState(request, url, env) {
   const key = request.headers.get('X-License-Key') || '';
-  if (isLocalDev(origin)) return { licensed: true,  key };   // dev machine with .dev.vars
+  if (isLocalWorker(url)) return { licensed: true, key };    // `wrangler dev` with .dev.vars
   if (!env.LICENSES)      return { licensed: false, key };   // KV unbound in prod → fail closed
   if (!key)               return { licensed: false, key: '' };
 
@@ -240,7 +253,7 @@ export default {
     }
 
     const url = new URL(request.url);
-    const { licensed, key } = await licenseState(request, env, origin);
+    const { licensed, key } = await licenseState(request, url, env);
 
     // GET /validate — lets the client know the mode BEFORE it makes its first
     // real request. Without it the mode is only learnable from a response
