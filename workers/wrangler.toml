@@ -11,8 +11,12 @@ binding = "LICENSES"
 id      = "5980b672f0e0409d935fc74e0b948532"  # physiq-licenses
 
 [vars]
-# Budget kill switch: set to "1" (dashboard variable, no deploy needed) to force
-# every request into demo mode regardless of license.
+# Budget kill switch: "1" forces every request into demo mode regardless of license.
+#
+# ⚠ This file is the source of truth for [vars], exactly as it is for bindings:
+# `wrangler deploy` resets anything set in the dashboard back to the values here.
+# Flip it by editing this line and pushing; for an instant, deploy-free cut,
+# revoke the license in KV instead (KV holds data, not config).
 DEMO_ONLY = "0"
 # Per-actor cap of real (paid) reports per day. Only enforced while the optional
 # RATE KV namespace is bound.

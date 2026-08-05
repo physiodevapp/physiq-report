@@ -71,8 +71,10 @@ limiting", never a runtime error.
 Set the worker secrets (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `RESEND_API_KEY`,
 `TURNSTILE_SECRET`), keep `DEMO_ONLY` at `"0"`, and add a license key to the
 `physiq-licenses` KV namespace as `{"clinic":"Nombre","active":true}`. Enter it from
-the hub's front screen. Flipping `active` to `false` — or setting `DEMO_ONLY=1` —
-drops every visitor back to demo instantly, with no deploy.
+the hub's front screen. Flipping `active` to `false` in KV drops every visitor back
+to demo instantly and with no deploy — KV holds data, not config. `DEMO_ONLY=1` does
+the same globally, but it *is* config: `wrangler deploy` resets `[vars]` to the values
+in `wrangler.toml`, so set it there and push rather than in the dashboard.
 
 ## Workflow
 
