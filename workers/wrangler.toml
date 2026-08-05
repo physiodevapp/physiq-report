@@ -42,11 +42,12 @@ name         = "RL_DEMO"
 namespace_id = "2002"
 simple       = { limit = 20, period = 60 }
 
-# Optional KV namespace for the daily budget cap (keys `rl:<date>:<actor>`, TTL 25h).
-# Create with `wrangler kv namespace create physiq-rate` and uncomment:
-# [[kv_namespaces]]
-# binding = "RATE"
-# id      = "<namespace id>"
+# KV namespace for the daily budget cap (keys `rl:<date>:<actor>`, TTL 25h).
+# Without this binding DAILY_CAP is inert and only the per-minute windows apply —
+# and those are per Cloudflare location, so they stop bursts, not a slow drain.
+[[kv_namespaces]]
+binding = "RATE"
+id      = "462ecd5f583149038885748a134200a5"  # physiq-rate
 
 # Secrets — set in Cloudflare dashboard: Worker → Settings → Variables → Secret
 # (preserved by `wrangler deploy`, not managed here):
