@@ -113,13 +113,20 @@ async function rateLimited(request, env, pathname, mode, licenseKey) {
   const ip    = request.headers.get('CF-Connecting-IP') || 'unknown';
   const actor = licenseKey ? `lic:${fnv1a(licenseKey)}` : `ip:${ip}`;
 
-  const limiter = mode === 'demo' ? env.RL_DEMO : env.RL_REPORT;
+  // /validate is cheap and runs on every page load, so it uses the loose bucket
+  // whatever the mode — but it IS limited. It answers real/demo, which makes it
+  // an oracle for licence validity, and an unthrottled oracle is a free
+  // brute-force target.
+  const isValidate = pathname === '/validate';
+  const limiter = (isValidate || mode === 'demo') ? env.RL_DEMO : env.RL_REPORT;
   if (limiter) {
     const { success } = await limiter.limit({ key: `${pathname}:${actor}` });
     if (!success) return true;
   }
 
-  if (mode !== 'real' || !env.RATE) return false;
+  // The daily ceiling guards paid work only: asking the worker what mode you are
+  // in must never eat into the day's report budget.
+  if (isValidate || mode !== 'real' || !env.RATE) return false;
   const cap = parseInt(env.DAILY_CAP || '50', 10);
   const day = new Date().toISOString().slice(0, 10);
   const k   = `rl:${day}:${actor}`;
@@ -253,21 +260,18 @@ export default {
     }
 
     const url = new URL(request.url);
-    const { licensed, key } = await licenseState(request, url, env);
 
-    // GET /validate — lets the client know the mode BEFORE it makes its first
-    // real request. Without it the mode is only learnable from a response
-    // header, which is too late: the UI gates the "Generar informe" button on
-    // Turnstile, and in demo that gate has to be lifted up front.
-    // Costs nothing and reveals nothing per-key: see handleValidate.
-    if (url.pathname === '/validate' && request.method === 'GET') {
-      return handleValidate(env, licensed, corsHeaders);
-    }
+    // GET /validate lets the client know the mode BEFORE its first real request.
+    // Without it the mode is only learnable from a response header, which is too
+    // late: the UI gates the "Generar informe" button on Turnstile, and in demo
+    // that gate has to be lifted up front.
+    const isValidate = url.pathname === '/validate' && request.method === 'GET';
 
-    if (request.method !== 'POST') {
+    if (!isValidate && request.method !== 'POST') {
       return new Response('Method not allowed', { status: 405 });
     }
 
+    const { licensed, key } = await licenseState(request, url, env);
     const mode = modeFor(env, url.pathname, licensed);
     corsHeaders['X-PhysiQ-Mode'] = mode;
 
@@ -292,6 +296,9 @@ export default {
         });
       }
     }
+
+    // Answered after the rate-limit check on purpose — see rateLimited().
+    if (isValidate) return handleValidate(env, licensed, corsHeaders);
 
     // ── The fork. Nothing below this branch receives `env`, so no demo path can
     // reach Whisper, Claude or Resend even by mistake — it has no credentials to
