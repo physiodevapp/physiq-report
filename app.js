@@ -117,24 +117,58 @@ function _showGenerateBtn() {
   document.getElementById('generate-btn').style.display = '';
 }
 
+// Turnstile puede no llegar a pintarse nunca: un bloqueador que corte
+// challenges.cloudflare.com, una red corporativa, o el propio servicio caído.
+// Sin este aviso el visitante en modo real se queda mirando un recuadro vacío,
+// sin botón de generar y sin explicación — porque el botón solo aparece cuando
+// hay token, y el token ya no puede llegar. El mensaje sustituye al recuadro.
+//
+// En demo no aplica: ahí el wrap ni se muestra y el worker no exige token.
+// El modo se lee de la clase del body, no de _demoMode: initTurnstile() puede
+// dispararlo desde el onload del script externo antes de que app.js termine de
+// evaluarse, y tocar entonces un `let` aún sin inicializar lanzaría.
+function _turnstileWatchdog() {
+  if (document.body?.classList.contains('physiq-demo')) return;
+  if (_turnstileWidgetId != null) return;
+  const box = document.getElementById('cf-turnstile-container');
+  if (!box || box.dataset.failed) return;
+  box.dataset.failed = '1';
+  box.innerHTML =
+    '<div style="text-align:center;font-size:12px;color:var(--danger);line-height:1.6;padding:6px 4px;">'
+    + 'No se ha podido cargar la verificación de seguridad.<br>'
+    + 'Desactiva el bloqueador de anuncios para esta página o revisa tu conexión.'
+    + '<br><button type="button" onclick="location.reload()" style="margin-top:8px;background:none;'
+    + 'border:1px solid var(--border);color:var(--text-muted);border-radius:6px;padding:5px 12px;'
+    + 'font-size:12px;cursor:pointer;">Reintentar</button>'
+    + '</div>';
+}
+setTimeout(_turnstileWatchdog, 8000);
+
 function initTurnstile() {
-  _turnstileWidgetId = turnstile.render('#cf-turnstile-container', {
-    sitekey: TURNSTILE_SITEKEY,
-    appearance: 'always',
-    callback: (token) => {
-      _turnstileToken = token;
-      if (_turnstileResolve) { _turnstileResolve(token); _turnstileResolve = null; }
-      else if (!_isProcessing) { _showGenerateBtn(); }
-    },
-  });
-  _emailTurnstileWidgetId = turnstile.render('#cf-turnstile-email-container', {
-    sitekey: TURNSTILE_SITEKEY,
-    appearance: 'always',
-    callback: (token) => {
-      _emailTurnstileToken = token;
-      _showEmailSendBtn();
-    },
-  });
+  // Un fallo aquí dejaría _turnstileWidgetId a null y el recuadro vacío; el
+  // watchdog de arriba es quien lo convierte en un mensaje legible.
+  try {
+    _turnstileWidgetId = turnstile.render('#cf-turnstile-container', {
+      sitekey: TURNSTILE_SITEKEY,
+      appearance: 'always',
+      callback: (token) => {
+        _turnstileToken = token;
+        if (_turnstileResolve) { _turnstileResolve(token); _turnstileResolve = null; }
+        else if (!_isProcessing) { _showGenerateBtn(); }
+      },
+    });
+    _emailTurnstileWidgetId = turnstile.render('#cf-turnstile-email-container', {
+      sitekey: TURNSTILE_SITEKEY,
+      appearance: 'always',
+      callback: (token) => {
+        _emailTurnstileToken = token;
+        _showEmailSendBtn();
+      },
+    });
+  } catch (e) {
+    console.error('Turnstile render failed', e);
+    _turnstileWatchdog();
+  }
 }
 
 // El script de Turnstile puede no haber cargado: bloqueador de anuncios, red
