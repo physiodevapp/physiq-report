@@ -307,6 +307,18 @@ export default {
       });
     }
 
+    // /validate se responde antes del muro de Turnstile: no es trabajo de pago,
+    // es la pregunta "¿en qué modo estoy?" que la app hace al arrancar, y nunca
+    // puede llevar token de captcha — el widget aún no ha resuelto, y en demo ni
+    // siquiera se pinta. Detrás del muro devolvía 403 siempre que el modo era
+    // real, así que `_initMode()` se quedaba en el modo por defecto en lugar de
+    // en el que el worker había resuelto. Sigue estando limitado por
+    // rateLimited(), que es lo que impide usarlo como oráculo de licencias.
+    if (isValidate) {
+      track(env, { path: url.pathname, mode, outcome: 'served', licensed });
+      return handleValidate(env, licensed, corsHeaders);
+    }
+
     // Turnstile guards paid work, so it only runs in real mode. In demo nothing
     // is blocked by design — a check whose failure cannot reject the request is
     // just a wasted subrequest on every visit. Scripted replay of the demo is
@@ -324,9 +336,6 @@ export default {
     }
 
     track(env, { path: url.pathname, mode, outcome: 'served', licensed });
-
-    // Answered after the rate-limit check on purpose — see rateLimited().
-    if (isValidate) return handleValidate(env, licensed, corsHeaders);
 
     // ── The fork. Nothing below this branch receives `env`, so no demo path can
     // reach Whisper, Claude or Resend even by mistake — it has no credentials to

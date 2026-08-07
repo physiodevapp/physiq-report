@@ -19,3 +19,5 @@ node_modules/
 # Build output (if a bundler is ever added)
 dist/
 build/
+workers/.wrangler/
+workers/.dev.vars
