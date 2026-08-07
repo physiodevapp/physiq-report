@@ -6,13 +6,13 @@
 // ⚠ Paciente ficticio. Caso clínicamente verosímil pero inventado.
 //
 // Es LA MISMA paciente que usan los fixtures del copiloto en el repo del hub
-// (physiq/worker/demo/fixtures.js): Elena R., lumbalgia con irradiación
+// (physiq/worker/demo/fixtures.js): Nuria V., lumbalgia con irradiación
 // radicular L5 izquierda. Un visitante que recorra copiloto e informe en la
 // misma sesión debe encontrarse el mismo caso, no dos pacientes distintos.
 
 // Lo que "habría transcrito" Whisper del audio de la consulta. Se emite en el
 // evento SSE `transcript`, igual que la transcripción real.
-export const DEMO_TRANSCRIPT = `Fisioterapeuta: Buenos días Elena, cuéntame qué te trae por aquí.
+export const DEMO_TRANSCRIPT = `Fisioterapeuta: Buenos días Nuria, cuéntame qué te trae por aquí.
 Paciente: Llevo unas tres semanas con dolor en la parte baja de la espalda que se me baja por la pierna izquierda.
 Fisioterapeuta: ¿Recuerdas cómo empezó?
 Paciente: Fue durante una mudanza. Cogí una caja pesada del suelo girando el cuerpo y noté un pinchazo fuerte en la zona lumbar.

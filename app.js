@@ -2822,7 +2822,7 @@ function _setDemoMode(on) {
 // La ficha del paciente alimenta la cabecera del .docx y los chips del
 // resultado, mientras que el cuerpo del informe lo fija el fixture. Si el
 // visitante deja la ficha vacía sale un documento incoherente: cuerpo sobre
-// Elena R. y cabecera en blanco. Se rellena con el mismo caso ficticio.
+// Nuria V. y cabecera en blanco. Se rellena con el mismo caso ficticio.
 //
 // Solo campos vacíos —nunca pisa lo que el usuario haya escrito— y por
 // asignación directa, sin disparar los listeners de 'input': escribir esto en
@@ -2830,7 +2830,7 @@ function _setDemoMode(on) {
 // La fecha no se rellena: la app ya deja la de hoy por defecto en ese campo, y
 // para una sesión que supuestamente acabas de documentar es lo coherente.
 const DEMO_CASE = {
-  name:      'Elena R. (paciente demo)',
+  name:      'Nuria V. (paciente demo)',
   diagnosis: 'Lumbalgia con irradiación radicular L5 izquierda',
 };
 
@@ -2841,6 +2841,24 @@ function _prefillDemoCase() {
     if (el && !el.value.trim()) el.value = val;
   }
   if (typeof checkReady === 'function') checkReady();
+  _demoSessionChip();
+}
+
+// El icono de sesión se enciende leyendo la IDB compartida, y el caso demo no
+// se escribe ahí a propósito (ver arriba). Resultado: el formulario decía el
+// nombre del caso y el panel "Sin sesión activa" — coherente por dentro,
+// incoherente a la vista.
+//
+// Se pinta el chip con el caso ficticio sin tocar la IDB, y solo si no hay
+// sesión real: la del fisio manda siempre sobre la de mentira, tanto para no
+// pisarla como para no tapársela en pantalla.
+function _demoSessionChip() {
+  readSession().then(real => {
+    if (real?.patient) return;
+    const name = document.getElementById('patient-name')?.value.trim();
+    if (!name) return;
+    updateSessionChip({ patient: name, date: document.getElementById('session-date')?.value.trim() });
+  }).catch(() => { /* IDB no disponible: el chip se queda como estaba */ });
 }
 
 // Resuelve el modo al arrancar, antes de la primera petición real: el botón de
