@@ -1211,6 +1211,12 @@ function toggleTranscript() {
 
 // ========= GENERATE =========
 async function generateReport() {
+  // La papelera vacía la ficha, y en demo eso deja un documento incoherente:
+  // el cuerpo lo fija el fixture —habla del caso ficticio— y la cabecera saldría
+  // en blanco. Se vuelve a rellenar aquí, no al borrar, para que la papelera
+  // siga haciendo algo visible en lugar de parecer que no responde.
+  if (_demoMode) _prefillDemoCase();
+
   const info = {
     name:      document.getElementById('patient-name').value.trim(),
     date:      document.getElementById('session-date').value.trim() || new Date().toLocaleDateString('es-ES'),
