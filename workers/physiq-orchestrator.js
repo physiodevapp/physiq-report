@@ -129,7 +129,10 @@ async function rateLimited(request, env, pathname, mode, licenseKey) {
   if (isValidate || mode !== 'real' || !env.RATE) return false;
   const cap = parseInt(env.DAILY_CAP || '50', 10);
   const day = new Date().toISOString().slice(0, 10);
-  const k   = `rl:${day}:${actor}`;
+  // El namespace es el mismo en los dos Workers, así que la clave lleva de qué
+  // Worker viene: sin el prefijo, sus contadores se sumaban y el DAILY_CAP de
+  // cada uno consumía el del otro.
+  const k   = `rl:report:${day}:${actor}`;
   const n   = parseInt(await env.RATE.get(k) || '0', 10);
   if (n >= cap) return true;
   await env.RATE.put(k, String(n + 1), { expirationTtl: 90000 });

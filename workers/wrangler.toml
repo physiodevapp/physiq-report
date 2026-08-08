@@ -42,7 +42,9 @@ name         = "RL_DEMO"
 namespace_id = "2002"
 simple       = { limit = 20, period = 60 }
 
-# KV namespace for the daily budget cap (keys `rl:<date>:<actor>`, TTL 25h).
+# KV namespace for the daily budget cap (keys `rl:report:<date>:<actor>`, TTL 25h).
+# The worker name is part of the key: the namespace is shared with
+# physiq-copilot, and without it both caps drew from one counter.
 # Without this binding DAILY_CAP is inert and only the per-minute windows apply —
 # and those are per Cloudflare location, so they stop bursts, not a slow drain.
 [[kv_namespaces]]
