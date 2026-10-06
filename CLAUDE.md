@@ -96,6 +96,8 @@ The orchestrator worker lives in `workers/` and deploys via `wrangler deploy`. I
 
 ⚠ It is no longer a single file — it imports `workers/demo/`, so pasting `physiq-orchestrator.js` into the dashboard editor is not a valid deploy path any more.
 
+CORS: the worker echoes the request's `Origin` only if it is in `ALLOWED_ORIGINS` (`physiodevapp.github.io` and the custom domain `edugamboa.com` / `www.edugamboa.com`, which serves the same Pages site) or localhost; anything else gets the first entry. A new domain serving the apps must be added there — otherwise every call from it fails in the browser as a network error — and to the Turnstile widget's hostnames in the Cloudflare dashboard.
+
 Every request to a worker includes a Cloudflare Turnstile token (`cf-turnstile-response` header). The widget is rendered in `always` mode — always visible. `getTurnstileToken()` returns a Promise that resolves once the token is available, refreshing the widget if expired. The widget **replaces the "Generar informe" button** until verified; once verified, the real button appears. Turnstile only runs in real mode, server and client alike: it guards paid work, and demo blocks nothing by design. `_showTurnstile`, `_showEmailTurnstile` and `getTurnstileToken` all short-circuit when `_demoMode` — otherwise a blocked Turnstile script would hide the generate button and make the demo unusable. `RL_DEMO` covers scripted replay instead.
 
 ### Demo mode
