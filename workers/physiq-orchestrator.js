@@ -56,6 +56,21 @@ function isLocalDev(origin) {
   return origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1');
 }
 
+// Also only for CORS: the origins the apps are served from. The GitHub Pages
+// site answers on its custom domain too (edugamboa.com), and a page opened
+// there was rejected by the browser — with a fixed Allow-Origin the worker's
+// answer, real or demo, never reached it. The first entry is the fallback for
+// any other origin, as before.
+const ALLOWED_ORIGINS = [
+  'https://physiodevapp.github.io',
+  'https://edugamboa.com',
+  'https://www.edugamboa.com',
+];
+
+function corsOrigin(origin) {
+  return isLocalDev(origin) || ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+}
+
 // For the licence bypass, and NOT interchangeable with the above.
 //
 // `Origin` is a request header the client controls: outside a browser,
@@ -275,7 +290,9 @@ export default {
     const origin = request.headers.get('Origin') || '';
 
     const corsHeaders = {
-      'Access-Control-Allow-Origin': isLocalDev(origin) ? origin : 'https://physiodevapp.github.io',
+      'Access-Control-Allow-Origin': corsOrigin(origin),
+      // The answer depends on Origin: a cache must not hand one site's to another.
+      'Vary': 'Origin',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, cf-turnstile-response, X-License-Key',
       // The client reads the mode off the response to label the report as demo.
