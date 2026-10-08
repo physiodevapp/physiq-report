@@ -27,6 +27,10 @@
 // Routes:
 //   POST /        — multipart/form-data → SSE stream (transcript + report)
 //   POST /email   — application/json { to, subject, html } → JSON { ok: true }
+//   POST /verify  — application/json { prompt, schema, maxTokens?, model? } → JSON
+//                   { result, model, truncated, usage } — one non-streaming Claude call whose
+//                   answer is forced into `schema` (tool use). Used by
+//                   physiq-assessment to review a generated report (capa 3).
 //
 // SSE events (/ route):
 //   event: transcript   data: { text: string }
@@ -42,10 +46,11 @@
 //   documents        — JSON array of {name, text} objects (optional, triggers doc summarization)
 //   docSummaryTokens — max output tokens for the doc summary call (default 5000)
 
-import { demoReport, demoEmail } from './demo/handlers.js';
+import { demoReport, demoEmail, demoVerify } from './demo/handlers.js';
+import { parseVerifyBody, verifyRequestBody } from './verify.js';
 
 const FROM_ADDRESS = 'PhysiQ Informes <informes@dataphysiq.com>';
-const CLAUDE_MODEL = 'claude-sonnet-4-5';
+const CLAUDE_MODEL = 'claude-sonnet-4-5';         // keep in sync with VERIFY_MODELS (verify.js)
 const CLAUDE_SUMMARY_MODEL = 'claude-haiku-4-5-20251001';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -96,6 +101,7 @@ function isLocalWorker(url) {
 const ROUTE_SECRETS = {
   '/':      ['ANTHROPIC_API_KEY'],   // OPENAI_API_KEY only matters when audio is attached
   '/email': ['RESEND_API_KEY'],
+  '/verify': ['ANTHROPIC_API_KEY'],
 };
 
 async function licenseState(request, url, env) {
@@ -200,6 +206,7 @@ function handleValidate(env, licensed, corsHeaders) {
   const routes = {
     report: modeFor(env, '/',      licensed),
     email:  modeFor(env, '/email', licensed),
+    verify: modeFor(env, '/verify', licensed),
   };
   const values = Object.values(routes);
   const mode = values.every(m => m === 'real') ? 'real'
@@ -361,13 +368,17 @@ export default {
     // reach Whisper, Claude or Resend even by mistake — it has no credentials to
     // authenticate with. See workers/demo/handlers.js.
     if (mode === 'demo') {
-      return url.pathname === '/email'
-        ? demoEmail(corsHeaders)
-        : demoReport(request, corsHeaders, ctx);
+      return url.pathname === '/email'  ? demoEmail(corsHeaders)
+           : url.pathname === '/verify' ? demoVerify(corsHeaders)
+           : demoReport(request, corsHeaders, ctx);
     }
 
     if (url.pathname === '/email') {
       return handleEmail(request, env, corsHeaders);
+    }
+
+    if (url.pathname === '/verify') {
+      return handleVerify(request, env, corsHeaders);
     }
 
     // ── SSE report generation ──────────────────────────────────────────────
@@ -472,6 +483,50 @@ export default {
     });
   }
 };
+
+// ── Verify handler (/verify) ───────────────────────────────────────────────
+//
+// Request validation and the Anthropic body live in ./verify.js (pure, unit-
+// tested by tests/worker.mjs). Errors keep the «Claude: …» prefix of route /,
+// which physiq-assessment's errorLegible() already maps to Spanish.
+
+async function handleVerify(request, env, corsHeaders) {
+  const json = (data, status = 200) => new Response(JSON.stringify(data), {
+    status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+
+  let body;
+  try { body = await request.json(); } catch { body = null; }
+  const req = parseVerifyBody(body);
+  if (req.error) return json({ error: { message: req.error } }, 400);
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify(verifyRequestBody(req)),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      return json({ error: { message: 'Claude: ' + (e.error?.message || res.status) } }, 502);
+    }
+    const out = await res.json();
+    const tool = out.content?.find(b => b.type === 'tool_use');
+    if (!tool) return json({ error: { message: 'Claude: respuesta sin resultado' } }, 502);
+    return json({
+      result: tool.input,
+      model: req.model,
+      truncated: out.stop_reason === 'max_tokens',
+      usage: { input: out.usage?.input_tokens ?? null, output: out.usage?.output_tokens ?? null },
+    });
+  } catch (error) {
+    return json({ error: { message: 'Claude: ' + error.message } }, 502);
+  }
+}
 
 // ── Email handler ──────────────────────────────────────────────────────────
 
