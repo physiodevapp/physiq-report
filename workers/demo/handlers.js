@@ -96,3 +96,16 @@ export async function demoEmail(corsHeaders) {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }
+
+// ── POST /verify — revisión simulada ────────────────────────────────────────
+//
+// Sin puntos: el esquema lo manda el cliente, así que aquí no se puede inventar
+// un resultado con su forma; `{ puntos: [] }` es el que usa physiq-assessment.
+// `demo: true` (y la cabecera X-PhysiQ-Mode) permite al cliente descartarlo:
+// un demo no debe dar por revisado un informe clínico real.
+export async function demoVerify(corsHeaders) {
+  await sleep(600);
+  return new Response(JSON.stringify({ result: { puntos: [] }, model: 'demo', demo: true, truncated: false, usage: null }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}

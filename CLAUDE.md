@@ -21,6 +21,7 @@ The application is split across these files:
 - `sw.js` — Service Worker (PWA: cache-first for CDN assets, network-first for app shell, network-only for workers)
 - `manifest.json` — PWA manifest (standalone display, dark theme)
 - `tests/unit.js` — Node-runnable unit tests for `lib/payload.js`
+- `tests/worker.mjs` — Node-runnable tests for the worker's `POST /verify` (`node tests/worker.mjs`; mocks `fetch`, never calls an API)
 
 There is no framework, no bundler, no modules.
 
@@ -94,7 +95,9 @@ After Claude responds, `detectTruncation(reportText)` checks whether the expecte
 
 The orchestrator worker lives in `workers/` and deploys via `wrangler deploy`. It handles the full pipeline: Turnstile validation → Whisper transcription → (optional) Haiku doc summarization → Sonnet report generation via SSE. If the endpoint changes, update `ORCHESTRATOR_URL` at the top of `app.js`.
 
-⚠ It is no longer a single file — it imports `workers/demo/`, so pasting `physiq-orchestrator.js` into the dashboard editor is not a valid deploy path any more.
+**`POST /verify`** (used by physiq-assessment's «Informe narrativo» card to review a generated report — «capa 3»; not used by this app's UI): JSON `{ prompt, schema, maxTokens?, model? }` → `{ result, model, truncated, usage: { input, output } }`. One non-streaming Claude call whose answer is forced into `schema` through a single tool (`tool_choice`), so `result` is always JSON with that shape. The prompt and the schema belong to the client (physiq-assessment), so changing them needs no worker deploy. Limits, so one request can never cost more than one Sonnet call: `model` is an alias only (`sonnet` default, `haiku` — `VERIFY_MODELS`, kept equal to `CLAUDE_MODEL`/`CLAUDE_SUMMARY_MODEL` by a test), `maxTokens` clamped to 4000 (default 2000), prompt ≤ 200 000 characters, schema ≤ 10 000. Same gate as `/`: licence, Turnstile token in real mode, `RL_REPORT` (per path) and the daily cap — each verification counts as one request there. Errors: 400 for a bad body, 502 with the `«Claude: …»` prefix for API failures (same as `/`). Demo: `demoVerify()` answers `{ result: { puntos: [] }, demo: true }` without calling anything. Pure helpers live in `workers/verify.js` (a Worker's main module must not have named exports: they're read as entrypoints).
+
+⚠ It is no longer a single file — it imports `workers/demo/` and `workers/verify.js`, so pasting `physiq-orchestrator.js` into the dashboard editor is not a valid deploy path any more.
 
 CORS: the worker echoes the request's `Origin` only if it is in `ALLOWED_ORIGINS` (`physiodevapp.github.io` and the custom domain `edugamboa.com` / `www.edugamboa.com`, which serves the same Pages site) or localhost; anything else gets the first entry. A new domain serving the apps must be added there — otherwise every call from it fails in the browser as a network error — and to the Turnstile widget's hostnames in the Cloudflare dashboard.
 
