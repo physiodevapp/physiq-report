@@ -18,6 +18,7 @@ The application is split across these files:
 - `index.html` — markup and embedded CSS
 - `app.js` — all JavaScript (~1036 lines)
 - `lib/payload.js` — pure functions shared between the browser and tests (`decodePayload`, `buildClinicalContext`); no DOM, no globals
+- `lib/reglas-informe.js` — **shared with physiq-assessment, byte-identical**: the prompt rules learned there from reviewing real reports (`REGLAS_COMUNES`, `reglaDerivacion()`, `reglaAudio()`/`cabeceraAudio()`, `RECORDATORIO_DISCREPANCIAS`, `AVISO_NIEGA`, `PISTA_DICTADO`). Loaded as a classic script before `lib/payload.js` (it sets `globalThis.PHYSIQ_REGLAS_INFORME`; `require()` works too). `tests/unit.js` pins its SHA-256 and physiq-assessment's test pins the same value: change it in one repo → copy it as is to the other and update the hash in both
 - `sw.js` — Service Worker (PWA: cache-first for CDN assets, network-first for app shell, network-only for workers)
 - `manifest.json` — PWA manifest (standalone display, dark theme)
 - `tests/unit.js` — Node-runnable unit tests for `lib/payload.js`
@@ -57,7 +58,7 @@ There is no framework, no bundler, no modules.
 | Function | File | Purpose |
 |---|---|---|
 | `buildPrompt()` | `app.js` | Constructs the Claude prompt; switches between `brief` and `narrative` templates with explicit CIF instructions |
-| `buildClinicalContext()` | `lib/payload.js` | Formats `window._physiqAssessmentContext` into a structured text block injected before the transcript |
+| `buildClinicalContext(data, { conAudio })` | `lib/payload.js` | Formats `window._physiqAssessmentContext` into a structured text block injected before the transcript. Ported from physiq-assessment (2026-10): hypotheses without their score label (`sc` produced «LR×» jargon), `dt`/`pq` hypotheses as antecedents, plan notes under neutral labels and only when filled, the clinician's results prevail but what the patient reports follows the discrepancy rule, plus the payload fields it used to drop — urgent/medical referrals (`ur`, `dv`), side (`la`), surgery (`cq`), vitals (`sv`, `an`), modo breve (`md`, `pe`) and the pre-visit form (`fp`, without «No sé»/«No sabría decir»; with audio, the discrepancy reminder under it). The payload contract itself is unchanged |
 | `decodePayload()` | `lib/payload.js` | Decodes the `?v=<base64>` URL param sent by PhysiQ-Assessment (backward-compat fallback) |
 | `renderReport()` | `app.js` | Parses markdown sections into collapsible HTML; calls `parseTablesInText()` and `parseHyperlinks()` |
 | `downloadWord()` | `app.js` | Builds `.docx` with custom header (logo + clinic info), footer (page numbers), and section-aware styling |
@@ -70,7 +71,8 @@ There is no framework, no bundler, no modules.
 | `_syncImportedCard()` | `app.js` | Shows/hides `#imported-card` based on whether any clinical badges are present; auto-opens card when first badge appears |
 | `showImportedBadge(data)` | `app.js` | Shows green badge when a complete assessment payload arrives; removes incomplete badge |
 | `initTurnstile()` / `getTurnstileToken()` | `app.js` | Cloudflare Turnstile bot-protection widget; token is attached to every Worker request |
-| `getWhisperPrompt()` | `app.js` | Returns a region-specific hint string sent to Whisper to improve transcription accuracy |
+| `getWhisperPrompt(region, { dictado })` | `app.js` | Returns a region-specific hint string sent to Whisper to improve transcription accuracy (tobillo y pie and the cadera addition ported from physiq-assessment); in dictado, prefixed with `PISTA_DICTADO` |
+| `setAudioMode()` / `_syncAudioMode()` | `app.js` | «¿Qué hay en el audio?» selector (`#audio-mode`, only while there is audio): `audioMode` `'dialogo'` (default) or `'dictado'` (the physio narrates at the end; Whisper doesn't separate voices, and in the dialogue the report attributed the physio's indications to the doctor). Dictado shows three tips and changes the transcript header, the audio rule and the Whisper hint. Lasts until reload |
 | `setManualRegion()` / `openRegionSheet()` | `app.js` | Region-picker bottom sheet for manual override of the anatomical region hint |
 | `_peekAudioFromIDB()` | `app.js` | Reads hub audio from IDB without consuming it |
 | `_consumeAudioFromIDB()` | `app.js` | Reads and deletes hub audio from IDB (called only when user confirms use) |
@@ -82,6 +84,8 @@ There is no framework, no bundler, no modules.
 ## Report templates
 
 `selectedTemplate` is either `'brief'` or `'narrative'` (default). This controls which prompt is built in `buildPrompt()`. The narrative template follows the CIF biopsychosocial framework with specific sections the truncation-detection logic checks for.
+
+**Rules ported from physiq-assessment (2026-10).** physiq-assessment's «🎙 Informe narrativo» is an adapted copy of these prompts, improved over 22 rounds of review with real reports (history in its CLAUDE.md, «Informe narrativo con IA»), until three reports in a row came out with no serious failure. Both templates now carry its common rules from `lib/reglas-informe.js` (shared, byte-identical, hash-pinned): `reglaAudio()` (no audio / consulta / dictado), `reglaDerivacion()` (a referral stated once, at the start of the plan; with an urgent one, no treatment plan) and `REGLAS_COMUNES` (no data sources named, discrepancies in both versions in one sentence, each indication attributed to whoever gave it, no invented age/sex/side, causes, frequencies, diagnoses or imaging purposes, figures not classified, tests «apoyan» never «confirman»…). The patient's name and date never appear in the text. **The narrative keeps report's own structure** — report documents any session, not only an initial assessment, so cardiorrespiratory, motor control, balance or adjuvant treatments can apply — but every optional subsection is marked «[Solo si…]» and dropped with its title when there is no data (rule 5), the examples that only produced filler («6MWT, TUG, EQ-5D…») are gone, the narrative uses CIF terminology without alphanumeric codes (codes only in the brief), and the «Funciones Sensoriales y Dolor» placeholder carries `AVISO_NIEGA` when there is audio. Not ported (yet): physiq-assessment's «datos ampliados» (tests done with their names, CIF tree path, pauta, «Cuándo reconsiderar», scale), which aren't in the payload — extending the payload contract is a separate decision; its closed CIF code list for the brief; its automatic review of the report (layer 1).
 
 `buildPrompt()` forces `'brief'` when `getTokens() === 1000` (slider 1 at the lowest step), regardless of the user's template selection. The narrative prompt also injects a `PRESUPUESTO DE EXTENSIÓN` instruction with the word budget from `sliderMeta.words` so Claude self-limits and closes all sections cleanly.
 

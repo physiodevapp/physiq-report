@@ -1,4 +1,7 @@
 // ========= GLOBAL STATE =========
+// Qué hay en el audio: 'dialogo' (consulta) o 'dictado' (el fisio narra al
+// terminar). Dura hasta recargar, como en physiq-assessment.
+let audioMode = 'dialogo';
 let selectedFile = null, transcriptText = '', logoBase64 = null, logoMime = 'image/png';
 let selectedTemplate = 'narrative';
 let lastReportText = '';
@@ -426,6 +429,7 @@ function _setAudioFile(file) {
   document.getElementById('file-name').textContent = '✓ ' + file.name;
   document.getElementById('audio-clear-btn').style.display = 'flex';
   _hideRecordingHint();
+  _syncAudioMode();
   checkReady();
 }
 
@@ -434,7 +438,25 @@ function clearAudio() {
   document.getElementById('file-name').textContent = '';
   document.getElementById('audio-file').value = '';
   document.getElementById('audio-clear-btn').style.display = 'none';
+  _syncAudioMode();
   checkReady();
+}
+
+// Consulta o dictado: solo se ve con audio. En el diálogo, Whisper no separa
+// las voces y el informe atribuía al médico indicaciones del fisio; dictado
+// por el fisio salió bien (physiq-assessment, revisión de informes reales).
+function setAudioMode(m) {
+  audioMode = m === 'dictado' ? 'dictado' : 'dialogo';
+  _syncAudioMode();
+}
+
+function _syncAudioMode() {
+  const wrap = document.getElementById('audio-mode');
+  if (!wrap) return;
+  wrap.style.display = selectedFile ? '' : 'none';
+  wrap.querySelectorAll('.audio-mode-btn').forEach(b => b.classList.toggle('selected', b.dataset.mode === audioMode));
+  const tips = document.getElementById('audio-mode-tips');
+  if (tips) tips.style.display = selectedFile && audioMode === 'dictado' ? '' : 'none';
 }
 
 // ========= DOCUMENT ATTACHMENT =========
@@ -831,7 +853,19 @@ const WHISPER_PROMPTS = {
   default:  'Fisioterapia musculoesquelética. Hombro: subacromial, capsulitis, SLAP, manguito rotador, Neer, Hawkins-Kennedy. Cadera: femoroacetabular, labrum, tendinopatía glútea, FADDIR, FABER. Cervical: radiculopatía, mielopatía, WAD, Spurling, ULNT. Lumbar: estenosis espinal, claudicación, SLR, Lasègue, Slump. Rodilla: LCA, menisco, patelofemoral, Lachman, McMurray. Codo: epicondilalgia, túnel cubital, IRPL, Cozen, Tinel.'
 };
 
-function getWhisperPrompt(region) {
+// Portado de physiq-assessment: pista de tobillo y pie (aquí caía en `default`)
+// y el añadido de cadera (con «ingla» y «tomas modificado» en la transcripción).
+WHISPER_PROMPTS.tobillo_pie = 'Fisioterapia. Tobillo y pie. Esguince lateral de tobillo, inestabilidad crónica de tobillo, sindesmosis, tendinopatía aquílea, rotura del tendón de Aquiles, fascitis plantar, tendinopatía peronea, tibial posterior, metatarsalgia, neuroma de Morton, fractura de estrés. Ligamento peroneoastragalino anterior, calcaneoperoneo, astrágalo, calcáneo, quinto metatarsiano. Reglas de Ottawa, cajón anterior, inversión forzada, squeeze test, test de Thompson, Royal London, windlass, lunge test. FAAM, CAIT, VISA-A, FFI.';
+WHISPER_PROMPTS.cadera += ' Ingle, dolor inguinal, psoas ilíaco, Thomas modificado, aductores, pubalgia.';
+
+// En dictado, la pista dice que narra el fisio en primera persona
+// (PISTA_DICTADO, lib/reglas-informe.js).
+function getWhisperPrompt(region, opts = {}) {
+  const pista = _pistaWhisperRegion(region);
+  return opts.dictado ? `${window.PHYSIQ_REGLAS_INFORME.PISTA_DICTADO} ${pista}` : pista;
+}
+
+function _pistaWhisperRegion(region) {
   if (!region) return WHISPER_PROMPTS.default;
   const r = region.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if (r.includes('hombro'))   return WHISPER_PROMPTS.hombro;
@@ -840,6 +874,7 @@ function getWhisperPrompt(region) {
   if (r.includes('lumbar'))   return WHISPER_PROMPTS.lumbar;
   if (r.includes('rodilla'))  return WHISPER_PROMPTS.rodilla;
   if (r.includes('codo'))     return WHISPER_PROMPTS.codo;
+  if (r.includes('tobillo') || r.includes('pie')) return WHISPER_PROMPTS.tobillo_pie;
   return WHISPER_PROMPTS.default;
 }
 
@@ -880,8 +915,9 @@ function updateRegionSelector() {
 async function callOrchestrator(file, region, info, token, onTranscript) {
   const fd = new FormData();
   if (file) fd.append('file', file);
-  fd.append('whisperHint', getWhisperPrompt(region));
-  fd.append('prompt', buildPrompt('{{TRANSCRIPT}}', info, selectedTemplate));
+  const dictado = !!file && audioMode === 'dictado';
+  fd.append('whisperHint', getWhisperPrompt(region, { dictado }));
+  fd.append('prompt', buildPrompt('{{TRANSCRIPT}}', info, selectedTemplate, { conAudio: !!file, dictado }));
   fd.append('maxTokens', String(getTokens()));
   if (attachedDocs.length) {
     fd.append('documents', JSON.stringify(attachedDocs.map(d => ({ name: d.name, text: d.text }))));
@@ -948,8 +984,19 @@ async function callOrchestrator(file, region, info, token, onTranscript) {
 // ========= CLINICAL CONTEXT BUILDER =========
 // buildClinicalContext() / buildROMContext() / buildForceContext() / buildJumpContext() / buildBalanceContext() / buildKinematicsContext() / buildQuestionnaireContext() live in lib/payload.js
 
-function buildPrompt(transcript, info, template) {
-  const clinicalCtx       = buildClinicalContext(window._physiqAssessmentContext);
+// Reglas portadas de physiq-assessment, donde se corrigieron revisando informes
+// reales: las comunes (REGLAS_COMUNES), la derivación, el audio (consulta o
+// dictado) y el aviso de discrepancias viven en lib/reglas-informe.js, idéntico
+// en los dos repos (su huella la fija tests/unit.js). La estructura del
+// narrativo sigue siendo la de report —documenta cualquier sesión, no solo la
+// valoración inicial—, pero las subsecciones opcionales van marcadas «[Solo
+// si…]» y sin los ejemplos que solo producían relleno («no se realizó…»).
+// opts: { conAudio, dictado }
+function buildPrompt(transcript, info, template, opts = {}) {
+  const R = window.PHYSIQ_REGLAS_INFORME;
+  const conAudio = !!opts.conAudio;
+  const dictado = conAudio && !!opts.dictado;
+  const clinicalCtx       = buildClinicalContext(window._physiqAssessmentContext, { conAudio });
   const romCtx            = buildROMContext(window._physiqROMContext);
   const forceCtx          = buildForceContext(window._physiqForceContext);
   const jumpCtx           = buildJumpContext(window._physiqJumpContext);
@@ -959,27 +1006,31 @@ function buildPrompt(transcript, info, template) {
   const hasHypotheses = (window._physiqAssessmentContext?.h || []).length > 0;
 
   const docCtx = attachedDocs.length ? '{{DOC_SUMMARY}}' : '';
+  const datos = `${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}${jumpCtx ? jumpCtx + '\n\n' : ''}${balanceCtx ? balanceCtx + '\n\n' : ''}${kinematicsCtx ? kinematicsCtx + '\n\n' : ''}${questionnaireCtx ? questionnaireCtx + '\n\n' : ''}${docCtx}`;
 
   if (getTokens() === 1000) template = 'brief';
 
   if (template === 'brief') {
     return `Eres un fisioterapeuta clínico experto en documentación CIF-APTA.
-Genera un informe clínico breve en español a partir de la transcripción de sesión. El informe debe estar escrito en prosa clínica continua, sin listas de ítems, y no superar las 550 palabras en total.
+Genera un informe clínico breve en español a partir de ${conAudio ? (dictado ? 'el dictado del fisioterapeuta' : 'la transcripción de sesión') : 'los datos recibidos'}. El informe debe estar escrito en prosa clínica continua, sin listas de ítems, y no superar las 550 palabras en total.
 
 PACIENTE: ${info.name} | Fecha: ${info.date} | Diagnóstico: ${info.diagnosis}
 
-${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}${jumpCtx ? jumpCtx + '\n\n' : ''}${balanceCtx ? balanceCtx + '\n\n' : ''}${kinematicsCtx ? kinematicsCtx + '\n\n' : ''}${questionnaireCtx ? questionnaireCtx + '\n\n' : ''}${docCtx}TRANSCRIPCIÓN:
+${datos}${R.cabeceraAudio(dictado, true)}
 ${transcript}
 
 INSTRUCCIONES:
-1. Usa EXACTAMENTE estas tres secciones con prefijo ##:
+1. No escribas título ni ficha de identificación (paciente, fecha…): ya aparecen en la cabecera del documento. Tampoco escribas el nombre del paciente ni la fecha en ningún punto del texto. Empieza directamente con "## PRESENTACIÓN CLÍNICA".
+2. Usa EXACTAMENTE estas tres secciones con prefijo ##:
    ## PRESENTACIÓN CLÍNICA
    ## HALLAZGOS Y CODIFICACIÓN CIF
    ## OBJETIVOS Y PLAN
-2. Escribe en prosa continua dentro de cada sección, sin viñetas ni listas.
-3. En ## HALLAZGOS Y CODIFICACIÓN CIF incluye los códigos CIF alfanuméricos relevantes entre paréntesis inline, integrados en la prosa. Ejemplo: "Se constata limitación del rango de flexión de hombro (b7101) con dolor asociado al movimiento activo (b28016)."
-4. Omite datos que no aparezcan en la transcripción; no escribas "No evaluado".
-5. Límite estricto: 550 palabras totales entre las tres secciones.${hasHypotheses ? '\n6. En ## HALLAZGOS Y CODIFICACIÓN CIF añade una frase de contraste con las hipótesis de valoración recibidas: indica si los hallazgos las refuerzan, matizan o contradicen, citando el hallazgo que lo justifica.' : ''}`;
+3. Escribe en prosa continua dentro de cada sección, sin viñetas ni listas.
+4. En ## HALLAZGOS Y CODIFICACIÓN CIF incluye los códigos CIF alfanuméricos relevantes entre paréntesis inline, integrados en la prosa: pocos y solo si el término corresponde exactamente al hallazgo descrito; ante la duda, mejor sin código. Ejemplo: "Se constata limitación del rango de flexión de hombro (b7101) con dolor asociado al movimiento activo (b28016)."
+5. ${R.reglaAudio(conAudio, dictado)} Omite lo que no aparezca en los datos ni en la transcripción; no escribas "No evaluado". No inventes mediciones, pruebas, escalas ni datos personales.
+6. ${R.reglaDerivacion('## OBJETIVOS Y PLAN')}
+${R.REGLAS_COMUNES}
+7. Límite estricto: 550 palabras totales entre las tres secciones.${hasHypotheses ? '\n8. En ## HALLAZGOS Y CODIFICACIÓN CIF añade una frase de contraste con las hipótesis de valoración recibidas: indica si los hallazgos las refuerzan, matizan o contradicen, citando el hallazgo que lo justifica. Si las comprobaciones de una hipótesis que se deriva salieron negativas, di que no la apoyan pero no la descartan.' : ''}`;
   }
 
   // NARRATIVE INSTITUTIONAL TEMPLATE
@@ -987,7 +1038,7 @@ INSTRUCCIONES:
 
 PACIENTE: ${info.name} | Fecha: ${info.date} | Diagnóstico médico: ${info.diagnosis}
 
-${clinicalCtx ? clinicalCtx + '\n\n' : ''}${romCtx ? romCtx + '\n\n' : ''}${forceCtx ? forceCtx + '\n\n' : ''}${jumpCtx ? jumpCtx + '\n\n' : ''}${balanceCtx ? balanceCtx + '\n\n' : ''}${kinematicsCtx ? kinematicsCtx + '\n\n' : ''}${questionnaireCtx ? questionnaireCtx + '\n\n' : ''}${docCtx}TRANSCRIPCIÓN DE LA SESIÓN:
+${datos}${R.cabeceraAudio(dictado, false)}
 ${transcript}
 
 INSTRUCCIONES CRÍTICAS — LEE Y CUMPLE TODAS:
@@ -995,90 +1046,93 @@ INSTRUCCIONES CRÍTICAS — LEE Y CUMPLE TODAS:
 1. **NO GENERES NINGÚN TÍTULO NI SECCIÓN INICIAL DE IDENTIFICACIÓN**. Específicamente PROHIBIDO:
    - NO escribas "INFORME CLÍNICO DE FISIOTERAPIA" ni similar.
    - NO incluyas un bloque inicial con "Paciente:", "Fecha:", "Sesión número:", "Fisioterapeuta:" o cualquier ficha de identificación.
-   - NO repitas el nombre del paciente ni la fecha al inicio.
+   - NO escribas el nombre del paciente ni la fecha en ningún punto del texto, tampoco en la primera frase.
    - El nombre del paciente, la fecha y los datos identificativos YA aparecen en la cabecera del documento. Repetirlos es un error grave.
    - Tu respuesta DEBE empezar DIRECTAMENTE con "## CONDICIÓN DE SALUD Y FACTORES CONTEXTUALES" sin ningún texto previo.
 
 2. Usa prosa clínica continua y formal, no listas escuetas. Tono de informe profesional para enviar al paciente o equipo médico.
 3. NO uses ** para negrita ni símbolos markdown, salvo en tablas markdown estándar.
 4. Tablas: cuando haya datos numéricos cuantificables (ROM, fuerza, escalas), genera tablas markdown estándar con sintaxis | columna | columna |. Si no hay datos suficientes, omite la tabla y describe en prosa.
-5. Si una subsección no aplica o no hay datos, omítela limpiamente (no escribas "no evaluado" en cada subsección menor).
-6. Usa la terminología CIF cuando proceda (códigos b, s, d, e si emergen del contexto).${hasHypotheses ? `
-7. En la sección CONCLUSIONES Y PLAN DE TRATAMIENTO incluye la subsección "### Coherencia con hipótesis de valoración". Contrasta los hallazgos de la transcripción con las hipótesis recibidas e indica si los refuerzan, matizan o si existe alguna discrepancia relevante. No propongas hipótesis nuevas en esta subsección.
-8. Si en la transcripción aparecen hallazgos clínicos explícitos (tests especiales, signos, síntomas objetivos) que sugieran condiciones no cubiertas por las hipótesis recibidas, inclúyelos en "### Hipótesis adicionales a valorar", citando el hallazgo exacto que justifica cada una. Limita el alcance a la región anatómica del contexto estructurado. Omite esta subsección si no hay evidencia explícita.` : ''}
+5. Las subsecciones marcadas «[Solo si…]» se omiten por completo, título incluido, cuando no hay datos para ellas. No escribas subsecciones ni frases para decir que algo no se hizo, no se midió o «no se dispone de…» (p. ej. «no se dispone de mediciones goniométricas»): lo que no consta, simplemente no se menciona.
+6. Usa la terminología CIF en la prosa (funciones, estructuras, actividades, participación, factores contextuales), sin códigos alfanuméricos.
+7. ${R.reglaAudio(conAudio, dictado)} No inventes mediciones, pruebas, escalas ni datos personales que no aparezcan en los datos recibidos.
+8. ${R.reglaDerivacion('CONCLUSIONES Y PLAN DE TRATAMIENTO', false)}
+${R.REGLAS_COMUNES}${hasHypotheses ? `
+9. En la sección CONCLUSIONES Y PLAN DE TRATAMIENTO incluye la subsección "### Coherencia con hipótesis de valoración". En dos o tres frases, contrasta los hallazgos (datos de la valoración y, si la hay, la transcripción) con las hipótesis recibidas e indica si los refuerzan, matizan o si existe alguna discrepancia relevante, sin nombrar los tests. Si las comprobaciones de una hipótesis que se deriva salieron negativas, di que la exploración no la apoya pero no la descarta (por eso se deriva); no digas que los hallazgos la refuerzan. No propongas hipótesis nuevas en esta subsección.
+10. Si en la transcripción aparecen hallazgos clínicos explícitos (tests especiales, signos, síntomas objetivos) que sugieran condiciones no cubiertas por las hipótesis recibidas, inclúyelos en "### Hipótesis adicionales a valorar", citando el hallazgo exacto que justifica cada una. Limita el alcance a la región anatómica del contexto estructurado. Omite esta subsección si no hay evidencia explícita.` : ''}
 
-ESTRUCTURA OBLIGATORIA — empieza DIRECTAMENTE con la primera sección, sin títulos previos:
+ESTRUCTURA OBLIGATORIA — empieza DIRECTAMENTE con la primera sección, sin títulos previos. Cada subsección va dentro de su sección y en este orden; omitir una no cambia el sitio de las demás:
 
 ## CONDICIÓN DE SALUD Y FACTORES CONTEXTUALES
-[Párrafo introductorio sobre el enfoque biopsicosocial]
+[Dos o tres frases que sitúen el caso (qué región y desde cuándo), sin edad ni sexo, que van solo en Factores Personales. No expliques qué es la CIF ni el modelo biopsicosocial]
 
 ### Condición de Salud (Diagnóstico Médico)
-[Diagnósticos preoperatorios, postoperatorios, por imagen si aplica, en formato narrativo o lista breve]
+[Solo si consta un diagnóstico médico, una cirugía o una prueba de imagen: diagnósticos preoperatorios, postoperatorios o por imagen, como antecedente. Si no consta ninguno, omite esta subsección sin comentarlo]
 
 ### Factores Personales
-[Edad, sexo, profesión, comorbilidades, estilo de vida previo, medicación]
+[Edad y sexo solo si constan en los datos; profesión, comorbilidades, estilo de vida previo, medicación, signos vitales y antropometría si constan]
 
 ### Factores Ambientales
-[Domicilio, apoyo familiar, accesibilidad, ayudas técnicas]
+[Solo si hay datos de domicilio, apoyo familiar, accesibilidad o ayudas técnicas; la cirugía y las restricciones del cirujano no van aquí]
 
 ## HISTORIA CLÍNICA Y EVOLUCIÓN
 
 ### Presentación Inicial y Antecedentes
-[Origen del cuadro, evolución cronológica]
+[Origen del cuadro, evolución cronológica y episodios previos. La intensidad del dolor va en Funciones Sensoriales y Dolor]
 
 ### Intervención Quirúrgica
-[Si aplica: fecha, técnica, hallazgos intraoperatorios]
+[Solo si hay cirugía: fecha, técnica, hallazgos intraoperatorios, protocolo del cirujano con sus restricciones tal como constan y complicaciones, sin repetir lo dicho en Condición de Salud]
 
 ### Tratamientos Adyuvantes
-[Si aplica: radioterapia, hormonoterapia, infiltraciones, fisioterapia previa]
+[Solo si los hay: radioterapia, hormonoterapia, infiltraciones, fisioterapia previa u otros tratamientos ya probados, con su resultado]
 
 ## EVALUACIÓN DE FUNCIONES Y ESTRUCTURAS CORPORALES
 
 ### Funciones Neuromusculoesqueléticas y Relacionadas con el Movimiento
 
 #### Rango de Movimiento Activo (ROM)
-[Describir y, si hay datos numéricos, generar TABLA markdown con columnas: Articulación | Movimiento | Rango (Izq/Dcha) | Asimetría]
+[Solo si hay datos de movilidad: describirlos y, si hay datos numéricos, generar TABLA markdown con columnas: Articulación | Movimiento | Rango (Izq/Dcha) | Asimetría]
 
 #### Fuerza Muscular
-[Describir y, si hay datos numéricos, generar TABLA markdown con columnas: Miotomas | Movimiento | Fuerza (Izq/Dcha) | Asimetría]
+[Solo si se exploró o el paciente refiere debilidad: describirla y, si hay datos numéricos, generar TABLA markdown con columnas: Miotomas | Movimiento | Fuerza (Izq/Dcha) | Asimetría]
 
 #### Función Cardiorrespiratoria
-[Pruebas ortostáticas, HRV, capacidad aeróbica si aplica]
+[Solo si se valoró: pruebas ortostáticas, HRV, capacidad aeróbica]
 
 #### Control Motor
-[Análisis de patrones motores, plataformas de fuerza, si aplica]
+[Solo si se valoró: patrones motores, plataformas de fuerza]
 
 #### Equilibrio
-[Estático, dinámico, oscilación, si aplica]
+[Solo si se valoró: estático, dinámico, oscilación]
 
 #### Estabilidad Articular
-[Tests de inestabilidad, propiocepción, si aplica]
+[Solo si se hicieron tests de inestabilidad o de propiocepción]
 
 ### Funciones Sensoriales y Dolor
-[Evaluación EVA, dolor neuropático, hiperalgesia, escalas]
+[Intensidad (EVA o NRS), irritabilidad, naturaleza del dolor, dolor neuropático, hiperalgesia y escalas que consten. Las actividades que provocan el dolor van en Limitaciones en las Actividades${conAudio ? `. ${R.AVISO_NIEGA}` : ''}]
 
 ## ANÁLISIS DEL FUNCIONAMIENTO: LIMITACIONES EN LA ACTIVIDAD Y RESTRICCIONES EN LA PARTICIPACIÓN
 
 ### Limitación Funcional Global
-[Visión integradora del impacto biopsicosocial]
+[Visión integradora del impacto biopsicosocial en dos o tres frases, sin repetir los hallazgos]
 
 ### Limitaciones en las Actividades
-[Pruebas de ejecución: 6MWT, TUG, SCT, Chair Stand, etc. + escalas autorreportadas: EFEI, WOMAC]
+[Solo las actividades que refiere dolorosas o limitadas y, si se pasaron, pruebas de ejecución o escalas autorreportadas con su resultado; lo que no le empeora no se enumera aquí. Los síntomas (fuerza, crujidos, bloqueos, hormigueo, inestabilidad…) van en Funciones Sensoriales y Dolor, no aquí]
 
 ### Restricciones en la Participación
-[EQ-5D-5L, ICL, impacto laboral y social]
+[Solo si refiere afectación del trabajo, el ocio, el deporte o la vida social, o si se pasaron escalas de participación o calidad de vida: lo que conste, sin suponer cómo podría afectarle]
 
 ## CONCLUSIONES Y PLAN DE TRATAMIENTO
-[Síntesis clínica integradora con problema primario, hallazgos clave y enfoque terapéutico propuesto en prosa]${hasHypotheses ? `
+[Si hay derivación, empieza por ella. Después, síntesis clínica integradora con el problema primario, los hallazgos clave y el enfoque terapéutico propuesto, en prosa. El criterio de reevaluación o derivación por falta de mejoría va en Seguimiento]${hasHypotheses ? `
 
 ### Coherencia con hipótesis de valoración
-[Indica si los hallazgos de la sesión refuerzan, matizan o contradicen las hipótesis recibidas, sin proponer diagnósticos nuevos]
+[Dos o tres frases: si los hallazgos refuerzan, matizan o contradicen las hipótesis recibidas, sin nombrar los tests ni proponer diagnósticos nuevos]
 
 ### Hipótesis adicionales a valorar
 [Solo si la transcripción contiene hallazgos explícitos que lo justifiquen: lista cada hipótesis adicional citando el hallazgo exacto. Omite si no hay evidencia explícita]` : ''}
 
 ## SEGUIMIENTO FUNCIONAL
-[Espacio para registrar reevaluaciones futuras. Si no procede en esta sesión, escribir: "Pendiente de reevaluaciones programadas."]
+[Escala para medir la evolución y cuándo reevaluar o reconsiderar la derivación por falta de mejoría (aquí y solo aquí), sin repetir el plan. Si no procede en esta sesión, escribir: "Pendiente de reevaluaciones programadas."]
 
 PRESUPUESTO DE EXTENSIÓN: el informe completo no debe superar las ${(sliderMeta.find(m => m.tokens === getTokens()) || sliderMeta[1]).words} palabras en total. Ajusta la profundidad de cada sección para que el informe esté completo y bien cerrado dentro de ese límite. No trunces a mitad de sección.
 
@@ -1551,6 +1605,7 @@ function copyReport() {
 
 function resetApp() {
   selectedFile = null; transcriptText = ''; lastReportText = '';
+  _syncAudioMode();
   attachedDocs = []; _docSummaryForPrompt = '';
   _hideRecordingHint();
   document.getElementById('file-name').textContent = '';
@@ -2377,6 +2432,7 @@ function _applyImportedAudio(entry) {
   selectedFile = new File([entry.blob], entry.name, { type: entry.type });
   document.getElementById('file-name').textContent = '✓ ' + entry.name;
   document.getElementById('audio-clear-btn').style.display = 'flex';
+  _syncAudioMode();
   const mins = Math.floor(entry.duration / 60);
   const secs = (entry.duration % 60).toString().padStart(2, '0');
   const badge = document.createElement('div');
