@@ -229,7 +229,7 @@ console.log('\nlib/reglas-informe.js — compartido con physiq-assessment');
 
 // Idéntico byte a byte al de physiq-assessment: si cambia aquí, cópialo allí
 // tal cual y actualiza esta huella en los dos tests/unit.js.
-const HUELLA_REGLAS_INFORME = '39a6ab702f3a22643c3e63422cc2e3c3e76441da9c0594723df9c0cd14b5590c';
+const HUELLA_REGLAS_INFORME = '9382d3b1c166673555f70b9a5c9909b2f804a191c37e266984a948f6e3d854bf';
 const huella = require('crypto').createHash('sha256').update(require('fs').readFileSync(require('path').join(__dirname, '..', 'lib', 'reglas-informe.js'))).digest('hex');
 assert('lib/reglas-informe.js no ha cambiado sin copiarlo a physiq-assessment (huella SHA-256)', huella === HUELLA_REGLAS_INFORME);
 assert('exporta las reglas', typeof R.REGLAS_COMUNES === 'string' && typeof R.reglaDerivacion === 'function' && typeof R.reglaAudio === 'function' && typeof R.cabeceraAudio === 'function' && typeof R.PISTA_DICTADO === 'string');
