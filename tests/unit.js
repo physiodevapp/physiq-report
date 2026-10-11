@@ -189,6 +189,7 @@ const ctxSv = buildClinicalContext({ ...FULL_PAYLOAD, sv: { fc: 70, fr: null, sp
 assert('signos vitales y antropometría, sin clasificar, IMC con un decimal', ctxSv.includes('FC 70 lpm · TA 128/80 mmHg · talla 178 cm · peso 84 kg · IMC 26.5'));
 
 assert('NRS no registrado (null) no es «—/10» ni 0', buildClinicalContext({ ...FULL_PAYLOAD, nr: null }).includes('NRS: no registrado'));
+assert('NRS: sin momento inventado (ronda 27 de physiq-assessment)', /6\/10 \(intensidad registrada por el fisioterapeuta en la valoración: .*sin atribuirle otro momento/.test(ctx));
 
 const hipotesis = buildClinicalContext({ ...FULL_PAYLOAD, h: [
   { id: 'x', name: 'Fractura (→ Rx)', sc: '🔴 Derivar', lr: null, tr: {}, dt: true },
@@ -229,7 +230,7 @@ console.log('\nlib/reglas-informe.js — compartido con physiq-assessment');
 
 // Idéntico byte a byte al de physiq-assessment: si cambia aquí, cópialo allí
 // tal cual y actualiza esta huella en los dos tests/unit.js.
-const HUELLA_REGLAS_INFORME = '9382d3b1c166673555f70b9a5c9909b2f804a191c37e266984a948f6e3d854bf';
+const HUELLA_REGLAS_INFORME = 'd4b2256d15abc49b32db822e2cb10794a4150e5ef509242b8cde030262c52008';
 const huella = require('crypto').createHash('sha256').update(require('fs').readFileSync(require('path').join(__dirname, '..', 'lib', 'reglas-informe.js'))).digest('hex');
 assert('lib/reglas-informe.js no ha cambiado sin copiarlo a physiq-assessment (huella SHA-256)', huella === HUELLA_REGLAS_INFORME);
 assert('exporta las reglas', typeof R.REGLAS_COMUNES === 'string' && typeof R.reglaDerivacion === 'function' && typeof R.reglaAudio === 'function' && typeof R.cabeceraAudio === 'function' && typeof R.PISTA_DICTADO === 'string');
