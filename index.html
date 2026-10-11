@@ -82,6 +82,12 @@
   input[type="color"]{padding:2px 4px;height:38px;cursor:pointer;background:var(--bg);border:1px solid var(--border);border-radius:8px;width:100%;}
   .upload-zone{border:2px dashed var(--border);border-radius:10px;padding:18px 14px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--bg);position:relative;}
   .upload-zone:hover{border-color:var(--accent);background:rgba(79,195,161,0.04);}
+  .audio-mode-label{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-muted);margin:10px 0 6px;}
+  .audio-mode-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .audio-mode-btn{padding:8px 10px;border:2px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;}
+  .audio-mode-btn span{font-size:10px;color:var(--text-muted);}
+  .audio-mode-btn.selected{border-color:var(--accent);background:rgba(79,195,161,0.06);}
+  #audio-mode-tips{margin:8px 0 0;padding-left:18px;font-size:11px;color:var(--text-muted);line-height:1.5;}
   .upload-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:1;}
   #audio-clear-btn{display:none;position:absolute;top:7px;right:7px;z-index:2;width:22px;height:22px;border-radius:50%;border:none;background:rgba(239,68,68,0.15);color:#ef4444;cursor:pointer;font-size:14px;line-height:1;padding:0;align-items:center;justify-content:center;transition:background 0.15s;}
   #audio-clear-btn:hover{background:rgba(239,68,68,0.3);}
@@ -383,6 +389,18 @@
       <div class="upload-sub">MP3, WAV, M4A, OGG · máx. 25MB</div>
       <div class="file-selected" id="file-name"></div>
     </div>
+    <div id="audio-mode" style="display:none">
+      <div class="audio-mode-label">¿Qué hay en el audio?</div>
+      <div class="audio-mode-opts">
+        <button type="button" class="audio-mode-btn selected" data-mode="dialogo" onclick="setAudioMode('dialogo')">Consulta<span>diálogo</span></button>
+        <button type="button" class="audio-mode-btn" data-mode="dictado" onclick="setAudioMode('dictado')">Dictado<span>del fisioterapeuta</span></button>
+      </div>
+      <ul id="audio-mode-tips" style="display:none">
+        <li>Di también lo que no hiciste («el Neer no lo he hecho»).</li>
+        <li>Presenta tus indicaciones como tuyas («yo le he indicado…») y las de otros con su autor.</li>
+        <li>Da cada cifra con su momento («ahora un 3; por la noche, un 6»).</li>
+      </ul>
+    </div>
     <div style="font-size:11px;color:var(--text-muted);margin-top:6px;font-family:'DM Mono',monospace;text-align:center;">El archivo de audio es local. Si usas dos dispositivos sincronizados, adjúntalo desde el dispositivo en el que vayas a generar el informe.</div>
     <div id="session-rec-hint">
       <button onclick="_useSessionRecording()">🎙 Grabación de sesión disponible (<span id="session-rec-duration"></span>) — <span id="session-rec-action">Usar</span></button>
@@ -650,6 +668,7 @@
   </div>
 </div>
 
+<script src="lib/reglas-informe.js"></script>
 <script src="lib/payload.js"></script>
 <script src="lib/session.js"></script>
 <script src="app.js"></script>
