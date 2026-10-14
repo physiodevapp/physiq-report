@@ -234,6 +234,23 @@ const HUELLA_REGLAS_INFORME = 'd4b2256d15abc49b32db822e2cb10794a4150e5ef509242b8
 const huella = require('crypto').createHash('sha256').update(require('fs').readFileSync(require('path').join(__dirname, '..', 'lib', 'reglas-informe.js'))).digest('hex');
 assert('lib/reglas-informe.js no ha cambiado sin copiarlo a physiq-assessment (huella SHA-256)', huella === HUELLA_REGLAS_INFORME);
 assert('exporta las reglas', typeof R.REGLAS_COMUNES === 'string' && typeof R.reglaDerivacion === 'function' && typeof R.reglaAudio === 'function' && typeof R.cabeceraAudio === 'function' && typeof R.PISTA_DICTADO === 'string');
+// Cuestionarios de la calculadora de physiq-assessment (`cu`)
+const CU = [
+  { id: 'phq9', n: 'PHQ-9', v: '12/27', i: 'Síntomas depresivos moderados', a: ['Ítem 9: pensamientos de muerte o autolesión. Pregunta por el riesgo hoy'] },
+  { id: 'odi', n: 'ODI', v: '38 %', i: 'Limitación funcional grave' },
+  { id: 'tsk11', n: 'TSK-11', v: '30/44' },
+  { id: 'gad7', n: 'GAD-7', v: '—', inc: true, a: [] },
+  { id: 'dn4', n: 'DN4', v: '—', inc: true, a: ['Aviso de prueba'] },
+];
+const ctxCu = buildClinicalContext({ ...FULL_PAYLOAD, cu: CU });
+assert('cu: bloque de cuestionarios presente', ctxCu.includes('Cuestionarios que ha rellenado el paciente'));
+assert('cu: completo con puntuación, interpretación y aviso', ctxCu.includes('  · PHQ-9: 12/27 — Síntomas depresivos moderados · Aviso: Ítem 9: pensamientos de muerte'));
+assert('cu: sin interpretación publicada, solo la puntuación', ctxCu.includes('  · TSK-11: 30/44\n') || ctxCu.includes('  · TSK-11: 30/44'));
+assert('cu: a medias sin aviso no se envía', !ctxCu.includes('GAD-7'));
+assert('cu: a medias con aviso, solo el aviso', ctxCu.includes('  · DN4: sin completar · ⚠️ Aviso de prueba'));
+assert('sin cu: sin bloque de cuestionarios', !buildClinicalContext(FULL_PAYLOAD).includes('Cuestionarios que ha rellenado'));
+assert('cu vacío: sin bloque', !buildClinicalContext({ ...FULL_PAYLOAD, cu: [] }).includes('Cuestionarios que ha rellenado'));
+
 assert('también queda en globalThis (script clásico en el navegador)', globalThis.PHYSIQ_REGLAS_INFORME === R);
 assert('regla de dictado: primera persona = fisio, lo no hecho no se menciona', R.reglaAudio(true, true).includes('primera persona') && R.reglaAudio(true, true).includes('no la ha hecho'));
 assert('cabecera del dictado', R.cabeceraAudio(true, false).startsWith('DICTADO DEL FISIOTERAPEUTA') && R.cabeceraAudio(false, false) === 'TRANSCRIPCIÓN DE LA SESIÓN:' && R.cabeceraAudio(false, true) === 'TRANSCRIPCIÓN:');
