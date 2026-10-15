@@ -2049,6 +2049,14 @@ function showImportedBadge(data) {
     color:var(--accent); font-family:'DM Mono',monospace;
   `;
   badge.innerHTML = `✓ Valoración importada desde PhysiQ-Assessment · ${data.r || ''} · ${data.p || ''}`;
+  // Varios síntomas (P1–P4): una línea con sus zonas, solo si hay más de uno
+  const sint = resumenSintomas(data);
+  if (sint) {
+    const linea = document.createElement('div');
+    linea.style.cssText = 'margin-top:4px; color:var(--text-muted);';
+    linea.textContent = `Síntomas: ${sint}`;
+    badge.appendChild(linea);
+  }
   const body = document.getElementById('body-imported');
   if (body) body.appendChild(badge);
   _syncImportedCard();

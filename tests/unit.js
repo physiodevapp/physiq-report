@@ -1,7 +1,7 @@
 // node tests/unit.js
 // No external dependencies.
 
-const { decodePayload, buildClinicalContext } = require('../lib/payload.js');
+const { decodePayload, buildClinicalContext, resumenSintomas } = require('../lib/payload.js');
 
 let passed = 0;
 let failed = 0;
@@ -250,6 +250,23 @@ assert('cu: a medias sin aviso no se envía', !ctxCu.includes('GAD-7'));
 assert('cu: a medias con aviso, solo el aviso', ctxCu.includes('  · DN4: sin completar · ⚠️ Aviso de prueba'));
 assert('sin cu: sin bloque de cuestionarios', !buildClinicalContext(FULL_PAYLOAD).includes('Cuestionarios que ha rellenado'));
 assert('cu vacío: sin bloque', !buildClinicalContext({ ...FULL_PAYLOAD, cu: [] }).includes('Cuestionarios que ha rellenado'));
+
+// Varios síntomas (P1–P4, z1/ss): mismo bloque que bloqueSintomasIA() de
+// physiq-assessment (lib/sintomas.js). Los textos esperados son su salida
+// literal para estos datos: si allí cambia, se copia aquí.
+console.log('\nsíntomas P1–P4 (z1, ss)');
+const SINT = { z1: { z: 'Zona lumbar, glúteo', la: 'Derecho', pr: 'Profunda', pa: 'Constante', de: 'sordo' },
+  ss: [{ n: 2, z: 'Pierna por debajo de la rodilla', la: 'Derecho', nr: 3, ir: 'Baja', pa: 'Intermitente', re: 'empeora' },
+       { n: 3, z: 'Rodilla', la: 'Izquierdo', nr: 4, or: true }, { n: 4, z: 'Pie', nr: null, re: 'nosabe', de: 'hormigueo' }] };
+const ctxSint = buildClinicalContext({ ...FULL_PAYLOAD, ...SINT });
+assert('síntomas: el bloque es el de physiq-assessment, literal', ctxSint.includes("Síntomas que refiere el paciente (mapa corporal):\n  · P1 (principal; el NRS y la irritabilidad de arriba son los suyos): Zona lumbar, glúteo · lado derecho · profunda · constante · «sordo»\n  · P2: Pierna por debajo de la rodilla · lado derecho · NRS 3/10 · irritabilidad baja · intermitente · solo cuando empeora P1\n  · P3: Rodilla (otra región, no valorada hoy) · lado izquierdo · NRS 4/10\n  · P4: Pie · NRS no registrado · relación con P1 no conocida · «hormigueo»\nDescribe cada síntoma con sus propios datos: no atribuyas a uno la intensidad, la irritabilidad ni el comportamiento de otro. Lo marcado como «otra región, no valorada hoy» no se exploró: menciónalo solo como pendiente de valorar, sin hipótesis ni plan."));
+assert('síntomas: va justo después de la irritabilidad', ctxSint.includes('Irritabilidad: Moderada · Naturaleza: Mecánica\nSíntomas que refiere el paciente'));
+assert('síntomas: sin P1 con datos y otra relación, sin la frase de otra región', buildClinicalContext({ ...FULL_PAYLOAD, ss: [{ n: 2, z: 'Ingle', nr: 2, re: 'independiente' }] }).includes("Síntomas que refiere el paciente (mapa corporal):\n  · P1 (principal; el NRS y la irritabilidad de arriba son los suyos): zona sin indicar\n  · P2: Ingle · NRS 2/10 · independiente de P1\nDescribe cada síntoma con sus propios datos: no atribuyas a uno la intensidad, la irritabilidad ni el comportamiento de otro."));
+assert('síntomas: sin z1 ni ss (valoración anterior), sin bloque', !buildClinicalContext(FULL_PAYLOAD).includes('mapa corporal'));
+assert('síntomas: ss vacío y sin z1, sin bloque', !buildClinicalContext({ ...FULL_PAYLOAD, ss: [] }).includes('mapa corporal'));
+assert('síntomas: insignia con las zonas', resumenSintomas(SINT) === 'P1 Zona lumbar, glúteo · P2 Pierna por debajo de la rodilla · P3 Rodilla (otra región) · P4 Pie');
+assert('síntomas: insignia sin línea con solo P1 o nada', resumenSintomas({ z1: { z: 'Cuello' }, ss: [] }) === '' && resumenSintomas(FULL_PAYLOAD) === '');
+assert('síntomas: app.js pinta la línea con textContent', /linea\.textContent = `Síntomas: \$\{sint\}`/.test(require('fs').readFileSync(require('path').join(__dirname, '..', 'app.js'), 'utf8')));
 
 assert('también queda en globalThis (script clásico en el navegador)', globalThis.PHYSIQ_REGLAS_INFORME === R);
 assert('regla de dictado: primera persona = fisio, lo no hecho no se menciona', R.reglaAudio(true, true).includes('primera persona') && R.reglaAudio(true, true).includes('no la ha hecho'));
