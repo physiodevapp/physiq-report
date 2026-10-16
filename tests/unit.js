@@ -268,6 +268,30 @@ assert('síntomas: insignia con las zonas', resumenSintomas(SINT) === 'P1 Zona l
 assert('síntomas: insignia sin línea con solo P1 o nada', resumenSintomas({ z1: { z: 'Cuello' }, ss: [] }) === '' && resumenSintomas(FULL_PAYLOAD) === '');
 assert('síntomas: app.js pinta la línea con textContent', /linea\.textContent = `Síntomas: \$\{sint\}`/.test(require('fs').readFileSync(require('path').join(__dirname, '..', 'app.js'), 'utf8')));
 
+// Hipermovilidad (hm): mismo bloque que bloqueHMIA() de physiq-assessment
+// (lib/hipermovilidad.js; Fase P). Los textos esperados son su salida literal
+// para estos datos, y su test (tests/unit/hipermovilidad.mjs) fija los mismos:
+// si allí cambia, se copia aquí.
+console.log('\nhipermovilidad (hm)');
+const HM_CASOS = {
+  sospecha: [{ es: "sospecha", st: "", bt: 5, co: 5, cu: 3, hag: true, vs: true },
+    "Hipermovilidad (condición especial marcada por el fisioterapeuta):\n  · Estado: sospecha\n  · Beighton 5/9 (corte 5): hipermovilidad articular generalizada\n  · Cuestionario de 5 preguntas: 3 «sí»\n  · Es una sospecha: no escribas que el paciente tiene un síndrome de Ehlers-Danlos.\n  · Consideraciones para el plan: Ejercicio graduado; vigila la carga para asegurar la recuperación. El dolor empeora con la actividad y puede aparecer en las 24 h siguientes. Hipermovilidad articular generalizada: valorar derivación a reumatología o genética. No es un diagnóstico de SED hipermóvil, que exige además otros criterios. Rasgos que hacen sospechar el subtipo vascular: derivación preferente a genética. Si hay disautonomía o síntomas digestivos o urinarios importantes, derivar al especialista."],
+  vascular: [{ es: "diagnosticada", st: "vascular", bt: null, co: null, cu: null, hag: null, vs: false },
+    "Hipermovilidad (condición especial marcada por el fisioterapeuta):\n  · Estado: diagnosticada (subtipo vascular)\n  · Consideraciones para el plan: Ejercicio graduado; vigila la carga para asegurar la recuperación. El dolor empeora con la actividad y puede aparecer en las 24 h siguientes. Subtipo vascular: evitar deportes de colisión, ejercicio isométrico y aceleraciones bruscas; intensidad que permita conversar, control de la respiración al levantar peso y cargas ligeras. Si hay disautonomía o síntomas digestivos o urinarios importantes, derivar al especialista."],
+  hipermovil: [{ es: "diagnosticada", st: "hipermovil", bt: 3, co: 6, cu: null, hag: false, vs: false },
+    "Hipermovilidad (condición especial marcada por el fisioterapeuta):\n  · Estado: diagnosticada (subtipo hipermóvil (SEDh) o TEH)\n  · Beighton 3/9 (corte 6): sin hipermovilidad articular generalizada\n  · Consideraciones para el plan: Ejercicio graduado; vigila la carga para asegurar la recuperación. El dolor empeora con la actividad y puede aparecer en las 24 h siguientes. Si hay disautonomía o síntomas digestivos o urinarios importantes, derivar al especialista."],
+  ns: [{ es: "diagnosticada", st: "ns", bt: null, co: null, cu: null, hag: null, vs: true },
+    "Hipermovilidad (condición especial marcada por el fisioterapeuta):\n  · Estado: diagnosticada\n  · Consideraciones para el plan: Ejercicio graduado; vigila la carga para asegurar la recuperación. El dolor empeora con la actividad y puede aparecer en las 24 h siguientes. Rasgos que hacen sospechar el subtipo vascular: derivación preferente a genética. Si hay disautonomía o síntomas digestivos o urinarios importantes, derivar al especialista."],
+  otro: [{ es: "diagnosticada", st: "otro", bt: 4, co: null, cu: null, hag: null, vs: false },
+    "Hipermovilidad (condición especial marcada por el fisioterapeuta):\n  · Estado: diagnosticada (subtipo otro)\n  · Beighton 4/9\n  · Consideraciones para el plan: Ejercicio graduado; vigila la carga para asegurar la recuperación. El dolor empeora con la actividad y puede aparecer en las 24 h siguientes. Si hay disautonomía o síntomas digestivos o urinarios importantes, derivar al especialista."],
+};
+for (const [k, [hm, esperado]] of Object.entries(HM_CASOS)) {
+  assert(`hm ${k}: el bloque es el de physiq-assessment, literal`, buildClinicalContext({ ...FULL_PAYLOAD, hm }).includes(esperado));
+}
+assert('hm: sin citas (el informe no nombra fuentes)', Object.values(HM_CASOS).every(([, t]) => !/\d{4}/.test(t.replace(/24 h/, ''))));
+assert('hm: va justo después de la cirugía', /Cirug[ií]a[\s\S]*\n\nHipermovilidad \(condición especial/.test(buildClinicalContext({ ...FULL_PAYLOAD, cq: { iv: 'Artroscopia', co: [] }, hm: HM_CASOS.sospecha[0] })));
+assert('sin hm (valoración anterior o sin la tarjeta), sin bloque', !buildClinicalContext(FULL_PAYLOAD).includes('Hipermovilidad (condición'));
+
 assert('también queda en globalThis (script clásico en el navegador)', globalThis.PHYSIQ_REGLAS_INFORME === R);
 assert('regla de dictado: primera persona = fisio, lo no hecho no se menciona', R.reglaAudio(true, true).includes('primera persona') && R.reglaAudio(true, true).includes('no la ha hecho'));
 assert('cabecera del dictado', R.cabeceraAudio(true, false).startsWith('DICTADO DEL FISIOTERAPEUTA') && R.cabeceraAudio(false, false) === 'TRANSCRIPCIÓN DE LA SESIÓN:' && R.cabeceraAudio(false, true) === 'TRANSCRIPCIÓN:');
