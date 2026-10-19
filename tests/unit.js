@@ -423,6 +423,25 @@ assert('ac: sin citas (el informe no nombra fuentes)', Object.values(AC_CASOS).e
 assert('ac: va justo después del embarazo o posparto', /Posparto \(condición especial[\s\S]*\n\nPaciente anticoagulado o antiagregado \(condición especial/.test(buildClinicalContext({ ...FULL_PAYLOAD, em: EM_CASOS.posparto[0], ac: AC_CASOS.aspirinaSola[0] })));
 assert('sin ac (valoración anterior o sin la tarjeta), sin bloque', !buildClinicalContext(FULL_PAYLOAD).includes('Paciente anticoagulado o antiagregado (condición'));
 
+// Fármacos que toma (fm): mismo bloque que bloqueFMIA() de physiq-assessment
+// (lib/farmacos-paciente.js; docs/farmacos-paciente.md). Los textos esperados
+// son su salida literal para estos datos, y su test
+// (tests/unit/farmacos-paciente.mjs, FM_CASOS) fija los mismos: si allí cambia,
+// se copia aquí.
+console.log('\nfármacos que toma (fm)');
+const FM_CASOS = {
+  dos: [[{"id": "aine", "n": "AINE"}, {"id": "opioides", "n": "Opioides"}],
+    "Fármacos que toma (familias registradas por el fisioterapeuta; sin dosis ni nombres):\n  · AINE; Opioides\n  · No sugieras cambiar, suspender ni ajustar la medicación, ni comentes interacciones entre fármacos. No atribuyas los síntomas del paciente a un fármaco si el fisioterapeuta no lo ha dicho, y no añadas recomendaciones sobre la medicación que no estén en estos datos."],
+  una: [[{"id": "estatinas", "n": "Estatinas"}],
+    "Fármacos que toma (familias registradas por el fisioterapeuta; sin dosis ni nombres):\n  · Estatinas\n  · No sugieras cambiar, suspender ni ajustar la medicación, ni comentes interacciones entre fármacos. No atribuyas los síntomas del paciente a un fármaco si el fisioterapeuta no lo ha dicho, y no añadas recomendaciones sobre la medicación que no estén en estos datos."],
+};
+for (const [k, [fm, esperado]] of Object.entries(FM_CASOS)) {
+  assert(`fm ${k}: el bloque es el de physiq-assessment, literal`, buildClinicalContext({ ...FULL_PAYLOAD, fm }).includes(esperado));
+}
+assert('fm: sin citas (el informe no nombra fuentes)', Object.values(FM_CASOS).every(([, t]) => !/(19|20)\d{2}|NICE/.test(t)));
+assert('fm: va justo después del anticoagulado', /Paciente anticoagulado o antiagregado \(condición especial[\s\S]*\n\nFármacos que toma \(familias/.test(buildClinicalContext({ ...FULL_PAYLOAD, ac: AC_CASOS.aspirinaSola[0], fm: FM_CASOS.una[0] })));
+assert('sin fm (valoración anterior o sin familias), sin bloque', !buildClinicalContext(FULL_PAYLOAD).includes('Fármacos que toma (familias') && !buildClinicalContext({ ...FULL_PAYLOAD, fm: [] }).includes('Fármacos que toma (familias'));
+
 assert('también queda en globalThis (script clásico en el navegador)', globalThis.PHYSIQ_REGLAS_INFORME === R);
 assert('regla de dictado: primera persona = fisio, lo no hecho no se menciona', R.reglaAudio(true, true).includes('primera persona') && R.reglaAudio(true, true).includes('no la ha hecho'));
 assert('cabecera del dictado', R.cabeceraAudio(true, false).startsWith('DICTADO DEL FISIOTERAPEUTA') && R.cabeceraAudio(false, false) === 'TRANSCRIPCIÓN DE LA SESIÓN:' && R.cabeceraAudio(false, true) === 'TRANSCRIPCIÓN:');
