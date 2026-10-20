@@ -441,6 +441,9 @@ for (const [k, [fm, esperado]] of Object.entries(FM_CASOS)) {
 assert('fm: sin citas (el informe no nombra fuentes)', Object.values(FM_CASOS).every(([, t]) => !/(19|20)\d{2}|NICE/.test(t)));
 assert('fm: va justo después del anticoagulado', /Paciente anticoagulado o antiagregado \(condición especial[\s\S]*\n\nFármacos que toma \(familias/.test(buildClinicalContext({ ...FULL_PAYLOAD, ac: AC_CASOS.aspirinaSola[0], fm: FM_CASOS.una[0] })));
 assert('sin fm (valoración anterior o sin familias), sin bloque', !buildClinicalContext(FULL_PAYLOAD).includes('Fármacos que toma (familias') && !buildClinicalContext({ ...FULL_PAYLOAD, fm: [] }).includes('Fármacos que toma (familias'));
+assert('fm sin ningún nombre (n), sin bloque ni hueco', buildClinicalContext({ ...FULL_PAYLOAD, fm: [{ id: 'aine' }, null] }) === buildClinicalContext(FULL_PAYLOAD));
+const FM_NOMBRES = ['AINE', 'Corticoides', 'Opioides', 'Gabapentinoides', 'Antidepresivos', 'Benzodiacepinas o relajantes', 'Estatinas', 'Fluoroquinolonas', 'Betabloqueantes', 'Antihipertensivos', 'Antidiabéticos', 'Fármacos del hueso'];
+assert('fm: las familias de hoy salen con su nombre, en orden', buildClinicalContext({ ...FULL_PAYLOAD, fm: FM_NOMBRES.map((n, i) => ({ id: `f${i}`, n })) }).includes(`\n  · ${FM_NOMBRES.join('; ')}\n`));
 
 assert('también queda en globalThis (script clásico en el navegador)', globalThis.PHYSIQ_REGLAS_INFORME === R);
 assert('regla de dictado: primera persona = fisio, lo no hecho no se menciona', R.reglaAudio(true, true).includes('primera persona') && R.reglaAudio(true, true).includes('no la ha hecho'));
