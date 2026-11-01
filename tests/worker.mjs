@@ -100,5 +100,76 @@ r = await worker.fetch(new Request('http://localhost/validate'), env, {});
 j = await r.json();
 assert('/validate informa del modo de verify', j.routes.verify === 'real');
 
+// ── POST /leer-hoja (lector con foto de physiq-assessment) ──────────────────
+const LH = await import('../workers/leer-hoja.js');
+const { demoLeerHoja } = await import('../workers/demo/handlers.js');
+// El esquema que manda physiq-assessment: todo enum, objetos cerrados
+const esqHoja = { type: 'object', additionalProperties: false, required: ['items'], properties: { items: { type: 'object', additionalProperties: false, required: ['1'],
+  properties: { 1: { type: 'object', additionalProperties: false, required: ['estado', 'valor'], properties: {
+    estado: { enum: ['marcado', 'dudoso', 'en_blanco', 'ilegible'] }, valor: { anyOf: [{ enum: [0, 1, 2, 3] }, { type: 'null' }] } } } } } } };
+const foto = '/9j/' + 'A'.repeat(100);
+const cuerpoHoja = { cuestionario: 'phq9', prompt: 'Lee la hoja', schema: esqHoja, fotos: [foto] };
+
+console.log('\n/leer-hoja — parseLeerBody');
+assert('acepta cuestionario, prompt, esquema cerrado y una foto JPEG', !LH.parseLeerBody(cuerpoHoja).error);
+assert('un esquema con texto libre → error', !!LH.parseLeerBody({ ...cuerpoHoja, schema: { type: 'object', additionalProperties: false, properties: { t: { type: 'string' } } } }).error);
+assert('un objeto abierto → error', !!LH.parseLeerBody({ ...cuerpoHoja, schema: { type: 'object', properties: {} } }).error);
+assert('una cadena con enum sí vale', LH.esquemaCerrado({ type: 'string', enum: ['a'] }));
+assert('sin foto → error', !!LH.parseLeerBody({ ...cuerpoHoja, fotos: [] }).error);
+assert('demasiadas fotos → error', !!LH.parseLeerBody({ ...cuerpoHoja, fotos: Array(LH.LEER_MAX_FOTOS + 1).fill(foto) }).error);
+assert('una foto que no es JPEG → error', !!LH.parseLeerBody({ ...cuerpoHoja, fotos: ['iVBORw0KGgo='] }).error);
+assert('una foto enorme → error', !!LH.parseLeerBody({ ...cuerpoHoja, fotos: ['/9j/' + 'A'.repeat(LH.LEER_MAX_FOTO)] }).error);
+assert('cuestionario con caracteres raros → error', !!LH.parseLeerBody({ ...cuerpoHoja, cuestionario: '../x' }).error);
+assert('prompt demasiado largo → error', !!LH.parseLeerBody({ ...cuerpoHoja, prompt: 'x'.repeat(LH.LEER_MAX_PROMPT + 1) }).error);
+assert('el modelo no lo elige el cliente', !('model' in LH.parseLeerBody({ ...cuerpoHoja, model: 'claude-haiku' })));
+
+console.log('\n/leer-hoja — leerRequestBody');
+const cuerpoA = LH.leerRequestBody(LH.parseLeerBody(cuerpoHoja), LH.LEER_MODELS.a);
+assert('salida forzada con el esquema del cliente', cuerpoA.output_config.format.type === 'json_schema' && cuerpoA.output_config.format.schema === esqHoja);
+assert('la foto como imagen JPEG y el prompt después', cuerpoA.messages[0].content[0].source.data === foto && cuerpoA.messages[0].content[1].text === 'Lee la hoja');
+assert('max_tokens fijo', cuerpoA.max_tokens === LH.LEER_MAX_TOKENS);
+assert('los dos modelos medidos: Sonnet y Opus', LH.LEER_MODELS.a === 'claude-sonnet-5-5' && LH.LEER_MODELS.b === 'claude-opus-5-5');
+
+console.log('\n/leer-hoja — ruta completa (fetch simulado, modo real en localhost)');
+const lecturaSimulada = v => new Response(JSON.stringify({ content: [{ type: 'text', text: JSON.stringify({ items: { 1: { estado: 'marcado', valor: v } } }) }],
+  stop_reason: 'end_turn', usage: { input_tokens: 2000, output_tokens: 60 } }));
+const pedirHoja = (cuerpo, token = 't') => new Request('http://localhost/leer-hoja', {
+  method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { 'cf-turnstile-response': token } : {}) },
+  body: typeof cuerpo === 'string' ? cuerpo : JSON.stringify(cuerpo),
+});
+llamadas.length = 0;
+respuestaClaude = () => { const n = llamadas.filter(c => c.url.includes('anthropic')).length; return lecturaSimulada(n === 1 ? 2 : 3); };
+r = await worker.fetch(pedirHoja(cuerpoHoja), env, {});
+j = await r.json();
+const aClaude = llamadas.filter(c => c.url.includes('anthropic')).map(c => JSON.parse(c.init.body));
+assert('dos llamadas, una por modelo, con la misma foto', aClaude.length === 2 && aClaude.map(b => b.model).sort().join() === [LH.LEER_MODELS.a, LH.LEER_MODELS.b].sort().join()
+  && aClaude.every(b => b.messages[0].content[0].source.data === foto));
+assert('200 con las dos lecturas', r.status === 200 && j.a.salida.items[1].valor !== undefined && j.b.salida.items[1].valor !== undefined && j.a.usage.input === 2000);
+assert('modo real en la cabecera', r.headers.get('X-PhysiQ-Mode') === 'real');
+r = await worker.fetch(pedirHoja(cuerpoHoja, null), env, {});
+assert('sin token de Turnstile → 403', r.status === 403);
+llamadas.length = 0;
+r = await worker.fetch(pedirHoja({ ...cuerpoHoja, schema: { type: 'object', properties: { t: { type: 'string' } } } }), env, {});
+assert('esquema con texto libre → 400 sin llamar a Claude', r.status === 400 && !llamadas.some(c => c.url.includes('anthropic')));
+respuestaClaude = () => new Response(JSON.stringify({ error: { message: 'Overloaded' } }), { status: 529 });
+r = await worker.fetch(pedirHoja(cuerpoHoja), env, {});
+j = await r.json();
+assert('un modelo falla → 502 con prefijo «Claude: »', r.status === 502 && j.error.message === 'Claude: Overloaded');
+respuestaClaude = () => new Response(JSON.stringify({ content: [{ type: 'text', text: 'no es json' }], stop_reason: 'end_turn', usage: {} }));
+r = await worker.fetch(pedirHoja(cuerpoHoja), env, {});
+j = await r.json();
+assert('respuesta que no es JSON → salida null (el cliente la trata como ilegible)', r.status === 200 && j.a.salida === null);
+llamadas.length = 0;
+r = await worker.fetch(pedirHoja(cuerpoHoja), { ...env, DEMO_ONLY: '1' }, {});
+j = await r.json();
+assert('DEMO_ONLY → demo sin lectura, sin llamar a Claude', r.headers.get('X-PhysiQ-Mode') === 'demo' && j.demo === true && j.a === null
+  && !llamadas.some(c => c.url.includes('anthropic')));
+assert('demo de /leer-hoja no lee nada', (await (await demoLeerHoja({})).json()).a === null);
+r = await worker.fetch(new Request('http://localhost/validate'), env, {});
+j = await r.json();
+assert('/validate informa del modo del lector', j.routes.leer === 'real');
+const fuenteLH = readFileSync(new URL('../workers/leer-hoja.js', import.meta.url), 'utf8');
+assert('leer-hoja.js no toca env ni registra nada', !/env\.|console\./.test(fuenteLH));
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);

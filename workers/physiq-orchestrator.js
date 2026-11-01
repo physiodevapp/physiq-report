@@ -31,6 +31,11 @@
 //                   { result, model, truncated, usage } — one non-streaming Claude call whose
 //                   answer is forced into `schema` (tool use). Used by
 //                   physiq-assessment to review a generated report (capa 3).
+//   POST /leer-hoja — application/json { cuestionario, prompt, schema, fotos[] } → JSON
+//                   { a, b } — the photo of a filled PhysiQ answer sheet read by two
+//                   models at once (./leer-hoja.js); physiq-assessment's questionnaire
+//                   calculator combines both and the clinician confirms every row.
+//                   The photo is never stored or logged.
 //
 // SSE events (/ route):
 //   event: transcript   data: { text: string }
@@ -46,8 +51,9 @@
 //   documents        — JSON array of {name, text} objects (optional, triggers doc summarization)
 //   docSummaryTokens — max output tokens for the doc summary call (default 5000)
 
-import { demoReport, demoEmail, demoVerify } from './demo/handlers.js';
+import { demoReport, demoEmail, demoVerify, demoLeerHoja } from './demo/handlers.js';
 import { parseVerifyBody, verifyRequestBody } from './verify.js';
+import { parseLeerBody, leerRequestBody, lecturaDeRespuesta, LEER_MODELS } from './leer-hoja.js';
 
 const FROM_ADDRESS = 'PhysiQ Informes <informes@dataphysiq.com>';
 const CLAUDE_MODEL = 'claude-sonnet-4-5';         // keep in sync with VERIFY_MODELS (verify.js)
@@ -102,6 +108,7 @@ const ROUTE_SECRETS = {
   '/':      ['ANTHROPIC_API_KEY'],   // OPENAI_API_KEY only matters when audio is attached
   '/email': ['RESEND_API_KEY'],
   '/verify': ['ANTHROPIC_API_KEY'],
+  '/leer-hoja': ['ANTHROPIC_API_KEY'],
 };
 
 async function licenseState(request, url, env) {
@@ -207,6 +214,7 @@ function handleValidate(env, licensed, corsHeaders) {
     report: modeFor(env, '/',      licensed),
     email:  modeFor(env, '/email', licensed),
     verify: modeFor(env, '/verify', licensed),
+    leer:   modeFor(env, '/leer-hoja', licensed),
   };
   const values = Object.values(routes);
   const mode = values.every(m => m === 'real') ? 'real'
@@ -370,6 +378,7 @@ export default {
     if (mode === 'demo') {
       return url.pathname === '/email'  ? demoEmail(corsHeaders)
            : url.pathname === '/verify' ? demoVerify(corsHeaders)
+           : url.pathname === '/leer-hoja' ? demoLeerHoja(corsHeaders)
            : demoReport(request, corsHeaders, ctx);
     }
 
@@ -379,6 +388,10 @@ export default {
 
     if (url.pathname === '/verify') {
       return handleVerify(request, env, corsHeaders);
+    }
+
+    if (url.pathname === '/leer-hoja') {
+      return handleLeerHoja(request, env, corsHeaders);
     }
 
     // ── SSE report generation ──────────────────────────────────────────────
@@ -523,6 +536,43 @@ async function handleVerify(request, env, corsHeaders) {
       truncated: out.stop_reason === 'max_tokens',
       usage: { input: out.usage?.input_tokens ?? null, output: out.usage?.output_tokens ?? null },
     });
+  } catch (error) {
+    return json({ error: { message: 'Claude: ' + error.message } }, 502);
+  }
+}
+
+// ── Answer-sheet reader (/leer-hoja) ───────────────────────────────────────
+//
+// Validation and the Anthropic bodies live in ./leer-hoja.js (pure, unit-tested
+// in tests/worker.mjs). Both models read in parallel; if either fails, the whole
+// request fails (the client needs the two readings to compare them). Nothing of
+// the request — least of all the photo — is logged or kept.
+async function handleLeerHoja(request, env, corsHeaders) {
+  const json = (data, status = 200) => new Response(JSON.stringify(data), {
+    status, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+
+  let body;
+  try { body = await request.json(); } catch { body = null; }
+  const req = parseLeerBody(body);
+  if (req.error) return json({ error: { message: req.error } }, 400);
+
+  const leer = async modelId => {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify(leerRequestBody(req, modelId)),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.error?.message || String(res.status));
+    }
+    return lecturaDeRespuesta(await res.json());
+  };
+
+  try {
+    const [a, b] = await Promise.all([leer(LEER_MODELS.a), leer(LEER_MODELS.b)]);
+    return json({ a, b });
   } catch (error) {
     return json({ error: { message: 'Claude: ' + error.message } }, 502);
   }

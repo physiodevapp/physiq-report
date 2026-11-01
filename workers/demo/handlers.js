@@ -109,3 +109,15 @@ export async function demoVerify(corsHeaders) {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }
+
+// ── POST /leer-hoja — lector con foto, simulado ─────────────────────────────
+//
+// No lee nada: sin licencia no se manda una foto a ninguna API, y una lectura
+// inventada no debe llegar nunca a una pantalla de confirmación. `demo: true` (y
+// la cabecera X-PhysiQ-Mode) hacen que physiq-assessment lo trate como «sin
+// licencia».
+export async function demoLeerHoja(corsHeaders) {
+  return new Response(JSON.stringify({ demo: true, a: null, b: null }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
