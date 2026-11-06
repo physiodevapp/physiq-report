@@ -423,6 +423,30 @@ assert('ac: sin citas (el informe no nombra fuentes)', Object.values(AC_CASOS).e
 assert('ac: va justo después del embarazo o posparto', /Posparto \(condición especial[\s\S]*\n\nPaciente anticoagulado o antiagregado \(condición especial/.test(buildClinicalContext({ ...FULL_PAYLOAD, em: EM_CASOS.posparto[0], ac: AC_CASOS.aspirinaSola[0] })));
 assert('sin ac (valoración anterior o sin la tarjeta), sin bloque', !buildClinicalContext(FULL_PAYLOAD).includes('Paciente anticoagulado o antiagregado (condición'));
 
+// Parkinson (pk): mismo bloque que bloquePKIA() de physiq-assessment
+// (lib/parkinson.js; Fase P, docs/parkinson.md). Los textos esperados son su
+// salida literal para estos datos, y su test (tests/unit/parkinson.mjs,
+// PK_CASOS) fija los mismos: si allí cambia, se copia aquí.
+console.log('\nParkinson (pk)');
+const PK_CASOS = {
+  completo: [{"es":"diagnosticado","hy":"3","fl":"SI","fa":"on","cg":"SI","ec":"SI"},
+    "Parkinson (condición especial marcada por el fisioterapeuta):\n  · Estado: diagnosticado\n  · Datos: H&Y 3; fluctuaciones (valorado en on); congelación; estimulador cerebral profundo\n  · Con estimulador cerebral profundo, no propongas diatermia, ultrasonido ni electroestimulación."],
+  sinDatos: [{"es":"diagnosticado","hy":null,"fl":null,"fa":null,"cg":null,"ec":"NO"},
+    "Parkinson (condición especial marcada por el fisioterapeuta):\n  · Estado: diagnosticado"],
+  estimuladorDuda: [{"es":"diagnosticado","hy":"45","fl":"NO","fa":null,"cg":"NO","ec":"NS"},
+    "Parkinson (condición especial marcada por el fisioterapeuta):\n  · Estado: diagnosticado\n  · Datos: H&Y 4–5; sin fluctuaciones; estimulador cerebral profundo: no lo sabe\n  · Con estimulador cerebral profundo, no propongas diatermia, ultrasonido ni electroestimulación."],
+  sospecha: [{"es":"sospecha"},
+    "Parkinson (condición especial marcada por el fisioterapeuta):\n  · Estado: sospecha\n  · Es una sospecha: no escribas que el paciente tiene Parkinson; el diagnóstico es médico. Recomienda la valoración por un especialista en trastornos del movimiento."],
+};
+for (const [k, [pk, esperado]] of Object.entries(PK_CASOS)) {
+  assert(`pk ${k}: el bloque es el de physiq-assessment, literal`, buildClinicalContext({ ...FULL_PAYLOAD, pk }).includes(esperado));
+}
+assert('pk: sin citas (el informe no nombra fuentes)', Object.values(PK_CASOS).every(([, t]) => !/(19|20)\d{2}|NICE/.test(t)));
+assert('pk: con la sospecha, sin decir que tiene Parkinson', PK_CASOS.sospecha[1].includes('no escribas que el paciente tiene Parkinson'));
+assert('pk: va justo después del anticoagulado', /Paciente anticoagulado o antiagregado \(condición especial[\s\S]*\n\nParkinson \(condición especial/.test(buildClinicalContext({ ...FULL_PAYLOAD, ac: AC_CASOS.aspirinaSola[0], pk: PK_CASOS.sospecha[0] })));
+assert('pk: antes de los fármacos que toma', /Parkinson \(condición especial[\s\S]*\n\nFármacos que toma \(familias/.test(buildClinicalContext({ ...FULL_PAYLOAD, pk: PK_CASOS.completo[0], fm: [{ id: 'aine', n: 'AINE' }] })));
+assert('sin pk (valoración anterior o sin la tarjeta), sin bloque', !buildClinicalContext(FULL_PAYLOAD).includes('Parkinson (condición'));
+
 // Fármacos que toma (fm): mismo bloque que bloqueFMIA() de physiq-assessment
 // (lib/farmacos-paciente.js; docs/farmacos-paciente.md). Los textos esperados
 // son su salida literal para estos datos, y su test
