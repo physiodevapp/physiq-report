@@ -447,6 +447,33 @@ assert('pk: va justo después del anticoagulado', /Paciente anticoagulado o anti
 assert('pk: antes de los fármacos que toma', /Parkinson \(condición especial[\s\S]*\n\nFármacos que toma \(familias/.test(buildClinicalContext({ ...FULL_PAYLOAD, pk: PK_CASOS.completo[0], fm: [{ id: 'aine', n: 'AINE' }] })));
 assert('sin pk (valoración anterior o sin la tarjeta), sin bloque', !buildClinicalContext(FULL_PAYLOAD).includes('Parkinson (condición'));
 
+// Implantes con electrodos (ie): mismo bloque que bloqueIEIA() de
+// physiq-assessment (lib/implantes.js; Fase P, docs/implantes-electrodos.md).
+// Los textos esperados son su salida literal para estos datos, y su test
+// (tests/unit/implantes.mjs, IE_CASOS) fija los mismos: si allí cambia, se copia aquí.
+console.log('\nImplantes con electrodos (ie)');
+const IE_CASOS = {
+  marcapasos: [{"es":"lleva","ti":["mp"]},
+    "Implantes con electrodos (condición especial marcada por el fisioterapeuta):\n  · Lleva: marcapasos\n  · No propongas onda corta ni microondas. No propongas ultrasonido terapéutico sobre el aparato o sus cables.\n  · Con marcapasos o desfibrilador, no propongas electroterapia salvo que conste que la ha autorizado su unidad de marcapasos."],
+  medular: [{"es":"lleva","ti":["em"]},
+    "Implantes con electrodos (condición especial marcada por el fisioterapeuta):\n  · Lleva: estimulador medular\n  · No propongas onda corta ni microondas. No propongas ultrasonido terapéutico sobre el aparato o sus cables.\n  · No propongas electroterapia sobre el aparato o sus cables.\n  · No propongas ultrasonido terapéutico en ninguna zona."],
+  coclear: [{"es":"lleva","ti":["ci"]},
+    "Implantes con electrodos (condición especial marcada por el fisioterapeuta):\n  · Lleva: implante coclear\n  · No propongas onda corta ni microondas. No propongas ultrasonido terapéutico sobre el aparato o sus cables.\n  · No propongas electroterapia sobre el aparato o sus cables."],
+  retirado: [{"es":"lleva","ti":["re"]},
+    "Implantes con electrodos (condición especial marcada por el fisioterapeuta):\n  · Lleva: implante retirado, pueden quedar electrodos\n  · No propongas onda corta ni microondas. No propongas ultrasonido terapéutico sobre el aparato o sus cables."],
+  sinChips: [{"es":"lleva","ti":[]},
+    "Implantes con electrodos (condición especial marcada por el fisioterapeuta):\n  · Lleva: sin registrar qué lleva\n  · No propongas onda corta ni microondas. No propongas ultrasonido terapéutico sobre el aparato o sus cables.\n  · Con marcapasos o desfibrilador, no propongas electroterapia salvo que conste que la ha autorizado su unidad de marcapasos."],
+  varios: [{"es":"lleva","ti":["dai","ecp"]},
+    "Implantes con electrodos (condición especial marcada por el fisioterapeuta):\n  · Lleva: desfibrilador implantable; estimulador cerebral profundo\n  · No propongas onda corta ni microondas. No propongas ultrasonido terapéutico sobre el aparato o sus cables.\n  · Con marcapasos o desfibrilador, no propongas electroterapia salvo que conste que la ha autorizado su unidad de marcapasos.\n  · No propongas electroterapia sobre el aparato o sus cables.\n  · No propongas ultrasonido terapéutico en ninguna zona."],
+};
+for (const [k, [ie, esperado]] of Object.entries(IE_CASOS)) {
+  assert(`ie ${k}: el bloque es el de physiq-assessment, literal`, buildClinicalContext({ ...FULL_PAYLOAD, ie }).includes(esperado));
+}
+assert('ie: sin citas (el informe no nombra fuentes)', Object.values(IE_CASOS).every(([, t]) => !/(19|20)\d{2}|NICE/.test(t)));
+assert('ie: va justo después del Parkinson', /Parkinson \(condición especial[\s\S]*\n\nImplantes con electrodos \(condición especial/.test(buildClinicalContext({ ...FULL_PAYLOAD, pk: PK_CASOS.sospecha[0], ie: IE_CASOS.marcapasos[0] })));
+assert('ie: antes de los fármacos que toma', /Implantes con electrodos \(condición especial[\s\S]*\n\nFármacos que toma \(familias/.test(buildClinicalContext({ ...FULL_PAYLOAD, ie: IE_CASOS.medular[0], fm: [{ id: 'aine', n: 'AINE' }] })));
+assert('sin ie (valoración anterior o sin la tarjeta), sin bloque', !buildClinicalContext(FULL_PAYLOAD).includes('Implantes con electrodos (condición'));
+
 // Fármacos que toma (fm): mismo bloque que bloqueFMIA() de physiq-assessment
 // (lib/farmacos-paciente.js; docs/farmacos-paciente.md). Los textos esperados
 // son su salida literal para estos datos, y su test
