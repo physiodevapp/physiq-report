@@ -474,6 +474,30 @@ assert('ie: va justo después del Parkinson', /Parkinson \(condición especial[\
 assert('ie: antes de los fármacos que toma', /Implantes con electrodos \(condición especial[\s\S]*\n\nFármacos que toma \(familias/.test(buildClinicalContext({ ...FULL_PAYLOAD, ie: IE_CASOS.medular[0], fm: [{ id: 'aine', n: 'AINE' }] })));
 assert('sin ie (valoración anterior o sin la tarjeta), sin bloque', !buildClinicalContext(FULL_PAYLOAD).includes('Implantes con electrodos (condición'));
 
+// Antecedente de cáncer (on): mismo bloque que bloqueONIA() de
+// physiq-assessment (lib/oncologico.js; Fase P, docs/antecedente-oncologico.md).
+// Los textos esperados son su salida literal para estos datos, y su test
+// (tests/unit/oncologico.mjs, ON_CASOS) fija los mismos: si allí cambia, se copia aquí.
+console.log('\nAntecedente de cáncer (on)');
+const CAB_ON = 'Antecedente de cáncer (condición especial marcada por el fisioterapeuta):';
+const ON_CASOS = {
+  completo: [{ es: 'terminado', cn: ['mama'], tr: ['quimio', 'cardiotoxico'], mo: 'si', mz: ['columna', 'femur'], rc: 'no', sc: ['linfedema', 'fatiga'], li: ['brazoIzquierdo'] },
+    `${CAB_ON}\n  · Cáncer: mama\n  · Estado: tratamiento terminado\n  · Datos: quimioterapia, antraciclinas o trastuzumab; metástasis óseas: sí (columna, fémur); corazón revisado: no; secuelas: linfedema (brazo izquierdo), fatiga\n  · Con tratamiento cardiotóxico sin revisión cardiaca, no propongas ejercicio de intensidad moderada sin valoración previa.\n  · Con metástasis óseas, nada de movimientos rápidos o cargados al final del recorrido en la zona de la lesión.`],
+  sinDatos: [{ es: 'tratamiento', cn: [], tr: [], mo: null, mz: [], rc: null, sc: [], li: [] },
+    `${CAB_ON}\n  · Cáncer: cáncer sin precisar\n  · Estado: en tratamiento`],
+  revisado: [{ es: 'terminado', cn: ['próstata'], tr: ['hormonal', 'rtCorazon'], mo: 'no', mz: [], rc: 'si_normal', sc: [], li: [] },
+    `${CAB_ON}\n  · Cáncer: próstata\n  · Estado: tratamiento terminado\n  · Datos: terapia hormonal, radioterapia (corazón en el campo); metástasis óseas: no; corazón revisado: sí, normal`],
+  dudaMetastasis: [{ es: 'tratamiento', cn: ['no sabe cuál'], tr: ['ns'], mo: 'ns', mz: [], rc: 'ns', sc: ['neuropatia'], li: [] },
+    `${CAB_ON}\n  · Cáncer: no sabe cuál\n  · Estado: en tratamiento\n  · Datos: tratamientos: no lo sabe; metástasis óseas: no lo sabe; corazón revisado: no lo sabe; secuelas: neuropatía\n  · Con metástasis óseas, nada de movimientos rápidos o cargados al final del recorrido en la zona de la lesión.`],
+};
+for (const [k, [on, esperado]] of Object.entries(ON_CASOS)) {
+  assert(`on ${k}: el bloque es el de physiq-assessment, literal`, buildClinicalContext({ ...FULL_PAYLOAD, on }).includes(esperado));
+}
+assert('on: sin citas (el informe no nombra fuentes)', Object.values(ON_CASOS).every(([, t]) => !/(19|20)\d{2}|NICE/.test(t)));
+assert('on: va justo después de los implantes', /Implantes con electrodos \(condición especial[\s\S]*\n\nAntecedente de cáncer \(condición especial/.test(buildClinicalContext({ ...FULL_PAYLOAD, ie: IE_CASOS.marcapasos[0], on: ON_CASOS.sinDatos[0] })));
+assert('on: antes de los fármacos que toma', /Antecedente de cáncer \(condición especial[\s\S]*\n\nFármacos que toma \(familias/.test(buildClinicalContext({ ...FULL_PAYLOAD, on: ON_CASOS.revisado[0], fm: [{ id: 'aine', n: 'AINE' }] })));
+assert('sin on (valoración anterior o sin la tarjeta), sin bloque', !buildClinicalContext(FULL_PAYLOAD).includes('Antecedente de cáncer (condición'));
+
 // Fármacos que toma (fm): mismo bloque que bloqueFMIA() de physiq-assessment
 // (lib/farmacos-paciente.js; docs/farmacos-paciente.md). Los textos esperados
 // son su salida literal para estos datos, y su test
